@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useState } from "react";
 import Image from "next/image";
 import { IGalleryImage } from "@/types/content";
-import { X, ChevronLeft, ChevronRight, Tag, Eye } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Tag, Eye, Image as ImageIcon } from "lucide-react";
 
 interface GalleryLightboxProps {
   image: IGalleryImage | null;
@@ -20,6 +20,12 @@ export function GalleryLightbox({
   onPrev,
   hasMultiple = false,
 }: GalleryLightboxProps) {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [image?.imageUrl]);
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -46,6 +52,8 @@ export function GalleryLightbox({
   }, [image, handleKeyDown]);
 
   if (!image) return null;
+
+  const isInternal = image.imageUrl?.startsWith("/api/images/");
 
   return (
     <div
@@ -80,14 +88,30 @@ export function GalleryLightbox({
 
         {/* Media Container */}
         <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] bg-foundation-space flex items-center justify-center overflow-hidden">
-          <Image
-            src={image.imageUrl}
-            alt={image.title}
-            fill
-            sizes="(max-width: 1024px) 100vw, 900px"
-            className="object-contain"
-            priority
-          />
+          {hasError || !image.imageUrl ? (
+            <div className="flex flex-col items-center justify-center p-8 text-center space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-foundation-slate/50 border border-foundation-slate flex items-center justify-center text-brand-cyan">
+                <ImageIcon className="w-7 h-7" />
+              </div>
+              <p className="text-sm font-sans text-typo-white font-medium">
+                Image could not be loaded
+              </p>
+              <p className="text-xs font-mono text-typo-gray">
+                {image.imageUrl || "No URL specified"}
+              </p>
+            </div>
+          ) : (
+            <Image
+              src={image.imageUrl}
+              alt={image.title}
+              fill
+              unoptimized={isInternal}
+              sizes="(max-width: 1024px) 100vw, 900px"
+              className="object-contain"
+              priority
+              onError={() => setHasError(true)}
+            />
+          )}
 
           {/* Prev / Next controls */}
           {hasMultiple && (

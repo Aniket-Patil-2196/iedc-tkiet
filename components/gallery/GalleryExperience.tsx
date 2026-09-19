@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { IGalleryImage } from "@/types/content";
 import { GalleryLightbox } from "@/components/gallery/GalleryLightbox";
-import { Box, Eye, Sparkles, Filter, Maximize2 } from "lucide-react";
+import { Box, Eye, Sparkles, Filter, Maximize2, Image as ImageIcon } from "lucide-react";
 
 // Dynamic import with SSR disabled for Three.js Canvas
 const PhotoGlobeCanvas = dynamic(
@@ -142,58 +142,11 @@ export function GalleryExperience({ images }: GalleryExperienceProps) {
         {/* Responsive Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredImages.map((img) => (
-            <article
-              key={img.id}
-              onClick={() => setSelectedImage(img)}
-              className="group relative rounded-2xl bg-foundation-dark border border-foundation-slate hover:border-brand-blue/60 transition-all duration-300 overflow-hidden cursor-pointer flex flex-col justify-between"
-            >
-              {/* Image Preview */}
-              <div className="relative w-full aspect-[16/10] bg-foundation-space overflow-hidden">
-                <Image
-                  src={img.imageUrl}
-                  alt={img.title}
-                  fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  className="object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                
-                {/* Hover overlay */}
-                <div className="absolute inset-0 bg-foundation-space/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="px-3.5 py-1.5 rounded-lg bg-brand-blue text-typo-white text-xs font-sans font-semibold inline-flex items-center gap-1.5 shadow-lg">
-                    <Maximize2 className="w-3.5 h-3.5" />
-                    Inspect Asset
-                  </span>
-                </div>
-
-                {/* Primary Tag */}
-                {img.tags && img.tags[0] && (
-                  <div className="absolute top-3 left-3 z-10">
-                    <span className="px-2.5 py-0.5 rounded-full bg-foundation-dark/80 backdrop-blur-md text-[11px] font-mono text-brand-cyan border border-foundation-slate">
-                      {img.tags[0]}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Text Info */}
-              <div className="p-5 space-y-2">
-                <h4 className="font-display font-bold text-typo-white text-lg group-hover:text-brand-cyan transition-colors">
-                  {img.title}
-                </h4>
-                {img.caption && (
-                  <p className="font-sans text-xs text-typo-gray leading-relaxed line-clamp-2">
-                    {img.caption}
-                  </p>
-                )}
-                <div className="pt-2 flex items-center justify-between text-xs font-mono text-typo-gray border-t border-foundation-slate/40">
-                  <span>REF #{img.id.replace("gal-", "")}</span>
-                  <span className="text-brand-cyan flex items-center gap-1">
-                    <Eye className="w-3 h-3" />
-                    View Details
-                  </span>
-                </div>
-              </div>
-            </article>
+            <GalleryCardItem
+              key={(img as any)._id || img.id}
+              img={img}
+              onSelect={() => setSelectedImage(img)}
+            />
           ))}
         </div>
       </section>
@@ -207,5 +160,84 @@ export function GalleryExperience({ images }: GalleryExperienceProps) {
         hasMultiple={images.length > 1}
       />
     </div>
+  );
+}
+
+function GalleryCardItem({
+  img,
+  onSelect,
+}: {
+  img: IGalleryImage;
+  onSelect: () => void;
+}) {
+  const [hasError, setHasError] = useState(false);
+  const isInternal = img.imageUrl?.startsWith("/api/images/");
+  const displayRef = ((img.id || (img as any)._id || "0") as string)
+    .replace("gal-", "")
+    .slice(-6);
+
+  return (
+    <article
+      onClick={onSelect}
+      className="group relative rounded-2xl bg-foundation-dark border border-foundation-slate hover:border-brand-blue/60 transition-all duration-300 overflow-hidden cursor-pointer flex flex-col justify-between"
+    >
+      {/* Image Preview */}
+      <div className="relative w-full aspect-[16/10] bg-foundation-space overflow-hidden">
+        {hasError || !img.imageUrl ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-foundation-slate/20 text-center">
+            <ImageIcon className="w-8 h-8 text-brand-cyan/50 mb-1" />
+            <span className="text-[11px] font-mono text-typo-gray">
+              Visual Record Archive
+            </span>
+          </div>
+        ) : (
+          <Image
+            src={img.imageUrl}
+            alt={img.title}
+            fill
+            unoptimized={isInternal}
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={() => setHasError(true)}
+          />
+        )}
+
+        {/* Hover overlay */}
+        <div className="absolute inset-0 bg-foundation-space/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <span className="px-3.5 py-1.5 rounded-lg bg-brand-blue text-typo-white text-xs font-sans font-semibold inline-flex items-center gap-1.5 shadow-lg">
+            <Maximize2 className="w-3.5 h-3.5" />
+            Inspect Asset
+          </span>
+        </div>
+
+        {/* Primary Tag */}
+        {img.tags && img.tags[0] && (
+          <div className="absolute top-3 left-3 z-10">
+            <span className="px-2.5 py-0.5 rounded-full bg-foundation-dark/80 backdrop-blur-md text-[11px] font-mono text-brand-cyan border border-foundation-slate">
+              {img.tags[0]}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Text Info */}
+      <div className="p-5 space-y-2">
+        <h4 className="font-display font-bold text-typo-white text-lg group-hover:text-brand-cyan transition-colors">
+          {img.title}
+        </h4>
+        {img.caption && (
+          <p className="font-sans text-xs text-typo-gray leading-relaxed line-clamp-2">
+            {img.caption}
+          </p>
+        )}
+        <div className="pt-2 flex items-center justify-between text-xs font-mono text-typo-gray border-t border-foundation-slate/40">
+          <span>REF #{displayRef}</span>
+          <span className="text-brand-cyan flex items-center gap-1">
+            <Eye className="w-3 h-3" />
+            View Details
+          </span>
+        </div>
+      </div>
+    </article>
   );
 }

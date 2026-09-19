@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import sharp from "sharp";
+import { connectToDatabase } from "@/lib/mongodb/client";
+import ImageModel from "@/models/Image";
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
@@ -8,7 +11,7 @@ export async function POST(request: Request) {
     const file = formData.get("file") as File | null;
     const directUrl = formData.get("url") as string | null;
 
-    // Direct URL support
+    // Direct URL passthrough (pasted external URLs)
     if (directUrl && directUrl.trim()) {
       return NextResponse.json({
         success: true,
@@ -24,25 +27,25 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate mime type
+    // Validate MIME type
     const allowedTypes = [
       "image/jpeg",
       "image/png",
       "image/webp",
-      "image/svg+xml",
       "image/gif",
     ];
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid file format. Please upload JPEG, PNG, WebP, or SVG.",
+          error:
+            "Invalid file format. Please upload JPEG, PNG, WebP, or GIF.",
         },
         { status: 400 }
       );
     }
 
-    // Limit file size (5MB)
+    // Validate raw file size (5MB limit before processing)
     if (file.size > 5 * 1024 * 1024) {
       return NextResponse.json(
         { success: false, error: "File exceeds 5MB limit." },
@@ -50,29 +53,39 @@ export async function POST(request: Request) {
       );
     }
 
-    // Write file to local public/uploads directory (development abstraction)
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+    // Connect to database
+    const conn = await connectToDatabase();
+    if (!conn) {
+      return NextResponse.json(
+        { success: false, error: "Database not connected." },
+        { status: 503 }
+      );
     }
 
-    const ext = path.extname(file.name) || ".jpg";
-    const cleanBaseName = path
-      .basename(file.name, ext)
-      .replace(/[^a-zA-Z0-9_-]/g, "");
-    const filename = `iedc-${Date.now()}-${cleanBaseName}${ext}`;
-    const filePath = path.join(uploadsDir, filename);
+    // Read file buffer
+    const rawBuffer = Buffer.from(await file.arrayBuffer());
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    fs.writeFileSync(filePath, buffer);
+    // Process with sharp: auto-rotate (EXIF), resize, convert to WebP
+    const processedBuffer = await sharp(rawBuffer)
+      .rotate() // Respect EXIF orientation
+      .resize({ width: 1600, withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
 
-    const publicUrl = `/uploads/${filename}`;
+    // Save to MongoDB
+    const imageDoc = await ImageModel.create({
+      data: processedBuffer,
+      contentType: "image/webp",
+      size: processedBuffer.length,
+    });
+
+    const publicUrl = `/api/images/${imageDoc._id}`;
 
     return NextResponse.json({
       success: true,
       url: publicUrl,
-      storage: "local_development",
-      message: "Asset uploaded successfully.",
+      storage: "mongodb",
+      message: "Image uploaded and optimized successfully.",
     });
   } catch (error) {
     console.error("[IMAGE UPLOAD ERROR]", error);

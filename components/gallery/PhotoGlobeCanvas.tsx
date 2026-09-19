@@ -13,6 +13,7 @@ interface PhotoGlobeCanvasProps {
 
 /**
  * Creates a crisp, high-resolution CanvasTexture representing the photo card.
+ * Loads image with crossOrigin = "anonymous" and uses procedural card as fallback.
  */
 function createCardTexture(item: IGalleryImage): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -20,13 +21,79 @@ function createCardTexture(item: IGalleryImage): THREE.CanvasTexture {
   canvas.height = 340;
   const ctx = canvas.getContext("2d");
 
-  if (ctx) {
+  const displayRef = ((item.id || (item as any)._id || "0") as string)
+    .replace("gal-", "")
+    .slice(-6);
+
+  const drawCard = (photoImg?: HTMLImageElement | null) => {
+    if (!ctx) return;
+
     // Dark metallic gradient background
     const bgGrad = ctx.createLinearGradient(0, 0, 512, 340);
     bgGrad.addColorStop(0, "#0D111A");
     bgGrad.addColorStop(1, "#151B26");
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, 512, 340);
+
+    // If photo image loaded, render it in the card background with overlay
+    if (photoImg) {
+      try {
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        // Cover-fit image into card bounds
+        const imgRatio = photoImg.width / photoImg.height;
+        const canvasRatio = 512 / 340;
+        let sx = 0, sy = 0, sw = photoImg.width, sh = photoImg.height;
+        if (imgRatio > canvasRatio) {
+          sw = photoImg.height * canvasRatio;
+          sx = (photoImg.width - sw) / 2;
+        } else {
+          sh = photoImg.width / canvasRatio;
+          sy = (photoImg.height - sh) / 2;
+        }
+        ctx.drawImage(photoImg, sx, sy, sw, sh, 0, 0, 512, 340);
+        ctx.restore();
+
+        // Dark gradient overlay for text readability
+        const overlayGrad = ctx.createLinearGradient(0, 100, 0, 340);
+        overlayGrad.addColorStop(0, "rgba(13, 17, 26, 0.4)");
+        overlayGrad.addColorStop(1, "rgba(13, 17, 26, 0.95)");
+        ctx.fillStyle = overlayGrad;
+        ctx.fillRect(0, 0, 512, 340);
+      } catch {
+        // Fallback silently if drawImage fails
+      }
+    } else {
+      // Tech grid overlay for fallback procedural card
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.08)";
+      ctx.lineWidth = 1;
+      for (let x = 20; x < 500; x += 30) {
+        ctx.beginPath();
+        ctx.moveTo(x, 20);
+        ctx.lineTo(x, 320);
+        ctx.stroke();
+      }
+      for (let y = 20; y < 320; y += 30) {
+        ctx.beginPath();
+        ctx.moveTo(20, y);
+        ctx.lineTo(492, y);
+        ctx.stroke();
+      }
+
+      // Center Emblem / Icon
+      ctx.beginPath();
+      ctx.arc(256, 160, 42, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(21, 27, 38, 0.9)";
+      ctx.fill();
+      ctx.strokeStyle = "#38BDF8";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(256, 160, 16, 0, Math.PI * 2);
+      ctx.fillStyle = "#2563EB";
+      ctx.fill();
+    }
 
     // Glowing subtle cyber border
     ctx.strokeStyle = "#2563EB";
@@ -37,29 +104,6 @@ function createCardTexture(item: IGalleryImage): THREE.CanvasTexture {
     ctx.strokeStyle = "rgba(56, 189, 248, 0.4)";
     ctx.lineWidth = 2;
     ctx.strokeRect(14, 14, 484, 312);
-
-    // Ambient tech radial glow in center
-    const glow = ctx.createRadialGradient(256, 170, 10, 256, 170, 180);
-    glow.addColorStop(0, "rgba(37, 99, 235, 0.25)");
-    glow.addColorStop(1, "rgba(13, 17, 26, 0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(16, 16, 480, 308);
-
-    // Tech grid overlay
-    ctx.strokeStyle = "rgba(56, 189, 248, 0.08)";
-    ctx.lineWidth = 1;
-    for (let x = 20; x < 500; x += 30) {
-      ctx.beginPath();
-      ctx.moveTo(x, 20);
-      ctx.lineTo(x, 320);
-      ctx.stroke();
-    }
-    for (let y = 20; y < 320; y += 30) {
-      ctx.beginPath();
-      ctx.moveTo(20, y);
-      ctx.lineTo(492, y);
-      ctx.stroke();
-    }
 
     // Category Tag Badge
     const tag = (item.tags && item.tags[0]) || "INNOVATION";
@@ -79,29 +123,14 @@ function createCardTexture(item: IGalleryImage): THREE.CanvasTexture {
     ctx.fillStyle = "#A7AFBE";
     ctx.font = "600 12px system-ui, -apple-system, sans-serif";
     ctx.textAlign = "right";
-    ctx.fillText(`ARCHIVE #${item.id.replace("gal-", "")}`, 470, 56);
-
-    // Center Emblem / Icon
-    ctx.beginPath();
-    ctx.arc(256, 160, 42, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(21, 27, 38, 0.9)";
-    ctx.fill();
-    ctx.strokeStyle = "#38BDF8";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(256, 160, 16, 0, Math.PI * 2);
-    ctx.fillStyle = "#2563EB";
-    ctx.fill();
+    ctx.fillText(`ARCHIVE #${displayRef}`, 470, 56);
 
     // Card Title
     ctx.fillStyle = "#F5F7FA";
     ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
     ctx.textAlign = "left";
-    
-    // Truncate title if long
-    let titleText = item.title;
+
+    let titleText = item.title || "Gallery Moment";
     if (titleText.length > 28) {
       titleText = titleText.substring(0, 25) + "...";
     }
@@ -111,10 +140,30 @@ function createCardTexture(item: IGalleryImage): THREE.CanvasTexture {
     ctx.fillStyle = "#A7AFBE";
     ctx.font = "12px system-ui, -apple-system, sans-serif";
     ctx.fillText("IEDC TKIET • Click to view full record", 36, 295);
-  }
+  };
+
+  // Draw initial fallback card immediately
+  drawCard(null);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.needsUpdate = true;
+
+  // Asynchronously load the image asset with crossOrigin = "anonymous"
+  if (typeof window !== "undefined" && item.imageUrl) {
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      drawCard(img);
+      texture.needsUpdate = true;
+    };
+    img.onerror = () => {
+      // Keep procedural fallback texture on error
+      drawCard(null);
+      texture.needsUpdate = true;
+    };
+    img.src = item.imageUrl;
+  }
+
   return texture;
 }
 

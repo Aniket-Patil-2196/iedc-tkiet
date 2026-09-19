@@ -135,6 +135,7 @@ export function ImageInput({
               src={value}
               alt="Preview"
               fill
+              unoptimized={value.startsWith("/api/images/")}
               className="object-cover"
               onError={(e) => {
                 // If invalid preview URL

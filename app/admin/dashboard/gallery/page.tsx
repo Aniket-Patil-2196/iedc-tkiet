@@ -184,11 +184,9 @@ export default function AdminGalleryPage() {
                   className="rounded-2xl bg-foundation-dark border border-foundation-slate overflow-hidden flex flex-col justify-between group hover:border-brand-blue/50 transition-all"
                 >
                   <div className="relative w-full aspect-[16/10] bg-foundation-space">
-                    <Image
-                      src={item.imageUrl}
-                      alt={item.title}
-                      fill
-                      className="object-cover"
+                    <AdminGalleryCardThumbnail
+                      imageUrl={item.imageUrl}
+                      title={item.title}
                     />
                     <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
                       <span className="px-2 py-0.5 rounded-md bg-foundation-dark/80 backdrop-blur-md text-[10px] font-mono text-brand-cyan border border-foundation-slate">
@@ -383,5 +381,38 @@ export default function AdminGalleryPage() {
         }}
       />
     </div>
+  );
+}
+
+function AdminGalleryCardThumbnail({
+  imageUrl,
+  title,
+}: {
+  imageUrl: string;
+  title: string;
+}) {
+  const [hasError, setHasError] = useState(false);
+  const isInternal = imageUrl?.startsWith("/api/images/");
+
+  if (hasError || !imageUrl) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-foundation-slate/20 p-2 text-center">
+        <ImageIcon className="w-6 h-6 text-brand-cyan/60 mb-1" />
+        <span className="text-[9px] font-mono text-typo-gray">
+          No Preview
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={imageUrl}
+      alt={title}
+      fill
+      unoptimized={isInternal}
+      className="object-cover"
+      onError={() => setHasError(true)}
+    />
   );
 }
