@@ -99,19 +99,23 @@ export async function POST(request: Request) {
     // 5. Create session token (Edge-compatible Web Crypto HMAC)
     const token = await createSessionToken(adminEmail);
 
+    const isProduction = process.env.NODE_ENV === "production";
+    const isCrossOrigin = Boolean(process.env.ALLOWED_ORIGIN);
+
     const response = NextResponse.json({
       success: true,
       message: "Admin authentication successful.",
       email: adminEmail,
+      token,
     });
 
-    // 6. Set secure HTTP-only cookie
+    // 6. Set secure HTTP-only cookie (SameSite=None + Secure for cross-origin Vercel -> Render)
     response.cookies.set({
       name: SESSION_COOKIE_NAME,
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: isProduction || isCrossOrigin,
+      sameSite: isProduction || isCrossOrigin ? "none" : "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });

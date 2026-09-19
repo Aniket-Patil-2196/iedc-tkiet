@@ -109,6 +109,12 @@ export async function verifyAdminSession(
 
   if (req) {
     token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+    if (!token) {
+      const authHeader = req.headers.get("authorization");
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.substring(7).trim();
+      }
+    }
   } else {
     try {
       const cookieStore = cookies();

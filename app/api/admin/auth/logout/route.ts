@@ -7,12 +7,15 @@ export async function POST() {
     message: "Admin session terminated.",
   });
 
+  const isProduction = process.env.NODE_ENV === "production";
+  const isCrossOrigin = Boolean(process.env.ALLOWED_ORIGIN);
+
   response.cookies.set({
     name: SESSION_COOKIE_NAME,
     value: "",
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: isProduction || isCrossOrigin,
+    sameSite: isProduction || isCrossOrigin ? "none" : "lax",
     path: "/",
     maxAge: 0,
   });
