@@ -3,8 +3,13 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { Menu } from "lucide-react";
-import { NavOverlay } from "./NavOverlay";
+
+const NavOverlay = dynamic(
+  () => import("./NavOverlay").then((mod) => mod.NavOverlay),
+  { ssr: false }
+);
 
 export function Header() {
   const [isNavOpen, setIsNavOpen] = useState(false);

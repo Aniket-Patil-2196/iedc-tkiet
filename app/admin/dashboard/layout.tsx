@@ -1,7 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import dynamic from "next/dynamic";
+
+const AdminSidebar = dynamic(
+  () => import("@/components/admin/AdminSidebar").then((mod) => mod.AdminSidebar),
+  { ssr: false }
+);
 
 export default function AdminDashboardLayout({
   children,

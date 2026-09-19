@@ -1,12 +1,24 @@
 import type { Metadata, Viewport } from "next";
 import { Syne, Manrope } from "next/font/google";
 import "./globals.css";
+import dynamic from "next/dynamic";
 import { Header } from "@/components/navigation/Header";
 import { Footer } from "@/components/footer/Footer";
-import { BrandedLoader } from "@/components/loading/BrandedLoader";
-import { Cursor } from "@/components/animation/Cursor";
 import { PageTransition } from "@/components/animation/PageTransition";
 import { SITE_CONFIG } from "@/lib/constants/site";
+
+const BrandedLoader = dynamic(
+  () =>
+    import("@/components/loading/BrandedLoader").then(
+      (mod) => mod.BrandedLoader
+    ),
+  { ssr: false }
+);
+
+const Cursor = dynamic(
+  () => import("@/components/animation/Cursor").then((mod) => mod.Cursor),
+  { ssr: false }
+);
 
 const syne = Syne({
   subsets: ["latin"],
