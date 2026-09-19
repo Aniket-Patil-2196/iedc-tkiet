@@ -43,7 +43,12 @@ const NAV_ITEMS = [
 ];
 
 export function AdminSidebar({ isOpen = false, onClose }: AdminSidebarProps) {
-  const pathname = usePathname();
+  let pathname = "";
+  try {
+    pathname = usePathname() || "";
+  } catch {
+    pathname = "";
+  }
   const router = useRouter();
 
   const handleLogout = async () => {

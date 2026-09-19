@@ -12,7 +12,12 @@ interface PageTransitionProps {
  * Provides a quiet, instant opacity enter without blocking screens or cinematic delay.
  */
 export function PageTransition({ children }: PageTransitionProps) {
-  const pathname = usePathname();
+  let pathname = "";
+  try {
+    pathname = usePathname() || "";
+  } catch {
+    pathname = "";
+  }
 
   return (
     <div
@@ -23,3 +28,4 @@ export function PageTransition({ children }: PageTransitionProps) {
     </div>
   );
 }
+

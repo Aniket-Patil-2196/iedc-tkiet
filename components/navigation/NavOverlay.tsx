@@ -15,7 +15,12 @@ interface NavOverlayProps {
 }
 
 export function NavOverlay({ isOpen, onClose }: NavOverlayProps) {
-  const pathname = usePathname();
+  let pathname = "";
+  try {
+    pathname = usePathname() || "";
+  } catch {
+    pathname = "";
+  }
   const overlayRef = useRef<HTMLDivElement>(null);
   const linksContainerRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
