@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import LeadershipMessageModel from "@/models/LeadershipMessage";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const conn = await connectToDatabase();

@@ -7,28 +7,24 @@ import AchievementModel from "@/models/Achievement";
 import GalleryImageModel from "@/models/GalleryImage";
 import ContactSubmissionModel from "@/models/ContactSubmission";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const mongooseConn = await connectToDatabase();
 
     if (!mongooseConn) {
-      return NextResponse.json({
-        success: true,
-        databaseConnected: false,
-        stats: {
-          eventsCount: 0,
-          blogsCount: 0,
-          teamCount: 0,
-          achievementsCount: 0,
-          galleryCount: 0,
-          unreadContactsCount: 0,
+      console.warn("[ADMIN STATS] Database unreachable during stats fetch");
+      return NextResponse.json(
+        {
+          success: false,
+          databaseConnected: false,
+          error: "Database unreachable. Could not connect to MongoDB cluster.",
         },
-        recentActivity: {
-          latestEvent: null,
-          latestBlog: null,
-          latestContact: null,
-        },
-      });
+        { status: 503 }
+      );
     }
 
     const [
@@ -57,6 +53,15 @@ export async function GET() {
         .select("name subject createdAt"),
     ]);
 
+    console.log("[ADMIN STATS COMPILED]", {
+      eventsCount,
+      blogsCount,
+      teamCount,
+      achievementsCount,
+      galleryCount,
+      unreadContactsCount,
+    });
+
     return NextResponse.json({
       success: true,
       databaseConnected: true,
@@ -76,10 +81,10 @@ export async function GET() {
           : null,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[ADMIN STATS ERROR]", error);
     return NextResponse.json(
-      { success: false, error: "Failed to compile admin statistics." },
+      { success: false, error: error?.message || "Failed to compile admin statistics." },
       { status: 500 }
     );
   }

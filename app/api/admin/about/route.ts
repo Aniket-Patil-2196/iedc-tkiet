@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import AboutContentModel from "@/models/AboutContent";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const DEFAULT_ABOUT = {
   whoWeAre:
     "The Innovation and Entrepreneurship Development Cell (IEDC) at Tatyasaheb Kore Institute of Engineering and Technology (TKIET), Warananagar, is an institutional catalyst dedicated to nurturing student innovators, engineering thinkers, and venture creators. We provide an ecosystem bridging academic engineering theory with real-world entrepreneurial execution.",

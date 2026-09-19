@@ -18,7 +18,7 @@ export default function AdminContactPage() {
   const fetchContacts = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/contact");
+      const res = await fetch("/api/admin/contact", { cache: "no-store" });
       const json = await res.json();
       if (json.success) {
         setSubmissions(json.data);

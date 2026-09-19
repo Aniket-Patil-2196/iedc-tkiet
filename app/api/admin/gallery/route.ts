@@ -4,6 +4,8 @@ import GalleryImageModel from "@/models/GalleryImage";
 import { ingestImage } from "@/lib/utils/image-ingest";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   try {

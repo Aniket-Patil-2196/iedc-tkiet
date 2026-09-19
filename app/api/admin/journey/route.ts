@@ -3,6 +3,10 @@ import { connectToDatabase } from "@/lib/mongodb/client";
 import JourneyModel from "@/models/Journey";
 import { CANONICAL_JOURNEY_MILESTONES } from "@/lib/data/journeyData";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const conn = await connectToDatabase();

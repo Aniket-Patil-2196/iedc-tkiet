@@ -14,7 +14,7 @@ export default function AdminAboutPage() {
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/about")
+    fetch("/api/admin/about", { cache: "no-store" })
       .then((res) => res.json())
       .then((json) => {
         if (json.success && json.data) {

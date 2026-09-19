@@ -32,7 +32,7 @@ export default function AdminJourneyPage() {
   const fetchMilestones = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/journey");
+      const res = await fetch("/api/admin/journey", { cache: "no-store" });
       const json = await res.json();
       if (json.success) {
         setMilestones(json.data);

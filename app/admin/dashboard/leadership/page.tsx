@@ -27,7 +27,7 @@ export default function AdminLeadershipPage() {
   const fetchLeadership = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/leadership");
+      const res = await fetch("/api/admin/leadership", { cache: "no-store" });
       const json = await res.json();
       if (json.success) {
         setMessages(json.data);

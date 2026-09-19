@@ -33,7 +33,7 @@ export default function AdminSpeakersPage() {
   const fetchSpeakers = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/speakers");
+      const res = await fetch("/api/admin/speakers", { cache: "no-store" });
       const json = await res.json();
       if (json.success) {
         setSpeakers(json.data);

@@ -30,7 +30,7 @@ export default function AdminCollaborationsPage() {
   const fetchCollabs = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/collaborations");
+      const res = await fetch("/api/admin/collaborations", { cache: "no-store" });
       const json = await res.json();
       if (json.success) {
         setCollabs(json.data);
