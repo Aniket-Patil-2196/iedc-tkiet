@@ -66,10 +66,10 @@ export default function AdminGalleryPage() {
     setEditingItem(item);
     setFormError(null);
     setFormData({
-      title: item.title,
+      title: item.title || "",
       caption: item.caption || "",
-      imageUrl: item.imageUrl,
-      tags: Array.isArray(item.tags) ? item.tags.join(", ") : "Workshop",
+      imageUrl: item.imageUrl || "",
+      tags: Array.isArray(item.tags) ? item.tags.join(", ") : (item.tags || "Workshop"),
       order: item.order || 1,
       published: (item as any).published !== false,
     });
@@ -95,10 +95,22 @@ export default function AdminGalleryPage() {
       });
 
       const json = await res.json();
-      if (json.success) {
+      if (json.success && json.data) {
+        // Immediate optimistic update of gallery photos list
+        if (isEdit) {
+          setPhotos((prev) =>
+            prev.map((p) =>
+              ((p as any)._id || p.id) === ((json.data as any)._id || json.data.id)
+                ? json.data
+                : p
+            )
+          );
+        } else {
+          setPhotos((prev) => [...prev, json.data]);
+        }
         setModalOpen(false);
         setFormError(null);
-        fetchPhotos();
+        await fetchPhotos();
       } else {
         const msg = json.error || "Failed to save photo.";
         setFormError(msg);

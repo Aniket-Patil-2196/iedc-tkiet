@@ -31,48 +31,60 @@ export async function PUT(request: Request, { params }: Params) {
     }
 
     const body = await request.json();
-    if (body.tags && typeof body.tags === "string") {
-      body.tags = body.tags
-        .split(",")
-        .map((t: string) => t.trim())
-        .filter(Boolean);
-    }
+    console.log("[GALLERY UPDATE INCOMING]", {
+      id: params.id,
+      title: body?.title,
+      incomingImageUrl: body?.imageUrl,
+      order: body?.order,
+    });
+
+    let finalImageUrl = body.imageUrl;
 
     // Ingest external image URL if updated
     if (body.imageUrl) {
       const ingestResult = await ingestImage(body.imageUrl);
       if (!ingestResult.success) {
+        console.warn("[GALLERY UPDATE INGEST REJECTED]", ingestResult.error);
         return NextResponse.json(
           { success: false, error: ingestResult.error },
           { status: 400 }
         );
       }
-      body.imageUrl = ingestResult.url || body.imageUrl;
+      finalImageUrl = ingestResult.url || body.imageUrl;
     }
 
     // If imageUrl is changing, check if we need to delete the old Image document
-    if (body.imageUrl !== undefined) {
+    if (finalImageUrl !== undefined) {
       const existing = await GalleryImageModel.findById(params.id)
         .select("imageUrl")
         .lean();
       if (existing) {
         const oldImageId = extractImageId((existing as any).imageUrl);
-        const newImageId = extractImageId(body.imageUrl);
+        const newImageId = extractImageId(finalImageUrl);
         // Only delete if old URL was internal AND it's changing to a different URL
         if (oldImageId && oldImageId !== newImageId) {
           await ImageModel.findByIdAndDelete(oldImageId).catch(() => {
-            // Non-critical: log but don't fail the update
-            console.warn(
-              `[GALLERY] Could not delete old image ${oldImageId}`
-            );
+            console.warn(`[GALLERY] Could not delete old image ${oldImageId}`);
           });
         }
       }
     }
 
+    const updateData: Record<string, any> = {
+      ...body,
+      imageUrl: finalImageUrl,
+    };
+
+    if (body.tags && typeof body.tags === "string") {
+      updateData.tags = body.tags
+        .split(",")
+        .map((t: string) => t.trim())
+        .filter(Boolean);
+    }
+
     const updated = await GalleryImageModel.findByIdAndUpdate(
       params.id,
-      { ...body },
+      updateData,
       { new: true, runValidators: true }
     );
 
@@ -83,11 +95,17 @@ export async function PUT(request: Request, { params }: Params) {
       );
     }
 
+    console.log("[GALLERY UPDATE STORED]", {
+      id: updated._id,
+      title: updated.title,
+      storedImageUrl: updated.imageUrl,
+    });
+
     return NextResponse.json({ success: true, data: updated });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[ADMIN UPDATE GALLERY ERROR]", error);
     return NextResponse.json(
-      { success: false, error: "Failed to update gallery photo." },
+      { success: false, error: error?.message || "Failed to update gallery photo." },
       { status: 500 }
     );
   }
@@ -111,6 +129,8 @@ export async function DELETE(_request: Request, { params }: Params) {
       );
     }
 
+    console.log("[GALLERY DELETED]", { id: deleted._id, title: deleted.title, imageUrl: deleted.imageUrl });
+
     // Clean up the stored Image document if it was an internal upload
     const imageId = extractImageId(deleted.imageUrl);
     if (imageId) {
@@ -120,10 +140,10 @@ export async function DELETE(_request: Request, { params }: Params) {
     }
 
     return NextResponse.json({ success: true, message: "Photo deleted." });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[ADMIN DELETE GALLERY ERROR]", error);
     return NextResponse.json(
-      { success: false, error: "Failed to delete photo." },
+      { success: false, error: error?.message || "Failed to delete photo." },
       { status: 500 }
     );
   }

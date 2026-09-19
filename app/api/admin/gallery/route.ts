@@ -39,6 +39,12 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    console.log("[GALLERY CREATE INCOMING]", {
+      title: body?.title,
+      incomingImageUrl: body?.imageUrl,
+      order: body?.order,
+    });
+
     const conn = await connectToDatabase();
     if (!conn) {
       return NextResponse.json(
@@ -57,6 +63,7 @@ export async function POST(request: Request) {
     // Ingest and validate external images (downloads, SSRF-protects, sharp-optimizes, stores in MongoDB)
     const ingestResult = await ingestImage(body.imageUrl);
     if (!ingestResult.success) {
+      console.warn("[GALLERY CREATE INGEST REJECTED]", ingestResult.error);
       return NextResponse.json(
         { success: false, error: ingestResult.error },
         { status: 400 }
@@ -71,20 +78,28 @@ export async function POST(request: Request) {
       : ["Gallery"];
 
     const photo = await GalleryImageModel.create({
-      ...body,
+      title: body.title,
+      caption: body.caption || "",
       imageUrl: finalImageUrl,
+      aspectRatio: body.aspectRatio || "square",
       tags,
+      eventRefId: body.eventRefId,
       published: body.published !== false,
       order: Number(body.order) || 1,
     });
 
+    console.log("[GALLERY CREATE STORED]", {
+      id: photo._id,
+      title: photo.title,
+      storedImageUrl: photo.imageUrl,
+    });
+
     return NextResponse.json({ success: true, data: photo });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[ADMIN CREATE GALLERY ERROR]", error);
     return NextResponse.json(
-      { success: false, error: "Failed to create gallery entry." },
+      { success: false, error: error?.message || "Failed to create gallery entry." },
       { status: 500 }
     );
   }
 }
-

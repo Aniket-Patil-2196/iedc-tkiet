@@ -22,10 +22,16 @@ export async function POST(request: Request) {
 
     if (!file) {
       return NextResponse.json(
-        { success: false, error: "No image file or URL was provided." },
+        { success: false, error: "No image file was provided." },
         { status: 400 }
       );
     }
+
+    console.log("[UPLOAD INCOMING FILE]", {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+    });
 
     // Validate MIME type
     const allowedTypes = [
@@ -80,6 +86,11 @@ export async function POST(request: Request) {
     });
 
     const publicUrl = `/api/images/${imageDoc._id}`;
+    console.log("[UPLOAD STORED IMAGE]", {
+      id: imageDoc._id,
+      url: publicUrl,
+      size: imageDoc.size,
+    });
 
     return NextResponse.json({
       success: true,
@@ -87,10 +98,10 @@ export async function POST(request: Request) {
       storage: "mongodb",
       message: "Image uploaded and optimized successfully.",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[IMAGE UPLOAD ERROR]", error);
     return NextResponse.json(
-      { success: false, error: "Failed to upload image." },
+      { success: false, error: error?.message || "Failed to upload image." },
       { status: 500 }
     );
   }

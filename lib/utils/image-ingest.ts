@@ -45,6 +45,18 @@ function isPrivateHost(hostname: string): boolean {
   return false;
 }
 
+const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".avif"];
+
+function looksLikeDirectImageUrl(urlString: string): boolean {
+  try {
+    const { pathname } = new URL(urlString);
+    const lower = pathname.toLowerCase();
+    return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+  } catch {
+    return false;
+  }
+}
+
 export interface IngestResult {
   success: boolean;
   url?: string;
@@ -53,7 +65,8 @@ export interface IngestResult {
 
 /**
  * Validates, downloads, processes with sharp, and saves an external image URL to MongoDB.
- * If the URL is already an internal path (/api/images/... or /images/...), it returns it as-is.
+ * If the URL is already an internal path (/api/images/... or /images/...), returns as-is.
+ * If downloading fails but URL is a direct image link, falls back to original URL so data is never lost.
  */
 export async function ingestImage(rawUrl: string): Promise<IngestResult> {
   const trimmed = rawUrl.trim();
@@ -90,8 +103,8 @@ export async function ingestImage(rawUrl: string): Promise<IngestResult> {
     };
   }
 
-  // Fetch external asset with timeout and browser-like user agent
-  let response: Response;
+  // Fetch external asset with timeout, browser User-Agent, and Referer
+  let response: Response | null = null;
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -101,12 +114,21 @@ export async function ingestImage(rawUrl: string): Promise<IngestResult> {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        Referer: parsedUrl.origin + "/",
         Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
       },
     });
 
     clearTimeout(timeoutId);
   } catch (err: any) {
+    console.error("[IMAGE INGEST NETWORK ERROR]", { url: trimmed, message: err?.message });
+
+    // Fallback: If it's clearly a direct image URL, keep original rather than dropping
+    if (looksLikeDirectImageUrl(trimmed)) {
+      console.warn("[IMAGE INGEST FALLBACK] Retaining original direct image URL:", trimmed);
+      return { success: true, url: trimmed };
+    }
+
     if (err.name === "AbortError") {
       return {
         success: false,
@@ -120,6 +142,14 @@ export async function ingestImage(rawUrl: string): Promise<IngestResult> {
   }
 
   if (!response.ok) {
+    console.error("[IMAGE INGEST HTTP ERROR]", { url: trimmed, status: response.status });
+
+    // Fallback: If it's a direct image URL, keep original rather than failing
+    if (looksLikeDirectImageUrl(trimmed)) {
+      console.warn("[IMAGE INGEST FALLBACK] Non-200 from server fetch, retaining direct image URL:", trimmed);
+      return { success: true, url: trimmed };
+    }
+
     return {
       success: false,
       error: `Failed to retrieve image (HTTP ${response.status}). The link may be private, expired, or blocked.`,
@@ -129,10 +159,10 @@ export async function ingestImage(rawUrl: string): Promise<IngestResult> {
   // Validate Content-Type
   const contentType = (response.headers.get("content-type") || "").toLowerCase();
 
-  // Check if it's an HTML page (like Pinterest pin page, Instagram post, etc.)
+  // Reject HTML pages (e.g. Pinterest pin page, blog post HTML)
   if (
     contentType.includes("text/html") ||
-    !contentType.startsWith("image/")
+    (!contentType.startsWith("image/") && !looksLikeDirectImageUrl(trimmed))
   ) {
     return {
       success: false,
@@ -150,27 +180,36 @@ export async function ingestImage(rawUrl: string): Promise<IngestResult> {
     };
   }
 
-  // Read buffer
-  const arrayBuf = await response.arrayBuffer();
-  if (arrayBuf.byteLength > 5 * 1024 * 1024) {
+  let rawBuffer: Buffer;
+  try {
+    const arrayBuf = await response.arrayBuffer();
+    if (arrayBuf.byteLength > 5 * 1024 * 1024) {
+      return {
+        success: false,
+        error: "Image file exceeds the 5MB size limit.",
+      };
+    }
+    rawBuffer = Buffer.from(arrayBuf);
+  } catch (readErr: any) {
+    console.error("[IMAGE INGEST READ ERROR]", { url: trimmed, message: readErr?.message });
+    if (looksLikeDirectImageUrl(trimmed)) {
+      return { success: true, url: trimmed };
+    }
     return {
       success: false,
-      error: "Image file exceeds the 5MB size limit.",
+      error: "Failed to read image stream from host.",
     };
   }
-
-  const rawBuffer = Buffer.from(arrayBuf);
 
   // Connect to database
   const conn = await connectToDatabase();
   if (!conn) {
-    return {
-      success: false,
-      error: "Database unavailable while storing image.",
-    };
+    // If DB is offline for image storage, fall back to direct URL if valid
+    console.warn("[IMAGE INGEST] Database offline, saving direct URL:", trimmed);
+    return { success: true, url: trimmed };
   }
 
-  // Process image with Sharp
+  // Process image with Sharp and store in MongoDB
   try {
     const processedBuffer = await sharp(rawBuffer)
       .rotate()
@@ -184,12 +223,19 @@ export async function ingestImage(rawUrl: string): Promise<IngestResult> {
       size: processedBuffer.length,
     });
 
+    const storedUrl = `/api/images/${imageDoc._id}`;
+    console.log("[IMAGE INGEST STORED IN MONGO]", { original: trimmed, storedUrl, bytes: processedBuffer.length });
+
     return {
       success: true,
-      url: `/api/images/${imageDoc._id}`,
+      url: storedUrl,
     };
-  } catch (sharpErr) {
-    console.error("[SHARP INGEST ERROR]", sharpErr);
+  } catch (sharpErr: any) {
+    console.error("[SHARP INGEST ERROR]", { url: trimmed, message: sharpErr?.message });
+    // If sharp fails to decode but it is a direct image URL, retain original URL
+    if (looksLikeDirectImageUrl(trimmed)) {
+      return { success: true, url: trimmed };
+    }
     return {
       success: false,
       error: "The fetched resource could not be decoded as a valid image.",

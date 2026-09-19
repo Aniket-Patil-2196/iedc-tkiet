@@ -139,7 +139,7 @@ export function ImageInput({
 
       {/* Image Preview Thumbnail / Error state */}
       {value && (
-        urlPreviewError ? (
+        urlPreviewError && !value.startsWith("/api/images/") ? (
           <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-300 text-xs">
             <AlertCircle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
             <div className="flex-1 min-w-0 space-y-0.5">
