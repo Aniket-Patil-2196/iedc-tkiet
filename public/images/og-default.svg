@@ -1,0 +1,9 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#080A0F"/>
+  <circle cx="600" cy="315" r="280" fill="#151B26" fill-opacity="0.5"/>
+  <circle cx="600" cy="315" r="140" stroke="#2563EB" stroke-width="2"/>
+  <circle cx="600" cy="315" r="8" fill="#38BDF8"/>
+  <text x="600" y="240" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="52" fill="#F5F7FA" letter-spacing="2">IEDC TKIET</text>
+  <text x="600" y="380" text-anchor="middle" font-family="sans-serif" font-weight="normal" font-size="22" fill="#A7AFBE">Innovation and Entrepreneurship Development Cell</text>
+  <text x="600" y="420" text-anchor="middle" font-family="sans-serif" font-weight="normal" font-size="18" fill="#38BDF8">Tatyasaheb Kore Institute of Engineering and Technology</text>
+</svg>

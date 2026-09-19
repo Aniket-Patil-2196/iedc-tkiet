@@ -1,0 +1,26 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="600" rx="16" fill="#080A0F"/>
+  <rect x="12" y="12" width="776" height="576" rx="12" fill="#0D111A" stroke="#151B26" stroke-width="2"/>
+  
+  <!-- Geometric Tech Pattern -->
+  <g opacity="0.3">
+    <circle cx="400" cy="260" r="160" stroke="#38BDF8" stroke-width="1.5" stroke-dasharray="8 8"/>
+    <circle cx="400" cy="260" r="110" stroke="#38BDF8" stroke-width="1"/>
+    <circle cx="400" cy="260" r="60" fill="#38BDF8" fill-opacity="0.1"/>
+    <line x1="180" y1="260" x2="620" y2="260" stroke="#151B26" stroke-width="1.5"/>
+    <line x1="400" y1="80" x2="400" y2="440" stroke="#151B26" stroke-width="1.5"/>
+  </g>
+  
+  <!-- Badge -->
+  <rect x="48" y="48" width="130" height="32" rx="6" fill="#151B26" stroke="#38BDF8" stroke-opacity="0.4"/>
+  <text x="113" y="69" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#38BDF8" letter-spacing="1.5">IDEATION</text>
+  
+  <!-- Focal Icon / Symbol -->
+  <rect x="360" y="220" width="80" height="80" rx="16" fill="#151B26" stroke="#38BDF8" stroke-width="2"/>
+  <circle cx="400" cy="260" r="16" fill="#38BDF8"/>
+  
+  <!-- Bottom Info Container -->
+  <rect x="40" y="450" width="720" height="100" rx="10" fill="#151B26" fill-opacity="0.8"/>
+  <text x="64" y="490" font-family="system-ui, sans-serif" font-size="20" font-weight="700" fill="#F5F7FA">Design Thinking & Ideation Workshop</text>
+  <text x="64" y="520" font-family="system-ui, sans-serif" font-size="13" fill="#A7AFBE">IEDC TKIET Archive Record • Reference Item #1</text>
+</svg>

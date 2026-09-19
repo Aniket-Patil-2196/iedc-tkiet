@@ -1,0 +1,72 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Testing & Coverage
+/coverage
+
+# Next.js build and outputs
+/.next/
+/out/
+/build
+/dist
+
+# Production environment variables and secrets - NEVER commit secrets
+.env
+.env.*
+!.env.example
+
+# Debug and Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data & temp
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# TypeScript build info
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Certificates and keys
+*.pem
+*.key
+*.cert
+*.crt
+
+# Local uploads
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Temporary / Scratch
+scratch/
+
