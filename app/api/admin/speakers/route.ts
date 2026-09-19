@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import PreviousSpeakerModel from "@/models/PreviousSpeaker";
-import { PLACEHOLDER_SPEAKERS } from "@/lib/data/placeholders";
 
 export async function GET() {
   try {
@@ -9,8 +8,8 @@ export async function GET() {
     if (!conn) {
       return NextResponse.json({
         success: true,
-        data: PLACEHOLDER_SPEAKERS,
-        source: "placeholder",
+        data: [],
+        source: "no-connection",
       });
     }
 
@@ -20,8 +19,8 @@ export async function GET() {
     });
     return NextResponse.json({
       success: true,
-      data: speakers.length > 0 ? speakers : PLACEHOLDER_SPEAKERS,
-      source: speakers.length > 0 ? "database" : "placeholder",
+      data: speakers,
+      source: "database",
     });
   } catch (error) {
     console.error("[ADMIN GET SPEAKERS ERROR]", error);

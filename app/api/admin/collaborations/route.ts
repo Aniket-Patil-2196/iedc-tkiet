@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import CollaborationModel from "@/models/Collaboration";
-import { PLACEHOLDER_COLLABORATIONS } from "@/lib/data/placeholders";
 
 export async function GET() {
   try {
@@ -9,16 +8,16 @@ export async function GET() {
     if (!conn) {
       return NextResponse.json({
         success: true,
-        data: PLACEHOLDER_COLLABORATIONS,
-        source: "placeholder",
+        data: [],
+        source: "no-connection",
       });
     }
 
     const collabs = await CollaborationModel.find().sort({ order: 1 });
     return NextResponse.json({
       success: true,
-      data: collabs.length > 0 ? collabs : PLACEHOLDER_COLLABORATIONS,
-      source: collabs.length > 0 ? "database" : "placeholder",
+      data: collabs,
+      source: "database",
     });
   } catch (error) {
     console.error("[ADMIN GET COLLABORATIONS ERROR]", error);

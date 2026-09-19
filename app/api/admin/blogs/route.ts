@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import BlogModel from "@/models/Blog";
-import { PLACEHOLDER_BLOGS } from "@/lib/data/placeholders";
 
 export async function GET() {
   try {
@@ -9,16 +8,16 @@ export async function GET() {
     if (!conn) {
       return NextResponse.json({
         success: true,
-        data: PLACEHOLDER_BLOGS,
-        source: "placeholder",
+        data: [],
+        source: "no-connection",
       });
     }
 
     const blogs = await BlogModel.find().sort({ publicationDate: -1, createdAt: -1 });
     return NextResponse.json({
       success: true,
-      data: blogs.length > 0 ? blogs : PLACEHOLDER_BLOGS,
-      source: blogs.length > 0 ? "database" : "placeholder",
+      data: blogs,
+      source: "database",
     });
   } catch (error) {
     console.error("[ADMIN GET BLOGS ERROR]", error);

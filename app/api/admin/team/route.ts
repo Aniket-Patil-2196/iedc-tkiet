@@ -1,38 +1,15 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import TeamMemberModel from "@/models/TeamMember";
-import {
-  PLACEHOLDER_STUDENT_TEAM,
-  PLACEHOLDER_FACULTY_TEAM,
-} from "@/lib/data/placeholders";
 
 export async function GET() {
   try {
     const conn = await connectToDatabase();
     if (!conn) {
-      const studentAdapted = PLACEHOLDER_STUDENT_TEAM.map((s) => ({
-        _id: s.id,
-        name: s.name,
-        role: s.position,
-        department: s.department,
-        year: s.year,
-        bio: s.bio,
-        category: "student_lead",
-        order: s.order,
-      }));
-      const facultyAdapted = PLACEHOLDER_FACULTY_TEAM.map((f) => ({
-        _id: f.id,
-        name: f.name,
-        role: f.position,
-        department: f.department,
-        bio: f.bio,
-        category: "faculty_coordinator",
-        order: f.order,
-      }));
       return NextResponse.json({
         success: true,
-        data: [...studentAdapted, ...facultyAdapted],
-        source: "placeholder",
+        data: [],
+        source: "no-connection",
       });
     }
 

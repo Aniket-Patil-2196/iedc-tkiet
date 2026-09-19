@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import AchievementModel from "@/models/Achievement";
-import { PLACEHOLDER_ACHIEVEMENTS } from "@/lib/data/placeholders";
 
 export async function GET() {
   try {
@@ -9,16 +8,16 @@ export async function GET() {
     if (!conn) {
       return NextResponse.json({
         success: true,
-        data: PLACEHOLDER_ACHIEVEMENTS,
-        source: "placeholder",
+        data: [],
+        source: "no-connection",
       });
     }
 
     const records = await AchievementModel.find().sort({ order: 1, year: -1 });
     return NextResponse.json({
       success: true,
-      data: records.length > 0 ? records : PLACEHOLDER_ACHIEVEMENTS,
-      source: records.length > 0 ? "database" : "placeholder",
+      data: records,
+      source: "database",
     });
   } catch (error) {
     console.error("[ADMIN GET ACHIEVEMENTS ERROR]", error);

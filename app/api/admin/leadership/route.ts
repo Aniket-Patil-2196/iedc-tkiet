@@ -1,24 +1,15 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import LeadershipMessageModel from "@/models/LeadershipMessage";
-import { PLACEHOLDER_LEADERSHIP_ROLES } from "@/lib/data/placeholders";
 
 export async function GET() {
   try {
     const conn = await connectToDatabase();
     if (!conn) {
-      const adapted = PLACEHOLDER_LEADERSHIP_ROLES.map((r) => ({
-        _id: r.id,
-        designation: r.positionTitle,
-        leaderName: "Leadership Member [To Be Configured]",
-        institution: r.institution,
-        message: r.fullMessage,
-        order: r.order,
-      }));
       return NextResponse.json({
         success: true,
-        data: adapted,
-        source: "placeholder",
+        data: [],
+        source: "no-connection",
       });
     }
 

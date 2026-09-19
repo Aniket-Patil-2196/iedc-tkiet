@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import EventModel from "@/models/Event";
-import { PLACEHOLDER_EVENTS } from "@/lib/data/placeholders";
 
 export async function GET() {
   try {
@@ -9,16 +8,16 @@ export async function GET() {
     if (!conn) {
       return NextResponse.json({
         success: true,
-        data: PLACEHOLDER_EVENTS,
-        source: "placeholder",
+        data: [],
+        source: "no-connection",
       });
     }
 
     const events = await EventModel.find().sort({ startDate: -1, createdAt: -1 });
     return NextResponse.json({
       success: true,
-      data: events.length > 0 ? events : PLACEHOLDER_EVENTS,
-      source: events.length > 0 ? "database" : "placeholder",
+      data: events,
+      source: "database",
     });
   } catch (error) {
     console.error("[ADMIN GET EVENTS ERROR]", error);

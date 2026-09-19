@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import GalleryImageModel from "@/models/GalleryImage";
-import { PLACEHOLDER_GALLERY } from "@/lib/data/placeholders";
 
 export async function GET() {
   try {
@@ -9,16 +8,16 @@ export async function GET() {
     if (!conn) {
       return NextResponse.json({
         success: true,
-        data: PLACEHOLDER_GALLERY,
-        source: "placeholder",
+        data: [],
+        source: "no-connection",
       });
     }
 
     const photos = await GalleryImageModel.find().sort({ order: 1 });
     return NextResponse.json({
       success: true,
-      data: photos.length > 0 ? photos : PLACEHOLDER_GALLERY,
-      source: photos.length > 0 ? "database" : "placeholder",
+      data: photos,
+      source: "database",
     });
   } catch (error) {
     console.error("[ADMIN GET GALLERY ERROR]", error);
