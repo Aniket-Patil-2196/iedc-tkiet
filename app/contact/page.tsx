@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { SITE_CONFIG } from "@/lib/constants/site";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = constructMetadata({
   title: "Contact & Incubation Inquiries",
   description:

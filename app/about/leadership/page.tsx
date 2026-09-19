@@ -5,6 +5,8 @@ import { PageHeading } from "@/components/ui/PageHeading";
 import { LeadershipList } from "@/components/leadership/LeadershipList";
 import { getLeadershipMessages } from "@/lib/db/queries";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = constructMetadata({
   title: "Leadership Messages",
   description:

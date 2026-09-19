@@ -8,6 +8,8 @@ import { getEventStatusInfo } from "@/lib/utils/event-status";
 import { Reveal } from "@/components/animation/Reveal";
 import { Calendar, Sparkles, History } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = constructMetadata({
   title: "Events & Competitions",
   description:

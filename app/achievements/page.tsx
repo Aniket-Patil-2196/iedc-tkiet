@@ -5,6 +5,8 @@ import { PageHeading } from "@/components/ui/PageHeading";
 import { getPublishedAchievements } from "@/lib/db/queries";
 import { AchievementsArchive } from "@/components/achievements/AchievementsArchive";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = constructMetadata({
   title: "Achievements & Milestones",
   description:

@@ -8,6 +8,8 @@ import {
   getPublishedPreviousSpeakers,
 } from "@/lib/db/queries";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = constructMetadata({
   title: "Innovation & Entrepreneurship Platform",
   description:

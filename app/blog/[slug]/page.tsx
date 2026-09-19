@@ -8,6 +8,8 @@ import { getPublishedBlogBySlug, getPublishedBlogs } from "@/lib/db/queries";
 import { formatEventDate } from "@/lib/utils/event-status";
 import { Calendar, Clock, ArrowLeft, ArrowRight, BookOpen, ShieldCheck } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 interface BlogArticlePageProps {
   params: {
     slug: string;

@@ -5,6 +5,8 @@ import { PageHeading } from "@/components/ui/PageHeading";
 import { CollaborationsShowcase } from "@/components/collaborations/CollaborationsShowcase";
 import { getPublishedCollaborations } from "@/lib/db/queries";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = constructMetadata({
   title: "Collaborations",
   description:

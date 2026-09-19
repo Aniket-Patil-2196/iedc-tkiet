@@ -26,10 +26,12 @@ export async function connectToDatabase(): Promise<typeof mongoose | null> {
     return null;
   }
 
-  const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+  const isBuildPhase =
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.NEXT_IS_EXPORT_WORKER === "true";
 
-  // If database already failed during static generation, bypass immediately to prevent build timeouts
-  if (isBuildPhase && buildDbUnavailable) {
+  // During next build static analysis, never attempt live DB connections
+  if (isBuildPhase) {
     return null;
   }
 

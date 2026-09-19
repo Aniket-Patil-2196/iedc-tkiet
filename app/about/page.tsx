@@ -10,6 +10,8 @@ import { ArrowRight, Users } from "lucide-react";
 import { getAboutContent, getJourneyMilestones } from "@/lib/db/queries";
 import { JourneySpaceSection } from "@/components/journey/JourneySpaceSection";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = constructMetadata({
   title: "About IEDC",
   description:

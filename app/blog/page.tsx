@@ -6,6 +6,8 @@ import { InnovationJournalBook } from "@/components/blog/InnovationJournalBook";
 import Link from "next/link";
 import { formatEventDate } from "@/lib/utils/event-status";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = constructMetadata({
   title: "Innovation Journal — Blog",
   description:

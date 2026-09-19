@@ -5,6 +5,8 @@ import { PageHeading } from "@/components/ui/PageHeading";
 import { getPublishedGalleryImages } from "@/lib/db/queries";
 import { GalleryExperience } from "@/components/gallery/GalleryExperience";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = constructMetadata({
   title: "Interactive 3D Photo Gallery",
   description:

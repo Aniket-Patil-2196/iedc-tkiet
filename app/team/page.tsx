@@ -5,6 +5,8 @@ import { PageHeading } from "@/components/ui/PageHeading";
 import { TeamDirectory } from "@/components/team/TeamDirectory";
 import { getPublishedTeamMembers } from "@/lib/db/queries";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = constructMetadata({
   title: "Our Team",
   description:

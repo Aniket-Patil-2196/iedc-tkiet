@@ -2,6 +2,8 @@ import { constructMetadata } from "@/lib/seo/metadata";
 import { getJourneyMilestones } from "@/lib/db/queries";
 import { JourneySpaceSection } from "@/components/journey/JourneySpaceSection";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = constructMetadata({
   title: "Journey Through Innovation | IEDC TKIET",
   description:
