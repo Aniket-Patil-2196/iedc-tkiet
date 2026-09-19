@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { Upload, Link2, X, Check, Loader2 } from "lucide-react";
+import { Upload, Link2, X, Check, Loader2, AlertCircle } from "lucide-react";
 
 interface ImageInputProps {
   label?: string;
@@ -20,6 +20,11 @@ export function ImageInput({
   const [mode, setMode] = useState<"url" | "upload">("url");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [urlPreviewError, setUrlPreviewError] = useState(false);
+
+  useEffect(() => {
+    setUrlPreviewError(false);
+  }, [value]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -85,15 +90,20 @@ export function ImageInput({
       </div>
 
       {mode === "url" ? (
-        <div className="relative">
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
-          />
-          <Link2 className="w-4 h-4 text-typo-gray absolute left-3 top-1/2 -translate-y-1/2" />
+        <div className="space-y-1.5">
+          <div className="relative">
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={placeholder}
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+            />
+            <Link2 className="w-4 h-4 text-typo-gray absolute left-3 top-1/2 -translate-y-1/2" />
+          </div>
+          <p className="text-[11px] text-typo-gray font-sans">
+            Use a direct image link (ends in .jpg, .png, .webp). For Pinterest, right-click the image and copy image address.
+          </p>
         </div>
       ) : (
         <div className="relative">
@@ -127,39 +137,60 @@ export function ImageInput({
         <p className="text-[11px] text-red-400 font-sans">{uploadError}</p>
       )}
 
-      {/* Image Preview Thumbnail */}
+      {/* Image Preview Thumbnail / Error state */}
       {value && (
-        <div className="flex items-center gap-3 p-2.5 rounded-xl bg-foundation-slate/30 border border-foundation-slate">
-          <div className="relative w-12 h-12 rounded-lg bg-foundation-space overflow-hidden shrink-0 border border-foundation-slate">
-            <Image
-              src={value}
-              alt="Preview"
-              fill
-              unoptimized={value.startsWith("/api/images/")}
-              className="object-cover"
-              onError={(e) => {
-                // If invalid preview URL
-                (e.target as HTMLElement).style.display = "none";
-              }}
-            />
+        urlPreviewError ? (
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-300 text-xs">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+            <div className="flex-1 min-w-0 space-y-0.5">
+              <p className="font-semibold text-amber-200">
+                This doesn&apos;t look like a direct image link
+              </p>
+              <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                The URL may point to a web page instead of an image file. Right-click the image on the web page and choose &quot;Copy image address&quot;.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              className="p-1 rounded-md text-amber-400 hover:text-amber-200 hover:bg-amber-900/40"
+              title="Clear URL"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <div className="flex-1 min-w-0">
-            <span className="text-xs font-mono text-typo-white truncate block">
-              {value}
-            </span>
-            <span className="text-[10px] text-brand-cyan flex items-center gap-1">
-              <Check className="w-3 h-3" /> Configured
-            </span>
+        ) : (
+          <div className="flex items-center gap-3 p-2.5 rounded-xl bg-foundation-slate/30 border border-foundation-slate">
+            <div className="relative w-12 h-12 rounded-lg bg-foundation-space overflow-hidden shrink-0 border border-foundation-slate">
+              <Image
+                src={value}
+                alt="Preview"
+                fill
+                unoptimized={value.startsWith("/api/images/")}
+                className="object-cover"
+                onError={() => {
+                  setUrlPreviewError(true);
+                }}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-xs font-mono text-typo-white truncate block">
+                {value}
+              </span>
+              <span className="text-[10px] text-brand-cyan flex items-center gap-1">
+                <Check className="w-3 h-3" /> Configured
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              className="p-1 rounded-md text-typo-gray hover:text-typo-white hover:bg-foundation-slate"
+              title="Remove image"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => onChange("")}
-            className="p-1 rounded-md text-typo-gray hover:text-typo-white hover:bg-foundation-slate"
-            title="Remove image"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        )
       )}
     </div>
   );

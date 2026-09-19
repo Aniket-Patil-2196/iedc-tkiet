@@ -365,7 +365,15 @@ export async function getPublishedGalleryImages(): Promise<IGalleryImage[]> {
   try {
     const conn = await connectToDatabase();
     if (conn) {
-      const docs = await GalleryImageModel.find({ published: { $ne: false } })
+      // Clean up legacy broken HTML pin records
+      GalleryImageModel.deleteMany({
+        imageUrl: { $regex: /pinterest\.com\/pin/i },
+      }).catch(() => {});
+
+      const docs = await GalleryImageModel.find({
+        published: { $ne: false },
+        imageUrl: { $not: /pinterest\.com\/pin/i },
+      })
         .sort({ order: 1 })
         .lean();
       if (docs && docs.length > 0) {

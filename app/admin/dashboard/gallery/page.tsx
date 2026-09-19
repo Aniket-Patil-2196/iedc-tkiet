@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { Plus, Edit2, Trash2, Image as ImageIcon, Eye, EyeOff } from "lucide-react";
+import { Plus, Edit2, Trash2, Image as ImageIcon, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminModal } from "@/components/admin/AdminModal";
 import { DeleteConfirmModal } from "@/components/admin/DeleteConfirmModal";
@@ -18,6 +18,7 @@ export default function AdminGalleryPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<IGalleryImage | null>(null);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -49,6 +50,7 @@ export default function AdminGalleryPage() {
 
   const openCreateModal = () => {
     setEditingItem(null);
+    setFormError(null);
     setFormData({
       title: "",
       caption: "",
@@ -62,6 +64,7 @@ export default function AdminGalleryPage() {
 
   const openEditModal = (item: IGalleryImage) => {
     setEditingItem(item);
+    setFormError(null);
     setFormData({
       title: item.title,
       caption: item.caption || "",
@@ -76,6 +79,7 @@ export default function AdminGalleryPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setFormError(null);
 
     try {
       const isEdit = Boolean(editingItem);
@@ -93,12 +97,14 @@ export default function AdminGalleryPage() {
       const json = await res.json();
       if (json.success) {
         setModalOpen(false);
+        setFormError(null);
         fetchPhotos();
       } else {
-        alert(json.error || "Failed to save photo.");
+        const msg = json.error || "Failed to save photo.";
+        setFormError(msg);
       }
     } catch {
-      alert("Network error.");
+      setFormError("Network error while contacting server. Please check your connection.");
     } finally {
       setSaving(false);
     }
@@ -276,6 +282,13 @@ export default function AdminGalleryPage() {
         maxWidth="2xl"
       >
         <form onSubmit={handleSave} className="space-y-4">
+          {formError && (
+            <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/60 text-red-200 text-xs flex items-start gap-2.5 animate-fadeIn">
+              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <div className="flex-1 leading-relaxed">{formError}</div>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
               Title / Activity Name *

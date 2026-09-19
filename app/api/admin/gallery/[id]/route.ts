@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import GalleryImageModel from "@/models/GalleryImage";
 import ImageModel from "@/models/Image";
+import { ingestImage } from "@/lib/utils/image-ingest";
+
+export const runtime = "nodejs";
 
 interface Params {
   params: { id: string };
@@ -33,6 +36,18 @@ export async function PUT(request: Request, { params }: Params) {
         .split(",")
         .map((t: string) => t.trim())
         .filter(Boolean);
+    }
+
+    // Ingest external image URL if updated
+    if (body.imageUrl) {
+      const ingestResult = await ingestImage(body.imageUrl);
+      if (!ingestResult.success) {
+        return NextResponse.json(
+          { success: false, error: ingestResult.error },
+          { status: 400 }
+        );
+      }
+      body.imageUrl = ingestResult.url || body.imageUrl;
     }
 
     // If imageUrl is changing, check if we need to delete the old Image document
