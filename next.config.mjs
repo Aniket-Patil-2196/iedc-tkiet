@@ -24,7 +24,7 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ["three"],
+  transpilePackages: ["three", "@react-three/fiber", "@react-three/drei"],
   images: {
     remotePatterns: [
       {
