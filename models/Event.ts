@@ -45,6 +45,8 @@ const EventSchema = new Schema<IEventDocument>(
     registrationUrl: { type: String },
     registrationLink: { type: String },
     coverImage: { type: String },
+    coverImageWidth: { type: Number },
+    coverImageHeight: { type: Number },
     posterUrl: { type: String },
     posterWidth: { type: Number },
     posterHeight: { type: Number },

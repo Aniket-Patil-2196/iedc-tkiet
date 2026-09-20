@@ -1,17 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
-import Link from "next/link";
-import {
-  Search,
-  Tag,
-  ArrowRight,
-  ChevronDown,
-  ChevronUp,
-  History,
-  X,
-} from "lucide-react";
-import { EventPoster } from "@/components/events/EventPoster";
+import React, { useState, useMemo } from "react";
+import { Search, Tag, X, CalendarDays, ChevronDown } from "lucide-react";
+import { EventBentoCard } from "./EventBentoCard";
 import { cn } from "@/lib/utils";
 
 export interface ArchiveEventItem {
@@ -30,6 +21,8 @@ export interface ArchiveEventItem {
   isOnline?: boolean;
   category: string;
   coverImage?: string;
+  coverImageWidth?: number;
+  coverImageHeight?: number;
   posterUrl?: string;
   posterWidth?: number;
   posterHeight?: number;
@@ -43,198 +36,121 @@ interface EventArchiveProps {
   className?: string;
 }
 
-// Starlight timeline item with progressive draw
-function ArchiveTimelineItem({
-  event,
-  isLast,
-}: {
+interface BentoBlockItem {
   event: ArchiveEventItem;
-  isLast: boolean;
-}) {
-  const itemRef = useRef<HTMLDivElement | null>(null);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    const el = itemRef.current;
-    if (!el) return;
-
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-
-    if (prefersReducedMotion) {
-      setInView(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.15 }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div ref={itemRef} className="relative flex items-start gap-4 sm:gap-6 group">
-      {/* Galaxy timeline vertical thread & star node */}
-      <div className="relative flex flex-col items-center self-stretch shrink-0 pt-2.5">
-        {/* Star node (galaxy motif) */}
-        <div
-          className={cn(
-            "relative z-10 w-2.5 h-2.5 rounded-full border-2 transition-all duration-500",
-            inView
-              ? "bg-brand-cyan border-foundation-darkest shadow-[0_0_10px_rgba(56,189,248,0.8)] scale-110"
-              : "bg-foundation-slate border-foundation-slate scale-90 opacity-60"
-          )}
-        />
-
-        {/* Thin vertical thread drawn progressively */}
-        {!isLast && (
-          <div
-            className={cn(
-              "w-px flex-1 bg-gradient-to-b from-brand-cyan/40 via-foundation-slate/50 to-foundation-slate/20 transition-all duration-700 origin-top",
-              inView ? "scale-y-100 opacity-100" : "scale-y-0 opacity-20"
-            )}
-          />
-        )}
-      </div>
-
-      {/* Slim Row Container */}
-      <div className="flex-1 pb-6 min-w-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-foundation-dark/60 border border-foundation-slate/50 hover:border-brand-cyan/40 hover:bg-foundation-dark/80 transition-all duration-200">
-          {/* Left: Thumbnail (80-96px) + Meta + Title */}
-          <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
-            {/* Small Thumbnail (80-96px) */}
-            <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-lg overflow-hidden bg-foundation-darkest border border-foundation-slate/60">
-              <div className="w-full h-full grayscale-0 opacity-100 [@media(hover:hover)]:grayscale [@media(hover:hover)]:opacity-85 [@media(hover:hover)]:group-hover:grayscale-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300">
-                <EventPoster
-                  src={event.coverImage || event.posterUrl}
-                  alt={event.title}
-                  posterWidth={event.posterWidth}
-                  posterHeight={event.posterHeight}
-                  interactive={false}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            </div>
-
-            {/* Details */}
-            <div className="space-y-1 min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap text-[11px] font-mono uppercase tracking-wider">
-                <span className="text-brand-cyan font-semibold">
-                  {event.formattedDate}
-                </span>
-                <span className="text-foundation-slate select-none">·</span>
-                <span className="inline-flex items-center gap-1 text-typo-gray">
-                  <Tag className="w-2.5 h-2.5" />
-                  {event.category}
-                </span>
-              </div>
-
-              <h4 className="font-display font-bold text-sm sm:text-base text-typo-white truncate hover:text-brand-cyan transition-colors">
-                <Link href={`/events/${event.slug}`}>{event.title}</Link>
-              </h4>
-
-              <p className="text-xs text-typo-gray truncate">{event.venue}</p>
-            </div>
-          </div>
-
-          {/* Right: "View recap →" link */}
-          <div className="shrink-0 self-end sm:self-center pl-2">
-            <Link
-              href={`/events/${event.slug}`}
-              className="inline-flex items-center gap-1.5 text-xs font-sans font-semibold text-brand-cyan hover:text-white transition-colors group/link px-2.5 py-1.5 rounded-lg bg-foundation-slate/30 hover:bg-brand-blue/20"
-            >
-              <span>View recap</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover/link:translate-x-0.5 transition-transform" />
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  variant: "wide" | "half-7" | "half-5";
 }
+
+/**
+ * Builds bento blocks for a list of events according to the mathematical packing rule:
+ * - If >= 3 remain: [wide (12), half, half]
+ * - If == 2 remain: [half, half]
+ * - If == 1 remain: [wide]
+ * Alternates the pair split (7/5 vs 5/7) across blocks so there are never gaps.
+ */
+function buildBentoBlocks(items: ArchiveEventItem[]): BentoBlockItem[] {
+  const result: BentoBlockItem[] = [];
+  let i = 0;
+  let blockIndex = 0;
+
+  while (i < items.length) {
+    const remaining = items.length - i;
+    const isEvenBlock = blockIndex % 2 === 0;
+
+    if (remaining >= 3) {
+      // Wide card (12 cols)
+      result.push({ event: items[i], variant: "wide" });
+      // Alternating split for the pair (7/5 on even blocks, 5/7 on odd blocks)
+      result.push({
+        event: items[i + 1],
+        variant: isEvenBlock ? "half-7" : "half-5",
+      });
+      result.push({
+        event: items[i + 2],
+        variant: isEvenBlock ? "half-5" : "half-7",
+      });
+      i += 3;
+      blockIndex++;
+    } else if (remaining === 2) {
+      // Pair of halves (7/5 or 5/7)
+      result.push({
+        event: items[i],
+        variant: isEvenBlock ? "half-7" : "half-5",
+      });
+      result.push({
+        event: items[i + 1],
+        variant: isEvenBlock ? "half-5" : "half-7",
+      });
+      i += 2;
+      blockIndex++;
+    } else {
+      // Exactly 1 remains: Wide card (12 cols)
+      result.push({ event: items[i], variant: "wide" });
+      i += 1;
+      blockIndex++;
+    }
+  }
+
+  return result;
+}
+
+const DEFAULT_PAGE_SIZE = 6;
 
 export function EventArchive({ events, className }: EventArchiveProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("ALL");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedYear, setSelectedYear] = useState<string>("all");
+  // Track expanded state for years with > 6 cards
+  const [expandedYears, setExpandedYears] = useState<Record<number, boolean>>({});
 
-  // Extract distinct available years (sorted descending: 2026, 2025, 2024...)
-  const availableYears = useMemo(() => {
-    const yrSet = new Set<number>();
-    events.forEach((e) => {
-      if (e.year && !Number.isNaN(e.year)) {
-        yrSet.add(e.year);
-      }
-    });
-    return Array.from(yrSet).sort((a, b) => b - a);
-  }, [events]);
-
-  const currentYear = new Date().getFullYear();
-
-  // Rule: Current year expanded, older years collapsed by default
-  const [collapsedYears, setCollapsedYears] = useState<Record<number, boolean>>(() => {
-    const initial: Record<number, boolean> = {};
-    availableYears.forEach((yr) => {
-      // Current year (or newest available year if no events for current year) is expanded (false); older collapsed (true)
-      const isExpanded = yr === currentYear || yr === availableYears[0];
-      initial[yr] = !isExpanded;
-    });
-    return initial;
-  });
-
-  const toggleYearCollapse = (year: number) => {
-    setCollapsedYears((prev) => ({
-      ...prev,
-      [year]: !prev[year],
-    }));
-  };
-
-  // Distinct categories
+  // 1. Extract unique categories and years
   const categories = useMemo(() => {
-    const cats = new Set<string>();
-    cats.add("ALL");
+    const set = new Set<string>();
     events.forEach((e) => {
-      if (e.category) cats.add(e.category);
+      if (e.category) set.add(e.category);
     });
-    return Array.from(cats);
+    return Array.from(set).sort();
   }, [events]);
 
-  // Conditional search & categories visibility rules:
-  // - Search input only when > 8 past events
-  // - Category pills only when > 1 category exists (excluding "ALL")
-  const showSearch = events.length > 8;
-  const showCategories = categories.length > 2;
+  const uniqueYears = useMemo(() => {
+    const set = new Set<number>();
+    events.forEach((e) => {
+      if (e.year) set.add(e.year);
+    });
+    return Array.from(set).sort((a, b) => b - a); // newest year first
+  }, [events]);
 
-  // Filter events
+  // 2. Filter events by search query, category, and year
   const filteredEvents = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
     return events.filter((e) => {
-      if (selectedCategory !== "ALL" && e.category !== selectedCategory) {
-        return false;
-      }
-      if (q) {
-        const titleMatch = e.title?.toLowerCase().includes(q);
-        const descMatch = (e.shortDescription || e.summary || e.description || "")
+      // Search matching title, venue, or summary
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchTitle = e.title.toLowerCase().includes(q);
+        const matchVenue = e.venue.toLowerCase().includes(q);
+        const matchSummary = (e.shortDescription || e.summary || e.description || "")
           .toLowerCase()
           .includes(q);
-        const venueMatch = e.venue?.toLowerCase().includes(q);
-        const catMatch = e.category?.toLowerCase().includes(q);
-        return titleMatch || descMatch || venueMatch || catMatch;
+        if (!matchTitle && !matchVenue && !matchSummary) return false;
       }
+
+      // Category filter
+      if (selectedCategory !== "all" && e.category !== selectedCategory) {
+        return false;
+      }
+
+      // Year filter
+      if (selectedYear !== "all" && e.year !== parseInt(selectedYear, 10)) {
+        return false;
+      }
+
       return true;
     });
-  }, [events, searchQuery, selectedCategory]);
+  }, [events, searchQuery, selectedCategory, selectedYear]);
 
-  // Group filtered events by year
-  const eventsByYear = useMemo(() => {
+  // 3. Group filtered events by year (newest first)
+  const groupedByYear = useMemo(() => {
+    const groups: { year: number; events: ArchiveEventItem[] }[] = [];
     const map = new Map<number, ArchiveEventItem[]>();
 
     filteredEvents.forEach((evt) => {
@@ -245,85 +161,140 @@ export function EventArchive({ events, className }: EventArchiveProps) {
       map.get(yr)!.push(evt);
     });
 
+    // Sort years descending
     const sortedYears = Array.from(map.keys()).sort((a, b) => b - a);
-    return sortedYears.map((yr) => ({
-      year: yr,
-      events: map.get(yr)!,
-    }));
+    sortedYears.forEach((yr) => {
+      groups.push({
+        year: yr,
+        events: map.get(yr)!,
+      });
+    });
+
+    return groups;
   }, [filteredEvents]);
 
-  if (!events || events.length === 0) return null;
+  const hasSearch = searchQuery.trim().length > 0;
+  const hasCategoryFilter = selectedCategory !== "all";
 
   return (
-    <section
-      id="archive"
-      aria-label="Past Events Archive"
-      className={cn("space-y-6 pt-4", className)}
-    >
-      {/* Archive Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-foundation-slate/50">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs uppercase font-mono tracking-[0.2em] text-brand-cyan font-bold">
-            <History className="w-3.5 h-3.5 text-brand-cyan" />
-            <span>Institutional Repository</span>
-          </div>
-          <h2 className="font-display text-2xl sm:text-3xl font-bold text-typo-white tracking-tight">
-            Past Events Archive
+    <section id="archive" className={cn("w-full space-y-8", className)}>
+      {/* 1. Compact Section Header (Past Events + Count inline) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-foundation-slate/50">
+        <div className="flex items-center gap-3">
+          <h2 className="font-display text-2xl sm:text-3xl font-bold text-typo-white tracking-tight flex items-center gap-3">
+            <span>Past Events</span>
           </h2>
-          <p className="font-sans text-xs sm:text-sm text-typo-gray max-w-xl leading-relaxed">
-            Archive of completed student hackathons, innovation conclaves, and technological workshops hosted by IEDC TKIET.
-          </p>
+          <span className="text-xs font-mono text-typo-gray px-2.5 py-0.5 rounded-full bg-foundation-slate/50 border border-foundation-slate/80 font-medium">
+            {filteredEvents.length}
+          </span>
         </div>
 
-        {/* Total Events Count Badge */}
-        <div className="shrink-0 flex items-center gap-2 px-3 py-1 rounded-full bg-foundation-slate/40 border border-foundation-slate text-xs font-mono text-typo-gray self-start md:self-auto">
-          <span className="w-1.5 h-1.5 rounded-full bg-brand-cyan/60" />
-          <span>{events.length} {events.length === 1 ? "Event" : "Events"} Archived</span>
-        </div>
+        {/* Search Field (Rendered ONLY when there are > 8 past events) */}
+        {events.length > 8 && (
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-typo-gray/70" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search past events..."
+              className="w-full pl-9 pr-8 py-2 rounded-xl bg-foundation-dark/80 border border-foundation-slate/60 text-typo-white text-xs placeholder:text-typo-gray/60 focus:outline-none focus:border-brand-cyan transition-colors"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-typo-gray hover:text-typo-white p-0.5"
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Conditional Search and Filters */}
-      {(showSearch || showCategories) && (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-          {/* Search Input (only when > 8 events) */}
-          {showSearch && (
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-typo-gray" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search archive by topic, title, or venue..."
-                className="w-full pl-9 pr-8 py-2 rounded-xl bg-foundation-dark/80 border border-foundation-slate/60 text-typo-white placeholder:text-typo-gray/60 text-xs focus:outline-none focus:border-brand-cyan/60 transition-colors"
-              />
-              {searchQuery && (
+      {/* 2. Filter Pills Row (Shown only when conditions met) */}
+      {(uniqueYears.length > 1 || categories.length > 1) && (
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          {/* Year Pills (Rendered ONLY when > 1 year exists) */}
+          {uniqueYears.length > 1 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] font-mono text-typo-gray/70 mr-1 flex items-center gap-1">
+                <CalendarDays className="w-3 h-3 text-brand-cyan" />
+                <span>Year:</span>
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setSelectedYear("all")}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-mono transition-colors",
+                  selectedYear === "all"
+                    ? "bg-brand-blue text-typo-white font-medium shadow-sm"
+                    : "bg-foundation-dark text-typo-gray hover:text-typo-white border border-foundation-slate/60"
+                )}
+              >
+                All
+              </button>
+
+              {uniqueYears.map((yr) => (
                 <button
+                  key={yr}
                   type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-typo-gray hover:text-typo-white"
+                  onClick={() => setSelectedYear(String(yr))}
+                  className={cn(
+                    "px-3 py-1 rounded-full text-xs font-mono transition-colors",
+                    selectedYear === String(yr)
+                      ? "bg-brand-blue text-typo-white font-medium shadow-sm"
+                      : "bg-foundation-dark text-typo-gray hover:text-typo-white border border-foundation-slate/60"
+                  )}
                 >
-                  <X className="w-3.5 h-3.5" />
+                  {yr}
                 </button>
-              )}
+              ))}
             </div>
           )}
 
-          {/* Category Filter Pills (only when > 1 category exists) */}
-          {showCategories && (
+          {/* Separator between Year and Category pills if both exist */}
+          {uniqueYears.length > 1 && categories.length > 1 && (
+            <span className="text-foundation-slate hidden sm:inline select-none">|</span>
+          )}
+
+          {/* Category Filter Pills (Rendered ONLY when > 1 category exists) */}
+          {categories.length > 1 && (
             <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] font-mono text-typo-gray/70 mr-1 flex items-center gap-1">
+                <Tag className="w-3 h-3 text-brand-cyan" />
+                <span>Category:</span>
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setSelectedCategory("all")}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-sans transition-colors",
+                  selectedCategory === "all"
+                    ? "bg-brand-cyan/20 border border-brand-cyan text-brand-cyan font-medium"
+                    : "bg-foundation-dark text-typo-gray hover:text-typo-white border border-foundation-slate/60"
+                )}
+              >
+                All
+              </button>
+
               {categories.map((cat) => (
                 <button
                   key={cat}
                   type="button"
                   onClick={() => setSelectedCategory(cat)}
                   className={cn(
-                    "px-3 py-1 rounded-full text-[11px] font-mono uppercase tracking-wider transition-all",
+                    "px-3 py-1 rounded-full text-xs font-sans transition-colors",
                     selectedCategory === cat
-                      ? "bg-brand-blue text-typo-white font-semibold shadow-sm border border-brand-cyan/40"
-                      : "bg-foundation-slate/40 text-typo-gray hover:text-typo-white hover:bg-foundation-slate/60 border border-foundation-slate/60"
+                      ? "bg-brand-cyan/20 border border-brand-cyan text-brand-cyan font-medium"
+                      : "bg-foundation-dark text-typo-gray hover:text-typo-white border border-foundation-slate/60"
                   )}
                 >
-                  {cat === "ALL" ? "All" : cat}
+                  {cat}
                 </button>
               ))}
             </div>
@@ -331,76 +302,81 @@ export function EventArchive({ events, className }: EventArchiveProps) {
         </div>
       )}
 
-      {/* Grouped Years */}
-      <div className="space-y-6 pt-2">
-        {eventsByYear.length === 0 ? (
-          <div className="py-12 text-center rounded-xl bg-foundation-dark/40 border border-foundation-slate/40 text-xs text-typo-gray space-y-1">
-            <p>No past events matched your query.</p>
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  setSelectedCategory("ALL");
-                }}
-                className="text-brand-cyan hover:underline font-mono text-[11px]"
-              >
-                Reset Search Filters
-              </button>
-            )}
-          </div>
-        ) : (
-          eventsByYear.map(({ year, events: yrEvents }) => {
-            const isCollapsed = Boolean(collapsedYears[year]);
+      {/* 3. Empty State */}
+      {groupedByYear.length === 0 && (
+        <div className="py-16 text-center rounded-2xl bg-foundation-dark/40 border border-dashed border-foundation-slate/60 space-y-3">
+          <p className="font-sans text-sm text-typo-gray">
+            No past events match your selected filters.
+          </p>
+          {(hasSearch || hasCategoryFilter || selectedYear !== "all") && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
+                setSelectedCategory("all");
+                setSelectedYear("all");
+              }}
+              className="text-xs font-mono text-brand-cyan hover:underline"
+            >
+              Reset all filters
+            </button>
+          )}
+        </div>
+      )}
 
-            return (
-              <div
-                key={year}
-                className="rounded-2xl bg-foundation-dark/40 border border-foundation-slate/50 overflow-hidden"
-              >
-                {/* Year Header / Accordion Trigger */}
-                <button
-                  type="button"
-                  onClick={() => toggleYearCollapse(year)}
-                  className="w-full flex items-center justify-between p-4 sm:p-5 bg-foundation-dark/70 hover:bg-foundation-slate/40 transition-colors text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-display text-xl sm:text-2xl font-extrabold text-typo-white">
-                      {year}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono uppercase bg-foundation-slate/60 text-typo-gray border border-foundation-slate/80">
-                      {yrEvents.length} {yrEvents.length === 1 ? "Event" : "Events"}
-                    </span>
-                  </div>
+      {/* 4. Grouped Bento Grids by Year */}
+      <div className="space-y-12">
+        {groupedByYear.map(({ year, events: yearEvents }, groupIdx) => {
+          const isYearExpanded = Boolean(expandedYears[year]);
+          // When filtering or searching, show all; otherwise show first 6 cards by default
+          const shouldLimit = !hasSearch && !hasCategoryFilter && !isYearExpanded && yearEvents.length > DEFAULT_PAGE_SIZE;
+          const displayEvents = shouldLimit ? yearEvents.slice(0, DEFAULT_PAGE_SIZE) : yearEvents;
+          const bentoItems = buildBentoBlocks(displayEvents);
+          const remainingCount = yearEvents.length - displayEvents.length;
 
-                  <div className="flex items-center gap-1.5 text-xs font-mono text-typo-gray hover:text-brand-cyan">
-                    <span>{isCollapsed ? "Expand" : "Collapse"}</span>
-                    {isCollapsed ? (
-                      <ChevronDown className="w-4 h-4" />
-                    ) : (
-                      <ChevronUp className="w-4 h-4" />
-                    )}
-                  </div>
-                </button>
-
-                {/* Event rows inside year (with thin vertical thread & star node) */}
-                {!isCollapsed && (
-                  <div className="p-4 sm:p-6 border-t border-foundation-slate/40">
-                    <div className="space-y-0">
-                      {yrEvents.map((evt, idx) => (
-                        <ArchiveTimelineItem
-                          key={evt.slug}
-                          event={evt}
-                          isLast={idx === yrEvents.length - 1}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
+          return (
+            <div key={year} className="space-y-6">
+              {/* Slim Year Label with Thin Divider Line */}
+              <div className="flex items-center gap-4 pt-2">
+                <span className="text-base sm:text-lg font-mono font-bold tracking-wider text-brand-cyan">
+                  {year}
+                </span>
+                <div className="flex-1 h-px bg-foundation-slate/50" />
+                <span className="text-xs font-mono text-typo-gray/80">
+                  {yearEvents.length} {yearEvents.length === 1 ? "event" : "events"}
+                </span>
               </div>
-            );
-          })
-        )}
+
+              {/* 12-Column Desktop / 2-Column Tablet / 1-Column Mobile Bento Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 sm:gap-6">
+                {bentoItems.map(({ event, variant }, idx) => (
+                  <EventBentoCard
+                    key={event.id || event.slug}
+                    event={event}
+                    variant={variant}
+                    priority={groupIdx === 0 && idx === 0}
+                  />
+                ))}
+              </div>
+
+              {/* "Show more" Button (shown when > 6 cards exist for this year and not yet expanded) */}
+              {shouldLimit && remainingCount > 0 && (
+                <div className="pt-4 text-center">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedYears((prev) => ({ ...prev, [year]: true }))
+                    }
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-foundation-dark/80 hover:bg-foundation-dark border border-foundation-slate/70 hover:border-brand-cyan/40 text-xs font-mono text-typo-white transition-all shadow-sm group"
+                  >
+                    <span>Show more events ({remainingCount} more in {year})</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-brand-cyan group-hover:translate-y-0.5 transition-transform" />
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </section>
   );

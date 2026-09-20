@@ -33,6 +33,7 @@ const nextConfig = {
   },
   transpilePackages: ["three", "@react-three/fiber"],
   images: {
+    dangerouslyAllowSVG: true,
     remotePatterns: [
       {
         protocol: "https",

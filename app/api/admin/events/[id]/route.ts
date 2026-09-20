@@ -22,6 +22,17 @@ export async function PUT(request: Request, { params }: Params) {
     // Sanitize and strictly validate registration fields
     const updateData: any = { ...body };
 
+    if (body.coverImage !== undefined && body.coverImage !== null && typeof body.coverImage === "string") {
+      const trimmed = body.coverImage.trim();
+      if (trimmed && !trimmed.startsWith("http://") && !trimmed.startsWith("https://") && !trimmed.startsWith("/")) {
+        return NextResponse.json(
+          { success: false, error: "Cover image must be a valid URL or path starting with /, http://, or https://" },
+          { status: 400 }
+        );
+      }
+      updateData.coverImage = trimmed;
+    }
+
     if (body.registrationMode !== undefined && body.registrationMode !== null) {
       if (!["external", "onsite", "none"].includes(body.registrationMode)) {
         return NextResponse.json(

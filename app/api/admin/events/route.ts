@@ -69,6 +69,17 @@ export async function POST(request: Request) {
       }
     }
 
+    // Validate coverImage if present
+    if (body.coverImage && typeof body.coverImage === "string") {
+      const trimmed = body.coverImage.trim();
+      if (trimmed && !trimmed.startsWith("http://") && !trimmed.startsWith("https://") && !trimmed.startsWith("/")) {
+        return NextResponse.json(
+          { success: false, error: "Cover image must be a valid URL or path starting with /, http://, or https://" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Generate normalized slug
     const rawSlug = body.slug || body.title;
     const slug = rawSlug

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   Calendar,
@@ -11,6 +11,8 @@ import {
   Ticket,
   AlertTriangle,
   Tag,
+  Maximize2,
+  X,
 } from "lucide-react";
 import { IEvent } from "@/types/content";
 import { EventStatusResult, getRegistrationAction } from "@/lib/utils/event-status";
@@ -34,6 +36,10 @@ export function NextEventCard({
   className,
 }: NextEventCardProps) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+
   const [timeLeft, setTimeLeft] = useState<{
     days: number;
     hours: number;
@@ -66,6 +72,32 @@ export function NextEventCard({
     return () => clearInterval(interval);
   }, [targetUtcIso]);
 
+  // Lightbox Focus Trapping and Escape Key Listener
+  useEffect(() => {
+    if (!lightboxOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setLightboxOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    // Focus close button on open
+    setTimeout(() => {
+      closeBtnRef.current?.focus();
+    }, 50);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = prevOverflow;
+      triggerRef.current?.focus();
+    };
+  }, [lightboxOpen]);
+
   const action = getRegistrationAction(event, status);
   const formattedDate = formatEventDate(event.startDate || event.date);
   const formattedTime = formatEventTimeRange(event.startTime, event.endTime);
@@ -78,30 +110,71 @@ export function NextEventCard({
     buttonLabel = fee > 0 ? `Register · ₹${fee}` : "Register for Free";
   }
 
+  // Check if poster is wide / landscape
+  const isLandscape = Boolean(
+    event.posterWidth &&
+    event.posterHeight &&
+    event.posterWidth / event.posterHeight > 1.15
+  );
+
+  const posterImageSrc = event.coverImage || event.posterUrl;
+
   return (
     <>
       <article
         className={cn(
-          "group relative rounded-2xl bg-foundation-dark/90 border border-foundation-slate/70 p-4 md:p-6 transition-all duration-300 hover:border-brand-cyan/40 hover:shadow-[0_0_35px_rgba(56,189,248,0.12)] flex flex-col md:flex-row gap-5 md:gap-6 items-stretch md:max-h-[350px]",
+          "group relative rounded-2xl bg-foundation-dark/90 border border-foundation-slate/70 p-4 sm:p-5 md:p-6 transition-all duration-300 hover:border-brand-cyan/40 hover:shadow-[0_0_35px_rgba(56,189,248,0.12)] flex flex-col md:flex-row gap-5 md:gap-7 items-stretch",
           className
         )}
       >
-        {/* Poster on the Left (240-280px wide on desktop, max-h 220px on mobile) */}
-        <div className="w-full md:w-[260px] md:shrink-0 flex items-center justify-center overflow-hidden rounded-xl bg-foundation-darkest/60 border border-foundation-slate/60">
-          <EventPoster
-            src={event.coverImage || event.posterUrl}
-            alt={event.title}
-            posterWidth={event.posterWidth}
-            posterHeight={event.posterHeight}
-            maxHeight={220}
-            priority
-            interactive
-            className="w-full h-full max-h-[220px] md:max-h-[300px]"
-          />
+        {/* Poster Column: 40% desktop width (up to 45% for landscape), max-h ~480px. Mobile: max-h ~320px. */}
+        <div
+          className={cn(
+            "w-full md:shrink-0 flex items-center justify-center overflow-hidden rounded-xl bg-foundation-darkest/60 border border-foundation-slate/60",
+            isLandscape ? "md:w-[44%] lg:w-[45%] max-w-[480px]" : "md:w-[38%] lg:w-[40%] max-w-[420px]"
+          )}
+        >
+          {posterImageSrc ? (
+            <button
+              ref={triggerRef}
+              type="button"
+              onClick={() => setLightboxOpen(true)}
+              aria-label={`View full size poster for ${event.title}`}
+              className="group/poster relative w-full h-full flex items-center justify-center cursor-zoom-in text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan rounded-xl overflow-hidden"
+            >
+              <EventPoster
+                src={posterImageSrc}
+                alt={event.title}
+                posterWidth={event.posterWidth}
+                posterHeight={event.posterHeight}
+                maxHeight={480}
+                priority
+                interactive
+                className="w-full h-full max-h-[320px] md:max-h-[480px]"
+              />
+
+              {/* Expand Affordance on hover/focus (Touch-safe: visible via tap or active) */}
+              <div className="absolute bottom-3 right-3 z-20 px-2.5 py-1 rounded-lg bg-foundation-darkest/85 backdrop-blur-md border border-foundation-slate/80 text-typo-white text-[11px] font-mono flex items-center gap-1.5 opacity-0 group-hover/poster:opacity-100 group-focus-visible/poster:opacity-100 transition-opacity shadow-lg pointer-events-none motion-reduce:transition-none">
+                <Maximize2 className="w-3.5 h-3.5 text-brand-cyan" />
+                <span>Expand</span>
+              </div>
+            </button>
+          ) : (
+            <div className="relative w-full h-full flex items-center justify-center rounded-xl overflow-hidden">
+              <EventPoster
+                alt={event.title}
+                posterWidth={event.posterWidth}
+                posterHeight={event.posterHeight}
+                maxHeight={480}
+                priority
+                className="w-full h-full max-h-[320px] md:max-h-[480px]"
+              />
+            </div>
+          )}
         </div>
 
-        {/* Details on the Right */}
-        <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5 space-y-3.5">
+        {/* Details Column: Fills remaining width (~55-60%) */}
+        <div className="flex-1 min-w-0 flex flex-col justify-between py-1 space-y-4">
           {/* Top Row: Chips */}
           <div className="flex flex-wrap items-center gap-2">
             {isPlaceholder && (
@@ -147,8 +220,8 @@ export function NextEventCard({
           </div>
 
           {/* Title & Short Description */}
-          <div className="space-y-1.5">
-            <h3 className="font-display font-bold text-xl sm:text-2xl text-typo-white tracking-tight leading-snug line-clamp-2">
+          <div className="space-y-2">
+            <h3 className="font-display font-bold text-xl sm:text-2xl lg:text-3xl text-typo-white tracking-tight leading-snug line-clamp-2">
               <Link
                 href={`/events/${event.slug}`}
                 className="hover:text-brand-cyan transition-colors"
@@ -163,8 +236,8 @@ export function NextEventCard({
           </div>
 
           {/* Single Row of Meta (date · time · venue) */}
-          <div className="flex items-center flex-wrap gap-x-2.5 gap-y-1 text-xs font-sans text-typo-gray">
-            <span className="inline-flex items-center gap-1 text-typo-white font-medium">
+          <div className="flex items-center flex-wrap gap-x-2.5 gap-y-1.5 text-xs font-sans text-typo-gray pt-1">
+            <span className="inline-flex items-center gap-1.5 text-typo-white font-medium">
               <Calendar className="w-3.5 h-3.5 text-brand-cyan shrink-0" />
               <span>{formattedDate}</span>
             </span>
@@ -172,7 +245,7 @@ export function NextEventCard({
             {formattedTime && (
               <>
                 <span className="text-foundation-slate select-none">·</span>
-                <span className="inline-flex items-center gap-1">
+                <span className="inline-flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-typo-gray/70 shrink-0" />
                   <span>{formattedTime}</span>
                 </span>
@@ -180,14 +253,14 @@ export function NextEventCard({
             )}
 
             <span className="text-foundation-slate select-none">·</span>
-            <span className="inline-flex items-center gap-1 truncate max-w-[220px] sm:max-w-[280px]">
+            <span className="inline-flex items-center gap-1.5 truncate max-w-[220px] sm:max-w-[320px]">
               <MapPin className="w-3.5 h-3.5 text-brand-cyan shrink-0" />
               <span className="truncate">{event.venue}</span>
             </span>
           </div>
 
           {/* Inline Countdown & Actions */}
-          <div className="pt-2 border-t border-foundation-slate/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="pt-3 border-t border-foundation-slate/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             {/* Compact inline countdown */}
             <div className="text-xs font-mono">
               {timeLeft && !timeLeft.isPast ? (
@@ -251,6 +324,43 @@ export function NextEventCard({
           </div>
         </div>
       </article>
+
+      {/* Lightbox Modal: Natural Proportions, Accessible, Fit Inside Viewport */}
+      {lightboxOpen && posterImageSrc && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Full size poster view for ${event.title}`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 sm:p-6 md:p-10 transition-opacity motion-reduce:transition-none"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setLightboxOpen(false);
+          }}
+        >
+          {/* Close Button */}
+          <button
+            ref={closeBtnRef}
+            type="button"
+            onClick={() => setLightboxOpen(false)}
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 p-2.5 rounded-full bg-foundation-dark/80 hover:bg-foundation-dark text-typo-white border border-foundation-slate/80 hover:border-brand-cyan transition-colors focus:outline-none focus:ring-2 focus:ring-brand-cyan"
+            aria-label="Close poster view"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {/* Natural Proportions Lightbox Image Container */}
+          <div
+            className="relative max-w-[92vw] max-h-[88vh] flex items-center justify-center overflow-hidden rounded-xl border border-foundation-slate/40 shadow-2xl bg-foundation-darkest"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Plain img used to guarantee zero artificial cropping and unconstrained natural proportions */}
+            <img
+              src={posterImageSrc}
+              alt={event.title}
+              className="max-w-[92vw] max-h-[88vh] w-auto h-auto object-contain select-none"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Registration Modal */}
       {action.type === "onsite" && modalOpen && (

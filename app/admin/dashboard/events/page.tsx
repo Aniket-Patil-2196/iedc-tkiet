@@ -41,9 +41,12 @@ export default function AdminEventsPage() {
     registrationMode: "external" as "external" | "onsite" | "none",
     registrationUrl: "",
     statusOverride: "" as EventStatusOverride | "",
-    coverImage: "/images/placeholders/gallery-1.svg",
+    posterUrl: "/images/placeholders/gallery-1.svg",
     posterWidth: undefined as number | undefined,
     posterHeight: undefined as number | undefined,
+    coverImage: "",
+    coverImageWidth: undefined as number | undefined,
+    coverImageHeight: undefined as number | undefined,
     published: true,
   });
 
@@ -86,9 +89,12 @@ export default function AdminEventsPage() {
       registrationMode: "external",
       registrationUrl: "",
       statusOverride: "",
-      coverImage: "/images/placeholders/gallery-1.svg",
-      posterWidth: undefined as number | undefined,
-      posterHeight: undefined as number | undefined,
+      posterUrl: "/images/placeholders/gallery-1.svg",
+      posterWidth: undefined,
+      posterHeight: undefined,
+      coverImage: "",
+      coverImageWidth: undefined,
+      coverImageHeight: undefined,
       published: true,
     });
     setModalOpen(true);
@@ -114,9 +120,12 @@ export default function AdminEventsPage() {
       registrationMode: event.registrationMode || (event.registrationUrl ? "external" : "none"),
       registrationUrl: event.registrationUrl || "",
       statusOverride: event.statusOverride || "",
-      coverImage: event.coverImage || "/images/placeholders/gallery-1.svg",
+      posterUrl: event.posterUrl || event.coverImage || "/images/placeholders/gallery-1.svg",
       posterWidth: event.posterWidth,
       posterHeight: event.posterHeight,
+      coverImage: event.coverImage || "",
+      coverImageWidth: event.coverImageWidth,
+      coverImageHeight: event.coverImageHeight,
       published: Boolean(event.published),
     });
     setModalOpen(true);
@@ -683,14 +692,27 @@ export default function AdminEventsPage() {
           )}
 
           <ImageInput
-            label="Cover / Poster Image"
-            value={formData.coverImage}
-            onChange={(url) => setFormData({ ...formData, coverImage: url })}
+            label="Primary Event Poster (Portrait / Standard)"
+            value={formData.posterUrl}
+            onChange={(url) => setFormData((prev) => ({ ...prev, posterUrl: url }))}
             onDimensionsChange={(dims) =>
               setFormData((prev) => ({
                 ...prev,
                 posterWidth: dims.width,
                 posterHeight: dims.height,
+              }))
+            }
+          />
+
+          <ImageInput
+            label="Landscape Cover Photo (Optional — used for Past Events Bento Grid)"
+            value={formData.coverImage}
+            onChange={(url) => setFormData((prev) => ({ ...prev, coverImage: url }))}
+            onDimensionsChange={(dims) =>
+              setFormData((prev) => ({
+                ...prev,
+                coverImageWidth: dims.width,
+                coverImageHeight: dims.height,
               }))
             }
           />
