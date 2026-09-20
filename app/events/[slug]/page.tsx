@@ -6,6 +6,7 @@ import { Container } from "@/components/ui/Container";
 import { Section } from "@/components/ui/Section";
 import { Button } from "@/components/ui/Button";
 import { getPublishedEventBySlug } from "@/lib/db/queries";
+import { EventRegistrationSection } from "@/components/events/EventRegistrationSection";
 import {
   getEventStatusInfo,
   formatEventDate,
@@ -183,69 +184,23 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
               )}
             </div>
 
-            {/* Right Column: Registration Card (Google Forms Flow) */}
+            {/* Right Column: Registration Card */}
             <div className="lg:col-span-4 sticky top-28 space-y-6">
-              <div className="p-8 rounded-2xl bg-foundation-dark border border-brand-blue/40 shadow-[0_0_35px_rgba(37,99,235,0.12)] space-y-6">
-                <div className="space-y-2">
-                  <span className="text-xs uppercase font-sans tracking-widest text-brand-cyan font-bold block">
-                    Participation
-                  </span>
-                  <h3 className="font-display text-xl font-bold text-typo-white">
-                    Registration Desk
-                  </h3>
-                </div>
-
-                {/* Conditional Registration States */}
-                {statusInfo.label === "Registration Closed" ? (
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-xs text-amber-300">
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                      <span>
-                        Registrations for this event have officially concluded. Thank you for your interest.
-                      </span>
-                    </div>
-                    <Button disabled variant="secondary" className="w-full">
-                      Registration Closed
-                    </Button>
-                  </div>
-                ) : statusInfo.label === "Cancelled" ? (
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-3 text-xs text-rose-300">
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                      <span>This event has been cancelled by the organizing committee.</span>
-                    </div>
-                    <Button disabled variant="secondary" className="w-full">
-                      Event Cancelled
-                    </Button>
-                  </div>
-                ) : registrationLink ? (
-                  <div className="space-y-4">
-                    <p className="font-sans text-xs text-typo-gray leading-relaxed">
-                      Participants are required to submit their details via the official Google Form.
-                    </p>
-                    <a
-                      href={registrationLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full relative inline-flex items-center justify-center font-sans font-medium transition-all duration-200 outline-none px-6 py-3.5 text-sm rounded-lg bg-brand-blue text-typo-white hover:bg-blue-600 hover:shadow-[0_0_20px_rgba(37,99,235,0.35)] border border-brand-cyan/20 group focus-visible:ring-2 focus-visible:ring-brand-cyan"
-                    >
-                      <span>Register Now (Google Form)</span>
-                      <ExternalLink className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-0.5" />
-                    </a>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-xs text-typo-gray">
-                      Registration details will be announced soon by the IEDC executive committee.
-                    </div>
-                  </div>
-                )}
-
-                <div className="pt-4 border-t border-foundation-slate/60 text-[11px] font-sans text-typo-gray flex items-center gap-2">
-                  <ShieldCheck className="w-3.5 h-3.5 text-brand-cyan" />
-                  <span>Official IEDC TKIET Event</span>
-                </div>
-              </div>
+              <EventRegistrationSection
+                event={{
+                  id: (event as any)._id?.toString() || event.id,
+                  title: event.title,
+                  startDate: event.startDate || event.date || "",
+                  venue: event.venue,
+                  fee: event.fee,
+                  capacity: event.capacity,
+                  registrationDeadline: event.registrationDeadline,
+                  registrationOpen: event.registrationOpen,
+                  registrationUrl: registrationLink,
+                  statusOverride: event.statusOverride,
+                }}
+                statusLabel={statusInfo.label}
+              />
             </div>
           </div>
         </Container>

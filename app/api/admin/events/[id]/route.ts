@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import EventModel from "@/models/Event";
+import { istInputToUtcDate } from "@/lib/utils/date-ist";
 
 interface Params {
   params: { id: string };
@@ -17,9 +18,32 @@ export async function PUT(request: Request, { params }: Params) {
     }
 
     const body = await request.json();
+
+    // Sanitize registration fields
+    const updateData: any = { ...body };
+    if (body.fee !== undefined) {
+      updateData.fee = typeof body.fee === "number" ? Math.max(0, Math.floor(body.fee)) : Math.max(0, parseInt(body.fee, 10) || 0);
+    }
+    if (body.capacity !== undefined) {
+      updateData.capacity = body.capacity ? Math.max(1, parseInt(body.capacity, 10) || 0) : null;
+    }
+    if (body.registrationDeadline !== undefined) {
+      if (!body.registrationDeadline) {
+        updateData.registrationDeadline = null;
+      } else if (typeof body.registrationDeadline === "string") {
+        const istDate = istInputToUtcDate(body.registrationDeadline);
+        updateData.registrationDeadline = istDate || new Date(body.registrationDeadline);
+      } else if (body.registrationDeadline instanceof Date) {
+        updateData.registrationDeadline = body.registrationDeadline;
+      }
+    }
+    if (body.registrationOpen !== undefined) {
+      updateData.registrationOpen = Boolean(body.registrationOpen);
+    }
+
     const updated = await EventModel.findByIdAndUpdate(
       params.id,
-      { ...body },
+      updateData,
       { new: true, runValidators: true }
     );
 

@@ -31,6 +31,10 @@ export interface IEvent {
   isOnline?: boolean;
   status?: EventStatus;
   statusOverride?: EventStatusOverride | null;
+  fee?: number; // Integer rupees (0 = free)
+  registrationDeadline?: string | Date; // UTC date
+  capacity?: number; // Optional max seats
+  registrationOpen?: boolean; // Default true
   registrationUrl?: string;
   registrationLink?: string; // Compatibility alias
   coverImage?: string;
@@ -41,6 +45,35 @@ export interface IEvent {
   highlights?: string[];
   createdAt: string;
   updatedAt?: string;
+}
+
+export type RegistrationStatus =
+  | "pending"
+  | "paid"
+  | "failed"
+  | "refunded"
+  | "cancelled";
+
+export interface IRegistration {
+  id: string;
+  eventId: string;
+  name: string;
+  email: string;
+  phone: string;
+  college: string;
+  year: string;
+  status: RegistrationStatus;
+  amount: number; // in paise
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  receiptNumber?: string;
+  receiptToken: string;
+  paymentMethod?: string;
+  paidAt?: string | Date;
+  refundId?: string;
+  refundedAt?: string | Date;
+  createdAt: string | Date;
+  updatedAt?: string | Date;
 }
 
 export interface IBlog {

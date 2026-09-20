@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, Calendar, Eye, EyeOff, Link2, ExternalLink } from "lucide-react";
+import Link from "next/link";
+import { Plus, Edit2, Trash2, Calendar, Eye, EyeOff, Link2, ExternalLink, Ticket, Clock, Coins } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminModal } from "@/components/admin/AdminModal";
 import { DeleteConfirmModal } from "@/components/admin/DeleteConfirmModal";
 import { ImageInput } from "@/components/admin/ImageInput";
 import { Button } from "@/components/ui/Button";
 import { IEvent, EventStatusOverride } from "@/types/content";
+import { utcDateToIstInputString, istInputToUtcDate, formatDateIST } from "@/lib/utils/date-ist";
 
 export default function AdminEventsPage() {
   const [events, setEvents] = useState<IEvent[]>([]);
@@ -30,6 +32,10 @@ export default function AdminEventsPage() {
     endDate: "",
     endTime: "01:00 PM",
     venue: "Main Seminar Hall, TKIET",
+    fee: 0,
+    registrationDeadline: "",
+    capacity: "",
+    registrationOpen: true,
     registrationUrl: "",
     statusOverride: "" as EventStatusOverride | "",
     coverImage: "/images/placeholders/gallery-1.svg",
@@ -68,7 +74,11 @@ export default function AdminEventsPage() {
       endDate: "",
       endTime: "01:00 PM",
       venue: "Main Seminar Hall, TKIET",
-      registrationUrl: "https://docs.google.com/forms/...",
+      fee: 0,
+      registrationDeadline: "",
+      capacity: "",
+      registrationOpen: true,
+      registrationUrl: "",
       statusOverride: "",
       coverImage: "/images/placeholders/gallery-1.svg",
       published: true,
@@ -89,6 +99,10 @@ export default function AdminEventsPage() {
       endDate: event.endDate ? event.endDate.split("T")[0] : "",
       endTime: event.endTime || "01:00 PM",
       venue: event.venue,
+      fee: event.fee !== undefined ? event.fee : 0,
+      registrationDeadline: utcDateToIstInputString(event.registrationDeadline),
+      capacity: event.capacity !== undefined && event.capacity !== null ? String(event.capacity) : "",
+      registrationOpen: event.registrationOpen !== false,
       registrationUrl: event.registrationUrl || "",
       statusOverride: event.statusOverride || "",
       coverImage: event.coverImage || "/images/placeholders/gallery-1.svg",
@@ -108,13 +122,19 @@ export default function AdminEventsPage() {
         : "/api/admin/events";
       const method = isEdit ? "PUT" : "POST";
 
+      const payload = {
+        ...formData,
+        fee: Math.max(0, parseInt(String(formData.fee), 10) || 0),
+        capacity: formData.capacity ? Math.max(1, parseInt(String(formData.capacity), 10) || 0) : null,
+        registrationDeadline: formData.registrationDeadline ? istInputToUtcDate(formData.registrationDeadline) : null,
+        registrationOpen: Boolean(formData.registrationOpen),
+        statusOverride: formData.statusOverride || null,
+      };
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          statusOverride: formData.statusOverride || null,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
@@ -221,16 +241,20 @@ export default function AdminEventsPage() {
                     <th className="p-4">Event Title</th>
                     <th className="p-4">Category</th>
                     <th className="p-4">Date &amp; Venue</th>
-                    <th className="p-4">Google Form</th>
+                    <th className="p-4">Registration</th>
+                    <th className="p-4">External Form</th>
                     <th className="p-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-foundation-slate/50">
                   {events.map((event) => {
                     const isPublished = event.published !== false;
+                    const eventId = (event as any)._id || event.id;
+                    const isRegOpen = event.registrationOpen !== false;
+                    const feeText = event.fee && event.fee > 0 ? `₹${event.fee}` : "Free";
                     return (
                       <tr
-                        key={(event as any)._id || event.id || event.slug}
+                        key={eventId || event.slug}
                         className="hover:bg-foundation-slate/20 transition-colors"
                       >
                         <td className="p-4 whitespace-nowrap">
@@ -283,6 +307,28 @@ export default function AdminEventsPage() {
                         </td>
 
                         <td className="p-4 whitespace-nowrap">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-typo-white">{feeText}</span>
+                              <span
+                                className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                                  isRegOpen
+                                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                    : "bg-rose-500/20 text-rose-400 border border-rose-500/30"
+                                }`}
+                              >
+                                {isRegOpen ? "OPEN" : "CLOSED"}
+                              </span>
+                            </div>
+                            {event.capacity && (
+                              <span className="text-[10px] text-typo-gray font-mono">
+                                Cap: {event.capacity} seats
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="p-4 whitespace-nowrap">
                           {event.registrationUrl ? (
                             <a
                               href={event.registrationUrl}
@@ -300,6 +346,14 @@ export default function AdminEventsPage() {
 
                         <td className="p-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-2">
+                            <Link
+                              href={`/admin/dashboard/registrations?eventId=${eventId}`}
+                              className="p-1.5 rounded-lg bg-brand-blue/20 hover:bg-brand-blue/40 text-brand-cyan border border-brand-cyan/30 transition-colors inline-flex items-center gap-1"
+                              title="View Registrations"
+                            >
+                              <Ticket className="w-3.5 h-3.5" />
+                              <span className="text-[11px] font-medium hidden sm:inline">Regs</span>
+                            </Link>
                             <button
                               type="button"
                               onClick={() => openEditModal(event)}
@@ -448,7 +502,7 @@ export default function AdminEventsPage() {
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
-              Google Form Registration URL
+              External Google Form URL (Optional Fallback)
             </label>
             <input
               type="url"
@@ -457,6 +511,86 @@ export default function AdminEventsPage() {
               placeholder="https://forms.google.com/..."
               className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
             />
+          </div>
+
+          {/* On-Site Registration & Razorpay Payment Configuration */}
+          <div className="p-4 rounded-xl bg-foundation-dark/80 border border-brand-blue/30 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-foundation-slate/60">
+              <div className="flex items-center gap-2">
+                <Ticket className="w-4 h-4 text-brand-cyan" />
+                <span className="text-xs font-bold text-typo-white uppercase tracking-wider">
+                  On-Site Registration &amp; Razorpay Payment
+                </span>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-typo-white">
+                <input
+                  type="checkbox"
+                  checked={formData.registrationOpen}
+                  onChange={(e) => setFormData({ ...formData, registrationOpen: e.target.checked })}
+                  className="w-4 h-4 rounded text-brand-blue focus:ring-brand-cyan bg-foundation-slate border-foundation-slate"
+                />
+                <span className={formData.registrationOpen ? "text-emerald-400 font-semibold" : "text-typo-gray"}>
+                  {formData.registrationOpen ? "Registration Open" : "Registration Closed"}
+                </span>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider flex items-center gap-1">
+                  <Coins className="w-3.5 h-3.5 text-brand-cyan" />
+                  Fee (INR ₹) *
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  required
+                  value={formData.fee}
+                  onChange={(e) => setFormData({ ...formData, fee: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                  placeholder="0 for Free"
+                  className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                />
+                <span className="text-[10px] text-typo-gray block">
+                  0 = Free (Instant). &gt;0 uses Razorpay.
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-brand-cyan" />
+                  Deadline (IST)
+                </label>
+                <input
+                  type="datetime-local"
+                  value={formData.registrationDeadline}
+                  onChange={(e) => setFormData({ ...formData, registrationDeadline: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                />
+                <span className="text-[10px] text-typo-gray block">
+                  Indian Standard Time. Optional cut-off.
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider flex items-center gap-1">
+                  <Ticket className="w-3.5 h-3.5 text-brand-cyan" />
+                  Capacity (Seats)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={formData.capacity}
+                  onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                  placeholder="Unlimited"
+                  className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                />
+                <span className="text-[10px] text-typo-gray block">
+                  Empty = Unlimited. Holds seat for 15m.
+                </span>
+              </div>
+            </div>
           </div>
 
           <ImageInput

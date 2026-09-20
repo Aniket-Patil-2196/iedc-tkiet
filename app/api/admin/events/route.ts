@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import EventModel from "@/models/Event";
+import { istInputToUtcDate } from "@/lib/utils/date-ist";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,9 +77,27 @@ export async function POST(request: Request) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
 
+    // Validate and sanitize registration fields
+    const fee = typeof body.fee === "number" ? Math.max(0, Math.floor(body.fee)) : Math.max(0, parseInt(body.fee, 10) || 0);
+    const capacity = body.capacity ? Math.max(1, parseInt(body.capacity, 10) || 0) : null;
+    let registrationDeadline: Date | null = null;
+    if (body.registrationDeadline) {
+      if (typeof body.registrationDeadline === "string") {
+        const istDate = istInputToUtcDate(body.registrationDeadline);
+        registrationDeadline = istDate || new Date(body.registrationDeadline);
+      } else if (body.registrationDeadline instanceof Date) {
+        registrationDeadline = body.registrationDeadline;
+      }
+    }
+    const registrationOpen = body.registrationOpen !== undefined ? Boolean(body.registrationOpen) : true;
+
     const newEvent = await EventModel.create({
       ...body,
       slug,
+      fee,
+      capacity,
+      registrationDeadline,
+      registrationOpen,
       category: body.category || "Workshop",
       published: Boolean(body.published),
     });

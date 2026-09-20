@@ -45,6 +45,10 @@ const EventSchema = new Schema<IEventDocument>(
     published: { type: Boolean, default: false, index: true },
     category: { type: String, required: true, index: true },
     highlights: [{ type: String }],
+    fee: { type: Number, default: 0, min: 0 },
+    registrationDeadline: { type: Date, default: null },
+    capacity: { type: Number, default: null, min: 1 },
+    registrationOpen: { type: Boolean, default: true, index: true },
   },
   { timestamps: true }
 );
