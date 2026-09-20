@@ -7,7 +7,7 @@ import { Menu, Shield, ExternalLink } from "lucide-react";
 interface AdminHeaderProps {
   title: string;
   subtitle?: string;
-  onToggleSidebar: () => void;
+  onToggleSidebar?: () => void;
 }
 
 export function AdminHeader({

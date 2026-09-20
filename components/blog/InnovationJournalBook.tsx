@@ -27,6 +27,7 @@ import { IBlog } from "@/types/content";
 import { formatEventDate } from "@/lib/utils/event-status";
 import { ImageLightbox } from "./ImageLightbox";
 import { PostageStamp } from "./PostageStamp";
+import { BlogCommentsSection } from "./BlogCommentsSection";
 import { stripHtmlToPlainText } from "@/lib/utils/blog-validation";
 import { cn } from "@/lib/utils";
 
@@ -497,10 +498,11 @@ export function InnovationJournalBook({
   // ==========================================
 
   // Intro Page (Spread 0 Left)
+  // Intro Page (Spread 0 Left) - Warm Parchment Paper Style
   const renderIntroPage = () => (
     <div className="w-full h-full p-6 sm:p-8 flex flex-col justify-between select-none">
       <div className="space-y-4 sm:space-y-6">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-700/60 text-xs font-mono text-brand-cyan tracking-wider uppercase">
+        <div className="flex items-center justify-between pb-3 border-b border-[#D8C7A7] text-xs font-mono text-[#4B5468] tracking-wider uppercase font-semibold">
           <span>IEDC TKIET</span>
           <span>EST. 2014</span>
         </div>
@@ -508,84 +510,84 @@ export function InnovationJournalBook({
         <h2
           ref={firstHeadingRef}
           tabIndex={-1}
-          className="font-display text-2xl sm:text-3xl font-bold text-typo-white tracking-tight focus:outline-none"
+          className="font-display text-2xl sm:text-3xl font-bold text-[#0F1B44] tracking-tight focus:outline-none"
         >
           Editorial Preface
         </h2>
 
-        <p className="font-sans text-xs sm:text-sm text-typo-gray leading-relaxed">
-          Welcome to <span className="text-brand-cyan font-medium">The Innovation Journal</span>,
+        <p className="font-sans text-xs sm:text-sm text-[#1B2333] leading-relaxed">
+          Welcome to <span className="text-[#1E40AF] font-semibold">The Innovation Journal</span>,
           the institutional publication of the Innovation &amp; Entrepreneurship Development Cell at
           TKIET Warananagar.
         </p>
 
-        <p className="font-sans text-xs sm:text-sm text-typo-gray leading-relaxed">
+        <p className="font-sans text-xs sm:text-sm text-[#1B2333] leading-relaxed">
           Here we document student ventures, patent drafts, interdisciplinary engineering research,
           and entrepreneurial breakthroughs emerging from campus incubators.
         </p>
 
         <div className="pt-2">
-          <div className="p-3.5 rounded-xl bg-foundation-dark/60 border border-slate-700/60 space-y-1">
-            <span className="text-[10px] font-mono text-brand-cyan uppercase tracking-widest block font-bold">
+          <div className="p-3.5 rounded-xl bg-[#FAF5EA] border border-[#DACBB5] space-y-1 shadow-sm">
+            <span className="text-[10px] font-mono text-[#1E40AF] uppercase tracking-widest block font-bold">
               CELL MANDATE
             </span>
-            <span className="text-xs text-typo-gray leading-relaxed block">
+            <span className="text-xs text-[#4B5468] leading-relaxed block font-medium">
               Transforming academic engineering ideas into validated prototypes and regional startups.
             </span>
           </div>
         </div>
       </div>
 
-      <div className="pt-4 flex items-center justify-between border-t border-slate-800/80 text-[11px] font-mono text-typo-gray/60">
+      <div className="pt-4 flex items-center justify-between border-t border-[#D8C7A7] text-[11px] font-mono text-[#4B5468]">
         <span>WARANANAGAR, MH</span>
         <span>FOLIO I</span>
       </div>
     </div>
   );
 
-  // Contents Page (Spread 0 Right)
+  // Contents Page (Spread 0 Right) - Warm Parchment Paper Style
   const renderContentsPage = () => (
     <div className="w-full h-full p-6 sm:p-8 flex flex-col justify-between select-none">
       <div className="space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-700/60 text-xs font-mono text-brand-cyan tracking-wider uppercase">
+        <div className="flex items-center justify-between pb-3 border-b border-[#D8C7A7] text-xs font-mono text-[#4B5468] tracking-wider uppercase font-semibold">
           <span>TABLE OF CONTENTS</span>
           <span>{blogs.length} ARTICLES</span>
         </div>
 
-        <h3 className="font-display text-xl sm:text-2xl font-bold text-typo-white tracking-tight">
+        <h3 className="font-display text-xl sm:text-2xl font-bold text-[#0F1B44] tracking-tight">
           Published Articles
         </h3>
 
         {blogs.length === 0 ? (
           <div className="py-12 text-center space-y-2">
-            <BookOpen className="w-8 h-8 text-brand-cyan/60 mx-auto" />
-            <p className="font-sans text-xs text-typo-gray">
+            <BookOpen className="w-8 h-8 text-[#1E40AF]/60 mx-auto" />
+            <p className="font-sans text-xs text-[#4B5468]">
               Stories are coming soon. New publications will be indexed here.
             </p>
           </div>
         ) : (
-          <div className="space-y-2 max-h-[58vh] overflow-y-auto pr-1">
+          <div className="space-y-1.5 max-h-[58vh] overflow-y-auto pr-1">
             {blogs.map((b, idx) => (
               <button
                 key={b.id || b.slug}
                 type="button"
                 onClick={() => handleJumpToArticle(idx)}
-                className="w-full text-left p-2.5 rounded-lg hover:bg-slate-800/40 border border-transparent hover:border-slate-700/60 transition-colors group flex items-start justify-between gap-3"
+                className="w-full text-left p-2.5 rounded-lg hover:bg-[#EAE0CA]/70 border border-transparent hover:border-[#DACBB5] transition-colors group flex items-start justify-between gap-3"
               >
-                <div className="space-y-1 min-w-0">
+                <div className="space-y-0.5 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-brand-cyan font-bold">
+                    <span className="text-[10px] font-mono text-[#1E40AF] font-bold">
                       {(idx + 1).toString().padStart(2, "0")}
                     </span>
-                    <span className="font-display text-xs sm:text-sm font-semibold text-typo-white group-hover:text-brand-cyan truncate transition-colors">
+                    <span className="font-display text-xs sm:text-sm font-semibold text-[#0F1B44] group-hover:text-[#1E40AF] truncate transition-colors">
                       {b.title}
                     </span>
                   </div>
-                  <span className="text-[11px] font-mono text-typo-gray/70 block">
+                  <span className="text-[11px] font-mono text-[#4B5468] block pl-5">
                     {getPubDate(b)} · {b.readTimeMinutes || 3} min read
                   </span>
                 </div>
-                <span className="text-xs font-mono text-brand-cyan opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <span className="text-xs font-mono text-[#1E40AF] opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                   P. {(idx + 2).toString().padStart(2, "0")} →
                 </span>
               </button>
@@ -594,7 +596,7 @@ export function InnovationJournalBook({
         )}
       </div>
 
-      <div className="pt-4 flex items-center justify-between border-t border-slate-800/80 text-[11px] font-mono text-typo-gray/60">
+      <div className="pt-4 flex items-center justify-between border-t border-[#D8C7A7] text-[11px] font-mono text-[#4B5468]">
         <span>INDEX SECTION</span>
         <span>FOLIO II</span>
       </div>
@@ -695,11 +697,11 @@ export function InnovationJournalBook({
     <div className="w-full h-full p-6 sm:p-7 flex flex-col justify-between select-none overflow-y-auto sm:overflow-hidden">
       <div className="space-y-3">
         {/* Integrated Header / Running Head */}
-        <div className="flex items-center justify-between pb-2.5 border-b border-slate-700/60 text-[11px] font-mono text-brand-cyan tracking-wider uppercase">
-          <span>PLATE {(spreadIdx * 2 - 1).toString().padStart(2, "0")} · ARCHIVE</span>
+        <div className="flex items-center justify-between pb-2.5 border-b border-[#D8C7A7] text-[11px] font-mono text-[#4B5468] tracking-wider uppercase font-semibold">
+          <span className="text-[#1E40AF]">PLATE {(spreadIdx * 2 - 1).toString().padStart(2, "0")} · ARCHIVE</span>
           {isDevPlaceholder(blog) && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
-              <AlertTriangle className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 text-[10px] font-mono text-amber-950 bg-amber-100/90 px-2 py-0.5 rounded border border-amber-300 font-semibold shadow-sm">
+              <AlertTriangle className="w-3 h-3 text-amber-800" />
               Dev Placeholder
             </span>
           )}
@@ -713,11 +715,11 @@ export function InnovationJournalBook({
       </div>
 
       {/* Plate Folio / Bottom Footer */}
-      <div className="pt-3 flex items-center justify-between border-t border-slate-800/80 text-[11px] font-mono text-typo-gray/60 mt-auto">
+      <div className="pt-3 flex items-center justify-between border-t border-[#D8C7A7] text-[11px] font-mono text-[#4B5468] mt-auto">
         <span>IEDC TKIET WARANANAGAR</span>
         <Link
           href={`/blog/${blog.slug}`}
-          className="text-brand-cyan hover:underline inline-flex items-center gap-1 group"
+          className="text-[#1E40AF] hover:text-[#2563EB] hover:underline inline-flex items-center gap-1 group font-medium"
         >
           <span>Read full manuscript</span>
           <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
@@ -738,26 +740,26 @@ export function InnovationJournalBook({
       <div className="relative w-full h-full p-6 sm:p-8 flex flex-col justify-between select-none">
         <div className="space-y-3 relative flex-1 flex flex-col min-h-0">
           {/* Running Head */}
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-700/60 text-[11px] font-mono text-brand-cyan tracking-wider uppercase">
+          <div className="flex items-center justify-between pb-2.5 border-b border-[#D8C7A7] text-[11px] font-mono text-[#4B5468] tracking-wider uppercase font-semibold">
             <span>{getPubDate(blog)}</span>
             <span>{blog.readTimeMinutes || 4} MIN READ</span>
           </div>
 
           {/* Title and Author Byline */}
           <div className="space-y-1">
-            <h3 className="font-display text-lg sm:text-xl font-bold text-typo-white tracking-tight leading-snug">
+            <h3 className="font-display text-lg sm:text-xl font-bold text-[#0F1B44] tracking-tight leading-snug">
               {blog.title}
             </h3>
-            <div className="text-[11px] font-mono text-brand-cyan/80">
+            <div className="text-[11px] font-mono text-[#1E40AF] font-semibold">
               By {blog.author || "IEDC TKIET"}
             </div>
           </div>
 
-          {/* Body Text with Literary Serif & Handwriting Drop Cap */}
+          {/* Body Text with Literary Serif & Handwriting Drop Cap (ragged right text-left, NO wide gaps!) */}
           <div className="relative flex-1 overflow-hidden pt-1">
-            <p className="font-book-body text-[16px] sm:text-[17px] md:text-[18px] text-slate-200/90 leading-[1.7] tracking-normal text-justify">
+            <p className="font-book-body text-[16px] sm:text-[17px] md:text-[18px] text-[#1B2333] leading-[1.7] tracking-normal text-left [hyphens:manual]">
               {dropCap && (
-                <span className="float-left text-4xl sm:text-5xl font-book-handwriting font-bold text-brand-cyan mr-2.5 sm:mr-3 leading-[0.8] select-none">
+                <span className="float-left text-4xl sm:text-5xl font-book-handwriting font-bold ink-drop-cap mr-2.5 sm:mr-3 leading-[0.8] select-none">
                   {dropCap}
                 </span>
               )}
@@ -768,14 +770,14 @@ export function InnovationJournalBook({
             {isTruncated && (
               <div
                 aria-hidden="true"
-                className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#080E20] via-[#080E20]/80 to-transparent pointer-events-none"
+                className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[var(--paper,#F2E9D6)] via-[var(--paper,#F2E9D6)]/80 to-transparent pointer-events-none"
               />
             )}
           </div>
         </div>
 
         {/* Page Folio */}
-        <div className="pt-3 flex items-center justify-between border-t border-slate-800/80 text-[11px] font-mono text-typo-gray/60">
+        <div className="pt-3 flex items-center justify-between border-t border-[#D8C7A7] text-[11px] font-mono text-[#4B5468]">
           <span>THE INNOVATION JOURNAL</span>
           <span>PAGE {(spreadIdx * 2).toString().padStart(2, "0")}</span>
         </div>
@@ -785,7 +787,7 @@ export function InnovationJournalBook({
           <div className="absolute -bottom-3 right-6 sm:right-10 z-30 group">
             <Link
               href={`/blog/${blog.slug}`}
-              className="relative flex items-center justify-center px-4 pt-1.5 pb-3 bg-gradient-to-b from-brand-cyan to-[#0284C7] text-slate-950 font-book-handwriting font-bold text-sm sm:text-base tracking-wide shadow-[0_6px_16px_rgba(56,189,248,0.4)] transition-all duration-300 group-hover:translate-y-1 hover:brightness-110"
+              className="relative flex items-center justify-center px-4 pt-1.5 pb-3 bg-gradient-to-b from-[#1E3A8A] to-[#172554] text-[#FBF6E9] font-book-handwriting font-bold text-sm sm:text-base tracking-wide shadow-[0_4px_14px_rgba(74,52,24,0.35)] transition-all duration-300 group-hover:translate-y-1 hover:brightness-110"
               style={{
                 clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 10px), 50% 100%, 0 calc(100% - 10px))",
               }}
@@ -859,103 +861,128 @@ export function InnovationJournalBook({
               perspective: "1600px",
             }}
           >
-            {/* Spread Frame Wrapper */}
-            <div
-              ref={spreadFrameRef}
-              style={{
-                width: "calc(var(--page-w) * 2)",
-                height: "var(--book-h)",
-                transform: isOpen ? "translateX(0px)" : `translateX(calc(var(--page-w) / -2))`,
-                transition: isOpeningAnimating ? "none" : "transform 0.5s ease-out",
-              }}
-              className="relative flex rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.85)]"
-            >
-              {/* Spine Shading & Shadow Layer */}
+              {/* Spread Frame Wrapper */}
               <div
-                aria-hidden="true"
-                className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-10 pointer-events-none z-30"
+                ref={spreadFrameRef}
                 style={{
-                  background:
-                    "linear-gradient(to right, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.8) 50%, rgba(0,0,0,0.45) 100%)",
-                  opacity: isOpen ? 0.85 : 0,
+                  width: "calc(var(--page-w) * 2)",
+                  height: "var(--book-h)",
+                  transform: isOpen ? "translateX(0px)" : `translateX(calc(var(--page-w) / -2))`,
+                  transition: isOpeningAnimating ? "none" : "transform 0.5s ease-out",
                 }}
-              />
-
-              {/* LEFT PAGE OF SPREAD */}
-              <div
-                style={{ width: "var(--page-w)", height: "var(--book-h)" }}
-                className={cn(
-                  "relative rounded-l-2xl border-y border-l border-slate-700/70 bg-gradient-to-br from-[#091124] via-[#0D1935] to-[#080E20] overflow-hidden",
-                  !isOpen && "invisible pointer-events-none"
-                )}
+                className="relative flex rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.85),0_10px_35px_rgba(74,52,24,0.18)]"
               >
-                {/* Subtle Paper Texture & Spine Shadow */}
-                <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-black/60 to-transparent pointer-events-none" />
-                {currentSpread === 0
-                  ? renderIntroPage()
-                  : blogs[currentSpread - 1] &&
-                    renderArticleLeftPage(blogs[currentSpread - 1], currentSpread)}
-              </div>
-
-              {/* RIGHT PAGE OF SPREAD (or Closed Cover when closed) */}
-              <div
-                style={{ width: "var(--page-w)", height: "var(--book-h)" }}
-                className={cn(
-                  "relative rounded-r-2xl border-y border-r border-slate-700/70 bg-gradient-to-br from-[#080E20] via-[#0D1935] to-[#091124] overflow-hidden",
-                  !isOpen && "invisible pointer-events-none"
-                )}
-              >
-                {/* Subtle Paper Texture & Spine Shadow */}
-                <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-black/60 to-transparent pointer-events-none" />
-                {currentSpread === 0
-                  ? renderContentsPage()
-                  : blogs[currentSpread - 1] &&
-                    renderArticleRightPage(blogs[currentSpread - 1], currentSpread)}
-
-                {/* Interactive page corner click target for turning forward */}
-                {isOpen && currentSpread < totalSpreads - 1 && (
-                  <button
-                    type="button"
-                    onClick={() => triggerSpreadTurn("next")}
-                    aria-label="Turn forward"
-                    className="absolute bottom-0 right-0 w-16 h-16 bg-gradient-to-tl from-brand-cyan/20 to-transparent hover:from-brand-cyan/40 transition-all rounded-tl-2xl cursor-pointer group flex items-end justify-end p-2.5"
-                  >
-                    <ChevronRight className="w-4 h-4 text-brand-cyan/70 group-hover:text-brand-cyan group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                )}
-              </div>
-
-              {/* 3D Dynamic Flipping Leaf during page turns */}
-              {isTurning && (
+                {/* Spine Shading & Shadow Layer */}
                 <div
-                  ref={turnDirection === "next" ? rightFlipperRef : leftFlipperRef}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: "var(--page-w)",
-                    width: "var(--page-w)",
-                    height: "var(--book-h)",
-                    transformOrigin: turnDirection === "next" ? "left center" : "left center",
-                    transformStyle: "preserve-3d",
-                    zIndex: 40,
-                  }}
+                  aria-hidden="true"
+                  className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-10 pointer-events-none z-30 book-spine-crease"
+                  style={{ opacity: isOpen ? 0.9 : 0 }}
+                />
+
+                {/* LEFT PAGE OF SPREAD (Warm Textured Cream Paper) */}
+                <div
+                  style={{ width: "var(--page-w)", height: "var(--book-h)" }}
+                  className={cn(
+                    "relative rounded-l-2xl border-y border-l border-[#D6C4A5] book-paper-sheet overflow-hidden",
+                    !isOpen && "invisible pointer-events-none"
+                  )}
                 >
-                  <div
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      boxShadow: `0 0 40px rgba(0,0,0,${shadowOpacity})`,
-                    }}
-                    className="rounded-r-2xl border border-slate-700 bg-gradient-to-br from-[#091124] via-[#0D1935] to-[#080E20] overflow-hidden"
-                  >
-                    {/* Shadow overlay during flip */}
-                    <div
-                      style={{ opacity: shadowOpacity }}
-                      className="absolute inset-0 bg-black pointer-events-none transition-opacity"
-                    />
-                  </div>
+                  {/* Outer aged vignette on left edge */}
+                  <div className="absolute inset-y-0 left-0 w-8 book-page-vignette-left pointer-events-none" />
+                  {/* Gutter shading at spine on right edge with curved highlight strip */}
+                  <div className="absolute inset-y-0 right-0 w-12 book-gutter-left pointer-events-none z-10" />
+                  {/* Thin outer page-block edge lines */}
+                  <div className="absolute inset-y-0 left-0 w-[1px] bg-[#C8B896] pointer-events-none" />
+                  <div className="absolute inset-x-0 bottom-0 h-[1px] bg-[#C8B896] pointer-events-none" />
+
+                  {currentSpread === 0
+                    ? renderIntroPage()
+                    : blogs[currentSpread - 1] &&
+                      renderArticleLeftPage(blogs[currentSpread - 1], currentSpread)}
                 </div>
-              )}
+
+                {/* RIGHT PAGE OF SPREAD (Warm Textured Cream Paper) */}
+                <div
+                  style={{ width: "var(--page-w)", height: "var(--book-h)" }}
+                  className={cn(
+                    "relative rounded-r-2xl border-y border-r border-[#D6C4A5] book-paper-sheet overflow-hidden",
+                    !isOpen && "invisible pointer-events-none"
+                  )}
+                >
+                  {/* Outer aged vignette on right edge */}
+                  <div className="absolute inset-y-0 right-0 w-8 book-page-vignette-right pointer-events-none" />
+                  {/* Gutter shading at spine on left edge with curved highlight strip */}
+                  <div className="absolute inset-y-0 left-0 w-12 book-gutter-right pointer-events-none z-10" />
+                  {/* Thin outer page-block edge lines */}
+                  <div className="absolute inset-y-0 right-0 w-[1px] bg-[#C8B896] pointer-events-none" />
+                  <div className="absolute inset-x-0 bottom-0 h-[1px] bg-[#C8B896] pointer-events-none" />
+
+                  {currentSpread === 0
+                    ? renderContentsPage()
+                    : blogs[currentSpread - 1] &&
+                      renderArticleRightPage(blogs[currentSpread - 1], currentSpread)}
+
+                  {/* Interactive page corner click target for turning forward */}
+                  {isOpen && currentSpread < totalSpreads - 1 && (
+                    <button
+                      type="button"
+                      onClick={() => triggerSpreadTurn("next")}
+                      aria-label="Turn forward"
+                      className="absolute bottom-0 right-0 w-16 h-16 bg-gradient-to-tl from-[#1E40AF]/10 to-transparent hover:from-[#1E40AF]/25 transition-all rounded-tl-2xl cursor-pointer group flex items-end justify-end p-2.5"
+                    >
+                      <ChevronRight className="w-4 h-4 text-[#1E40AF]/70 group-hover:text-[#1E40AF] group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  )}
+                </div>
+
+                {/* 3D Dynamic Flipping Leaf during page turns (Both faces paper) */}
+                {isTurning && (
+                  <div
+                    ref={turnDirection === "next" ? rightFlipperRef : leftFlipperRef}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: "var(--page-w)",
+                      width: "var(--page-w)",
+                      height: "var(--book-h)",
+                      transformOrigin: "left center",
+                      transformStyle: "preserve-3d",
+                      zIndex: 40,
+                    }}
+                  >
+                    {/* Front face of flipping leaf (Paper) */}
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        backfaceVisibility: "hidden",
+                        boxShadow: `0 0 35px rgba(74, 52, 24, ${shadowOpacity * 0.4})`,
+                      }}
+                      className="absolute inset-0 rounded-r-2xl border border-[#D6C4A5] book-paper-sheet overflow-hidden"
+                    >
+                      <div
+                        style={{ opacity: shadowOpacity * 0.35 }}
+                        className="absolute inset-0 bg-[#4A3418] pointer-events-none transition-opacity"
+                      />
+                    </div>
+
+                    {/* Back face of flipping leaf (Slightly darker parchment) */}
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        transform: "rotateY(180deg)",
+                        backfaceVisibility: "hidden",
+                      }}
+                      className="absolute inset-0 rounded-l-2xl border border-[#D6C4A5] bg-[var(--paper-back,#EDE2CB)] overflow-hidden"
+                    >
+                      <div
+                        style={{ opacity: shadowOpacity * 0.35 }}
+                        className="absolute inset-0 bg-[#4A3418] pointer-events-none transition-opacity"
+                      />
+                    </div>
+                  </div>
+                )}
 
               {/* 3D CLOSED FRONT COVER (Rendered when closed, swings open around left spine) */}
               {!isOpen && (
@@ -1089,7 +1116,14 @@ export function InnovationJournalBook({
             className="relative select-none flex items-center justify-center my-2"
           >
             {/* Mobile Single Page Box */}
-            <div className="w-full h-full rounded-2xl border border-slate-700/80 bg-gradient-to-br from-[#080E20] via-[#0D1935] to-[#091124] overflow-hidden shadow-xl">
+            <div
+              className={cn(
+                "w-full h-full rounded-2xl overflow-hidden shadow-xl transition-all",
+                !isOpen || mobilePage === 0
+                  ? "border border-slate-700/80 bg-gradient-to-br from-[#080E20] via-[#0D1935] to-[#091124]"
+                  : "border border-amber-950/25 bg-[var(--paper)]"
+              )}
+            >
               {!isOpen || mobilePage === 0 ? (
                 /* Closed Cover on Mobile */
                 <button
@@ -1218,6 +1252,36 @@ export function InnovationJournalBook({
           )}
         </div>
       </div>
+
+      {/* 4. Readers' Remarks & Discussion Section (Scrollable below book) */}
+      {(() => {
+        let activeBlog: IBlog | null = null;
+        if (isMobile) {
+          if (mobilePage >= 3) {
+            const idx = Math.floor((mobilePage - 3) / 2);
+            activeBlog = blogs[idx] || blogs[0] || null;
+          }
+        } else {
+          if (isOpen && currentSpread >= 2) {
+            const idx = currentSpread - 2;
+            activeBlog = blogs[idx] || blogs[0] || null;
+          }
+        }
+        if (!activeBlog && blogs.length > 0) {
+          activeBlog = blogs[0];
+        }
+
+        if (!activeBlog) return null;
+
+        return (
+          <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 pt-6 pb-12">
+            <BlogCommentsSection
+              blogSlug={activeBlog.slug}
+              blogTitle={activeBlog.title}
+            />
+          </div>
+        );
+      })()}
 
       {/* Lightbox Modal for Figures */}
       {lightboxImage && (

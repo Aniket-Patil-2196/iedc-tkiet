@@ -5,6 +5,7 @@ import { constructMetadata } from "@/lib/seo/metadata";
 import { getPublishedBlogBySlug, getPublishedBlogs } from "@/lib/db/queries";
 import { formatEventDate } from "@/lib/utils/event-status";
 import { PostageStamp } from "@/components/blog/PostageStamp";
+import { BlogCommentsSection } from "@/components/blog/BlogCommentsSection";
 import { ArrowLeft, ArrowRight, BookOpen, Sparkles, Calendar, Clock, User } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -96,51 +97,50 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
       </div>
 
       {/* Main Single Manuscript Page Container with Paper Texture & Book Aesthetic */}
-      <article className="relative max-w-4xl mx-auto w-full rounded-2xl border border-slate-700/80 bg-gradient-to-br from-[#080E20] via-[#0D1935] to-[#091124] shadow-[0_25px_60px_rgba(0,0,0,0.85)] p-6 sm:p-12 md:p-16 overflow-hidden">
-        {/* Decorative Paper Vignette & Spine Layer */}
-        <div className="absolute inset-y-0 left-0 w-3 bg-gradient-to-r from-brand-cyan/20 to-transparent pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(#1E293B_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none" />
+      <article className="relative max-w-4xl mx-auto w-full rounded-2xl border border-amber-950/25 book-paper-sheet shadow-[0_25px_60px_rgba(0,0,0,0.85)] p-6 sm:p-12 md:p-16 overflow-hidden">
+        {/* Decorative Paper Vignette & Left Spine Layer */}
+        <div className="absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-[var(--paper-shade)]/30 to-transparent pointer-events-none" />
 
         {/* Filigree Corner Accents */}
-        <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-brand-cyan/40 rounded-tl" />
-        <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-brand-cyan/40 rounded-tr" />
-        <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-brand-cyan/40 rounded-bl" />
-        <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-brand-cyan/40 rounded-br" />
+        <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-amber-950/30 rounded-tl" />
+        <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-amber-950/30 rounded-tr" />
+        <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-amber-950/30 rounded-bl" />
+        <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-amber-950/30 rounded-br" />
 
         {/* 1. Manuscript Header / Running Head */}
-        <header className="space-y-4 pb-8 border-b border-slate-700/60 relative z-10">
-          <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] sm:text-xs font-mono text-brand-cyan uppercase tracking-wider">
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-brand-cyan" />
+        <header className="space-y-4 pb-8 border-b border-amber-950/15 relative z-10">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] sm:text-xs font-mono text-[var(--ink-accent)] uppercase tracking-wider">
+            <span className="flex items-center gap-1.5 font-semibold">
+              <Sparkles className="w-3.5 h-3.5 text-[var(--ink-accent)]" />
               IEDC TKIET ARCHIVAL MANUSCRIPT
             </span>
-            <div className="flex items-center gap-3 text-slate-400">
+            <div className="flex items-center gap-3 text-[var(--ink-muted)]">
               <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3 text-brand-cyan" />
+                <Calendar className="w-3 h-3 text-[var(--ink-accent)]" />
                 {formatEventDate(article.publicationDate || article.publishedAt)}
               </span>
               <span>·</span>
               <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-brand-cyan" />
+                <Clock className="w-3 h-3 text-[var(--ink-accent)]" />
                 {article.readTimeMinutes} min read
               </span>
             </div>
           </div>
 
           {/* Large Editorial Headline */}
-          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white leading-[1.15]">
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[var(--ink-heading)] leading-[1.15]">
             {article.title}
           </h1>
 
           {/* Byline / Author */}
-          <div className="flex items-center gap-2 text-xs sm:text-sm font-mono text-brand-cyan/90">
-            <User className="w-3.5 h-3.5 text-brand-cyan" />
+          <div className="flex items-center gap-2 text-xs sm:text-sm font-mono text-[var(--ink-muted)]">
+            <User className="w-3.5 h-3.5 text-[var(--ink-accent)]" />
             <span>Authored by {article.author || "IEDC TKIET"}</span>
           </div>
 
           {/* Excerpt */}
           {article.excerpt && (
-            <p className="font-sans text-sm sm:text-base text-slate-300 italic border-l-2 border-brand-cyan/50 pl-4 py-1 leading-relaxed">
+            <p className="font-sans text-sm sm:text-base text-[var(--ink-muted)] italic border-l-2 border-[var(--ink-accent)]/40 pl-4 py-1 leading-relaxed">
               {article.excerpt}
             </p>
           )}
@@ -154,9 +154,9 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
         {/* 3. Manuscript Body Text with Literary Serif & Kalam Drop Cap */}
         <section className="space-y-6 pt-4 pb-12 relative z-10">
           {firstParagraph && (
-            <p className="font-book-body text-base sm:text-lg md:text-[19px] text-slate-200/90 leading-[1.8] text-justify">
+            <p className="font-book-body text-base sm:text-lg md:text-[19px] text-[var(--ink)] leading-[1.8] text-left [hyphens:manual]">
               {dropCap && (
-                <span className="float-left text-5xl sm:text-6xl font-book-handwriting font-bold text-brand-cyan mr-3.5 sm:mr-4 leading-[0.75] select-none">
+                <span className="float-left text-5xl sm:text-6xl font-book-handwriting font-bold text-[var(--ink-accent)] mr-3.5 sm:mr-4 leading-[0.75] select-none">
                   {dropCap}
                 </span>
               )}
@@ -167,7 +167,7 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
           {remainingParagraphs.map((para, idx) => (
             <p
               key={idx}
-              className="font-book-body text-base sm:text-lg md:text-[19px] text-slate-200/90 leading-[1.8] text-justify"
+              className="font-book-body text-base sm:text-lg md:text-[19px] text-[var(--ink)] leading-[1.8] text-left [hyphens:manual]"
             >
               {para}
             </p>
@@ -175,15 +175,15 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
         </section>
 
         {/* 4. Archival End Seal & Navigation */}
-        <footer className="pt-8 border-t border-slate-700/60 relative z-10 space-y-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-slate-400">
+        <footer className="pt-8 border-t border-amber-950/15 relative z-10 space-y-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-[var(--ink-muted)]">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-brand-cyan animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-[var(--ink-accent)] animate-pulse" />
               <span>Verified Archival Entry · IEDC TKIET Warananagar</span>
             </div>
             <Link
               href={`/blog?post=${article.slug}`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-cyan text-slate-950 font-bold text-xs uppercase tracking-wider hover:brightness-110 shadow-md transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--ink-heading)] text-[var(--paper)] font-bold text-xs uppercase tracking-wider hover:bg-slate-900 shadow-md transition-all border border-amber-950/20"
             >
               <BookOpen className="w-3.5 h-3.5" />
               <span>Read in 3D Book Mode</span>
@@ -191,17 +191,17 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
           </div>
 
           {/* Adjacent Articles Navigation */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-800">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-amber-950/10">
             {prevArticle ? (
               <Link
                 href={`/blog/${prevArticle.slug}`}
-                className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-brand-cyan/50 transition-all group flex flex-col justify-between"
+                className="p-4 rounded-xl bg-[#EDE2CB]/70 border border-amber-950/20 hover:border-[var(--ink-accent)]/50 transition-all group flex flex-col justify-between"
               >
-                <span className="text-[10px] font-mono uppercase tracking-widest text-brand-cyan flex items-center gap-1 mb-1.5">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--ink-accent)] flex items-center gap-1 mb-1.5 font-semibold">
                   <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
                   Previous Post
                 </span>
-                <span className="font-display font-bold text-sm text-white line-clamp-1 group-hover:text-brand-cyan transition-colors">
+                <span className="font-display font-bold text-sm text-[var(--ink-heading)] line-clamp-1 group-hover:text-[var(--ink-accent)] transition-colors">
                   {prevArticle.title}
                 </span>
               </Link>
@@ -212,13 +212,13 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
             {nextArticle && (
               <Link
                 href={`/blog/${nextArticle.slug}`}
-                className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-brand-cyan/50 transition-all group flex flex-col justify-between text-right"
+                className="p-4 rounded-xl bg-[#EDE2CB]/70 border border-amber-950/20 hover:border-[var(--ink-accent)]/50 transition-all group flex flex-col justify-between text-right"
               >
-                <span className="text-[10px] font-mono uppercase tracking-widest text-brand-cyan flex items-center justify-end gap-1 mb-1.5">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--ink-accent)] flex items-center justify-end gap-1 mb-1.5 font-semibold">
                   Next Post
                   <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                 </span>
-                <span className="font-display font-bold text-sm text-white line-clamp-1 group-hover:text-brand-cyan transition-colors">
+                <span className="font-display font-bold text-sm text-[var(--ink-heading)] line-clamp-1 group-hover:text-[var(--ink-accent)] transition-colors">
                   {nextArticle.title}
                 </span>
               </Link>
@@ -226,6 +226,9 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
           </div>
         </footer>
       </article>
+
+      {/* Readers' Remarks & Moderated Comments Section */}
+      <BlogCommentsSection blogSlug={article.slug} blogTitle={article.title} />
     </div>
   );
 }

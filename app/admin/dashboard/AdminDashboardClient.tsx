@@ -9,6 +9,7 @@ import {
   Trophy,
   Image as ImageIcon,
   Mail,
+  MessageSquare,
   ArrowUpRight,
   ShieldCheck,
   Clock,
@@ -27,6 +28,8 @@ interface StatsData {
     achievementsCount: number;
     galleryCount: number;
     unreadContactsCount: number;
+    pendingCommentsCount?: number;
+    totalCommentsCount?: number;
   };
   recentActivity: {
     latestEvent: string | null;
@@ -83,6 +86,14 @@ export default function AdminDashboardClient() {
       subtext: "IEDC TKIET Institutional Articles",
     },
     {
+      title: "Pending Comments",
+      count: data?.stats.pendingCommentsCount ?? "—",
+      icon: MessageSquare,
+      href: "/admin/dashboard/comments",
+      subtext: "Comments awaiting moderation",
+      highlight: (data?.stats.pendingCommentsCount ?? 0) > 0,
+    },
+    {
       title: "Team Members",
       count: data?.stats.teamCount ?? "—",
       icon: Users,
@@ -102,7 +113,6 @@ export default function AdminDashboardClient() {
       icon: ImageIcon,
       href: "/admin/dashboard/gallery",
       subtext: "3D Globe Constellation Photos",
-      highlight: true,
     },
     {
       title: "Unread Inquiries",

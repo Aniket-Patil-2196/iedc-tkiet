@@ -8,6 +8,17 @@
   --header-height: 4rem;
   --font-book-body: var(--font-literary), var(--font-devanagari), serif;
   --font-book-handwriting: var(--font-handwriting), cursive;
+
+  /* Warm Cream Book Paper Design System */
+  --paper: #F2E9D6;
+  --paper-edge: #E2D3B3;
+  --paper-back: #EDE2CB;
+  --paper-shade: rgba(74, 52, 24, 0.28);
+  --ink: #1B2333;
+  --ink-heading: #0F1B44;
+  --ink-muted: #4B5468;
+  --ink-accent: #1E40AF;
+  --stamp-paper: #FBF6E9;
 }
 
 @media (min-width: 768px) {
@@ -145,6 +156,67 @@ body {
   font-family: var(--font-book-handwriting);
 }
 
+/* Warm Parchment Paper Background with static grain tile and soft mottling */
+.book-paper-sheet {
+  background-color: var(--paper);
+  background-image:
+    /* Soft mottling */
+    radial-gradient(ellipse at 18% 25%, rgba(226, 211, 179, 0.45) 0%, transparent 55%),
+    radial-gradient(ellipse at 82% 80%, rgba(215, 198, 165, 0.4) 0%, transparent 60%),
+    /* Tileable fine paper fiber & grain WebP tile blended via opacity */
+    url("/images/paper-grain.webp");
+  background-repeat: repeat;
+  background-size: auto, auto, 128px 128px;
+}
+
+/* Outer page vignette (darker aged tone toward the outer borders) */
+.book-page-vignette-left {
+  background-image: linear-gradient(to right, var(--paper-edge) 0%, transparent 12%);
+}
+
+.book-page-vignette-right {
+  background-image: linear-gradient(to left, var(--paper-edge) 0%, transparent 12%);
+}
+
+/* Gutter shading at the spine */
+.book-gutter-left {
+  background: linear-gradient(
+    to left,
+    rgba(74, 52, 24, 0.22) 0%,
+    rgba(74, 52, 24, 0.12) 4%,
+    rgba(255, 255, 255, 0.2) 6%,
+    rgba(74, 52, 24, 0.04) 9%,
+    transparent 12%
+  );
+}
+
+.book-gutter-right {
+  background: linear-gradient(
+    to right,
+    rgba(74, 52, 24, 0.22) 0%,
+    rgba(74, 52, 24, 0.12) 4%,
+    rgba(255, 255, 255, 0.2) 6%,
+    rgba(74, 52, 24, 0.04) 9%,
+    transparent 12%
+  );
+}
+
+/* Central spine shading */
+.book-spine-crease {
+  background: linear-gradient(
+    to right,
+    rgba(74, 52, 24, 0.35) 0%,
+    rgba(45, 30, 15, 0.65) 50%,
+    rgba(74, 52, 24, 0.35) 100%
+  );
+}
+
+/* Drop cap with ink-bleed effect */
+.ink-drop-cap {
+  color: var(--ink-accent);
+  text-shadow: 0 0 1px rgba(30, 64, 175, 0.35);
+}
+
 /* Postage Stamp Perforated Scalloped Edge Mask */
 .postage-stamp-perforated {
   --stamp-radius: 4.5px;
@@ -163,6 +235,7 @@ body {
   -webkit-mask-composite: source-in;
 }
 
+/* Warm brown drop shadow for vintage stamps */
 .postage-stamp-shadow {
-  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.75));
+  filter: drop-shadow(0 4px 12px rgba(74, 52, 24, 0.22));
 }

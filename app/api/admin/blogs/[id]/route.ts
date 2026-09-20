@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import BlogModel from "@/models/Blog";
+import CommentModel from "@/models/Comment";
 import {
   sanitizeBlogContent,
   stripHtmlToPlainText,
@@ -97,7 +98,12 @@ export async function DELETE(_request: Request, { params }: Params) {
       );
     }
 
-    return NextResponse.json({ success: true, message: "Article deleted." });
+    // Cascade delete all comments belonging to this article
+    await CommentModel.deleteMany({
+      $or: [{ blogId: params.id }, { blogSlug: deleted.slug }],
+    });
+
+    return NextResponse.json({ success: true, message: "Article and associated comments deleted." });
   } catch (error) {
     console.error("[ADMIN DELETE BLOG ERROR]", error);
     return NextResponse.json(

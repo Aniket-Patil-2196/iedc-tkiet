@@ -6,6 +6,7 @@ import TeamMemberModel from "@/models/TeamMember";
 import AchievementModel from "@/models/Achievement";
 import GalleryImageModel from "@/models/GalleryImage";
 import ContactSubmissionModel from "@/models/ContactSubmission";
+import CommentModel from "@/models/Comment";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +35,8 @@ export async function GET() {
       achievementsCount,
       galleryCount,
       unreadContactsCount,
+      pendingCommentsCount,
+      totalCommentsCount,
       latestEventDoc,
       latestBlogDoc,
       latestContactDoc,
@@ -44,6 +47,8 @@ export async function GET() {
       AchievementModel.countDocuments(),
       GalleryImageModel.countDocuments(),
       ContactSubmissionModel.countDocuments({ read: false }),
+      CommentModel.countDocuments({ status: "pending" }),
+      CommentModel.countDocuments(),
       EventModel.findOne().sort({ createdAt: -1 }).select("title createdAt"),
       BlogModel.findOne({ published: true })
         .sort({ publicationDate: -1 })
@@ -60,6 +65,8 @@ export async function GET() {
       achievementsCount,
       galleryCount,
       unreadContactsCount,
+      pendingCommentsCount,
+      totalCommentsCount,
     });
 
     return NextResponse.json({
@@ -72,6 +79,8 @@ export async function GET() {
         achievementsCount,
         galleryCount,
         unreadContactsCount,
+        pendingCommentsCount,
+        totalCommentsCount,
       },
       recentActivity: {
         latestEvent: latestEventDoc?.title || null,

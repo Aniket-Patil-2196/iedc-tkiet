@@ -18,6 +18,7 @@ import {
   Image as ImageIcon,
   Mail,
   Mic,
+  MessageSquare,
   LogOut,
   ExternalLink,
   X,
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { href: "/admin/dashboard/registrations", label: "Registrations", icon: Ticket },
   { href: "/admin/dashboard/speakers", label: "Previous Speakers", icon: Mic },
   { href: "/admin/dashboard/blogs", label: "Blogs", icon: FileText },
+  { href: "/admin/dashboard/comments", label: "Comments", icon: MessageSquare },
   { href: "/admin/dashboard/team", label: "Team", icon: Users },
   { href: "/admin/dashboard/about", label: "About Info", icon: Info },
   { href: "/admin/dashboard/journey", label: "Journey", icon: Milestone },
@@ -52,6 +54,23 @@ export function AdminSidebar({ isOpen = false, onClose }: AdminSidebarProps) {
     pathname = "";
   }
   const router = useRouter();
+
+  const [pendingComments, setPendingComments] = React.useState(0);
+
+  React.useEffect(() => {
+    let mounted = true;
+    fetch("/api/admin/comments/stats")
+      .then((res) => res.json())
+      .then((data) => {
+        if (mounted && data.success && data.stats) {
+          setPendingComments(data.stats.pendingCount || 0);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [pathname]);
 
   const handleLogout = async () => {
     try {
@@ -113,18 +132,25 @@ export function AdminSidebar({ isOpen = false, onClose }: AdminSidebarProps) {
               key={item.href}
               href={item.href}
               onClick={onClose}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-sans font-medium transition-all ${
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-sans font-medium transition-all ${
                 isActive
                   ? "bg-brand-blue text-typo-white shadow-[0_0_15px_rgba(37,99,235,0.35)]"
                   : "text-typo-gray hover:text-typo-white hover:bg-foundation-slate/50"
               }`}
             >
-              <Icon
-                className={`w-4 h-4 ${
-                  isActive ? "text-typo-white" : "text-brand-cyan/80"
-                }`}
-              />
-              <span>{item.label}</span>
+              <div className="flex items-center gap-3">
+                <Icon
+                  className={`w-4 h-4 ${
+                    isActive ? "text-typo-white" : "text-brand-cyan/80"
+                  }`}
+                />
+                <span>{item.label}</span>
+              </div>
+              {item.href === "/admin/dashboard/comments" && pendingComments > 0 && (
+                <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  {pendingComments}
+                </span>
+              )}
             </Link>
           );
         })}

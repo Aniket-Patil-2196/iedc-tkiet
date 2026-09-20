@@ -84,8 +84,8 @@ export function PostageStamp({
           <div className="relative">
             {/* Primary Postage Stamp */}
             <div className="relative z-10 postage-stamp-shadow inline-block w-full rotate-[-1.5deg] transition-transform duration-300 hover:rotate-0">
-              <div className="postage-stamp-perforated bg-[#F1F5F9] p-2.5 sm:p-3">
-                <div className="relative w-full aspect-[4/3] rounded-sm overflow-hidden border border-[#CBD5E1] bg-slate-900 group">
+              <div className="postage-stamp-perforated bg-[var(--stamp-paper,#FBF6E9)] p-2.5 sm:p-3">
+                <div className="relative w-full aspect-[4/3] rounded-sm overflow-hidden border border-[#D8C7A7] bg-[#E8DCBF] group">
                   <Image
                     src={primaryImage.url}
                     alt={primaryImage.alt || blog.title}
@@ -112,7 +112,7 @@ export function PostageStamp({
                       })
                     }
                     aria-label="View full figure"
-                    className="absolute bottom-2 right-2 p-1.5 rounded bg-black/75 text-brand-cyan hover:text-white backdrop-blur border border-brand-cyan/30 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute bottom-2 right-2 p-1.5 rounded bg-black/75 text-white hover:text-brand-cyan backdrop-blur border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <Maximize2 className="w-3.5 h-3.5" />
                   </button>
@@ -137,8 +137,8 @@ export function PostageStamp({
                     positionClass
                   )}
                 >
-                  <div className="postage-stamp-perforated bg-[#F1F5F9] p-1.5 sm:p-2">
-                    <div className="relative w-full aspect-[4/3] rounded-sm overflow-hidden border border-[#CBD5E1] bg-slate-900 group">
+                  <div className="postage-stamp-perforated bg-[var(--stamp-paper,#FBF6E9)] p-1.5 sm:p-2">
+                    <div className="relative w-full aspect-[4/3] rounded-sm overflow-hidden border border-[#D8C7A7] bg-[#E8DCBF] group">
                       <Image
                         src={secImg.url}
                         alt={secImg.alt || `Figure ${idx + 2}`}
@@ -171,76 +171,77 @@ export function PostageStamp({
               );
             })}
 
-            {/* Postmark Overlay overlapping top right corner */}
+            {/* Postmark Overlay in Blue-Black Ink (~55% opacity, multiply blend) */}
             <div
               aria-hidden="true"
-              className="absolute -top-3 -right-3 z-30 pointer-events-none rotate-[12deg] flex items-center gap-1.5 opacity-65"
+              style={{ mixBlendMode: "multiply" }}
+              className="absolute -top-3 -right-3 z-30 pointer-events-none rotate-[12deg] flex items-center gap-1.5 opacity-55 text-[#1B2333]"
             >
               {/* Circular Postal Stamp */}
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-dashed border-brand-cyan/70 flex flex-col items-center justify-center p-1 text-center bg-slate-950/20 backdrop-blur-[1px]">
-                <span className="text-[9px] sm:text-[10px] font-book-handwriting font-bold text-brand-cyan tracking-wider leading-none">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-dashed border-[#1B2333] flex flex-col items-center justify-center p-1 text-center bg-transparent">
+                <span className="text-[9px] sm:text-[10px] font-book-handwriting font-bold text-[#1B2333] tracking-wider leading-none">
                   IEDC TKIET
                 </span>
-                <span className="text-[8px] sm:text-[9px] font-mono text-slate-300 tracking-tight leading-tight pt-0.5">
+                <span className="text-[8px] sm:text-[9px] font-mono text-[#1B2333] font-semibold tracking-tight leading-tight pt-0.5">
                   {postmarkDate}
                 </span>
-                <span className="text-[7px] font-mono text-brand-cyan/80 tracking-widest leading-none pt-0.5">
+                <span className="text-[7px] font-mono text-[#1B2333] tracking-widest leading-none pt-0.5">
                   WARANA
                 </span>
               </div>
 
               {/* Wavy Cancellation Lines */}
               <div className="space-y-1 w-8 sm:w-10">
-                <div className="h-0.5 bg-brand-cyan/50 rounded-full" />
-                <div className="h-0.5 bg-brand-cyan/50 rounded-full" />
-                <div className="h-0.5 bg-brand-cyan/50 rounded-full" />
+                <div className="h-0.5 bg-[#1B2333] rounded-full" />
+                <div className="h-0.5 bg-[#1B2333] rounded-full" />
+                <div className="h-0.5 bg-[#1B2333] rounded-full" />
               </div>
             </div>
           </div>
         ) : (
-          /* Generated Galaxy Fallback Art when post has 0 images */
-          <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border border-slate-700/60 bg-gradient-to-br from-[#040814] via-[#091530] to-[#030611] p-4 flex flex-col justify-between shadow-inner">
+          /* Generated Archival Blueprint Motif when post has 0 images */
+          <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border border-[#D6C4A5] bg-[#ECE1CA] p-4 flex flex-col justify-between shadow-inner select-none">
             <svg
-              className="absolute inset-0 w-full h-full opacity-35 pointer-events-none"
+              className="absolute inset-0 w-full h-full opacity-40 pointer-events-none"
               xmlns="http://www.w3.org/2000/svg"
             >
-              <circle cx="15%" cy="25%" r="1.5" fill="#38BDF8" />
-              <circle cx="65%" cy="30%" r="2" fill="#FFFFFF" />
-              <circle cx="85%" cy="65%" r="1.5" fill="#60A5FA" />
-              <circle cx="35%" cy="75%" r="1.2" fill="#38BDF8" />
+              <circle cx="15%" cy="25%" r="2" fill="#785532" />
+              <circle cx="65%" cy="30%" r="2.5" fill="#4A3418" />
+              <circle cx="85%" cy="65%" r="2" fill="#785532" />
+              <circle cx="35%" cy="75%" r="1.8" fill="#4A3418" />
               <line
                 x1="15%"
                 y1="25%"
                 x2="65%"
                 y2="30%"
-                stroke="#38BDF8"
-                strokeWidth="0.5"
+                stroke="#785532"
+                strokeWidth="0.8"
                 strokeDasharray="3 3"
-                opacity="0.4"
+                opacity="0.6"
               />
               <line
                 x1="65%"
                 y1="30%"
                 x2="85%"
                 y2="65%"
-                stroke="#38BDF8"
-                strokeWidth="0.5"
+                stroke="#785532"
+                strokeWidth="0.8"
                 strokeDasharray="3 3"
-                opacity="0.4"
+                opacity="0.6"
               />
             </svg>
-            <div className="text-[10px] font-mono text-brand-cyan/80 tracking-wider uppercase">
+            <div className="text-[10px] font-mono text-[#785532] tracking-wider uppercase font-semibold">
               IEDC ARCHIVE MOTIF
             </div>
             <div className="space-y-1 text-center z-10">
-              <span className="font-display font-semibold text-xs sm:text-sm text-slate-200 block line-clamp-2">
+              <span className="font-display font-semibold text-xs sm:text-sm text-[#0F1B44] block line-clamp-2">
                 {blog.title}
               </span>
-              <span className="text-[10px] font-mono text-brand-cyan/70 block">
+              <span className="text-[10px] font-mono text-[#4B5468] block font-medium">
                 {postmarkDate}
               </span>
             </div>
-            <div className="text-[9px] font-mono text-slate-500 text-right">
+            <div className="text-[9px] font-mono text-[#6E5D46] text-right font-medium">
               EST. 2014
             </div>
           </div>
@@ -249,38 +250,40 @@ export function PostageStamp({
 
       {/* 2. CAPTION (in handwriting font) */}
       {primaryImage?.caption && (
-        <p className="font-book-handwriting text-xs sm:text-sm text-slate-300/90 italic leading-relaxed pt-1">
+        <p className="font-book-handwriting text-xs sm:text-sm text-[#4B5468] italic leading-relaxed pt-0.5">
           {primaryImage.caption}
         </p>
       )}
 
-      {/* 3. SOURCES BLOCK (Museum-caption style, omitted if no references) */}
+      {/* 3. SOURCES BLOCK (Museum cardstock label style) */}
       {blog.references && blog.references.length > 0 && (
-        <div className="pt-2 border-t border-slate-700/60 space-y-1.5">
-          <span className="block text-[10px] font-mono tracking-widest text-brand-cyan uppercase font-bold">
-            SOURCES &amp; REFERENCES
-          </span>
-          <ul className="space-y-1 text-xs">
-            {blog.references.map((ref, idx) => (
-              <li key={idx} className="flex items-baseline gap-1.5 leading-tight">
-                <span className="text-[10px] font-mono text-slate-500 select-none">
-                  [{idx + 1}]
-                </span>
-                <a
-                  href={ref.url}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                  className="font-sans text-xs text-slate-300 hover:text-brand-cyan transition-colors inline-flex items-center gap-1 group truncate max-w-[280px] sm:max-w-[340px]"
-                >
-                  <span className="truncate">{ref.label}</span>
-                  <span className="text-[10px] font-mono text-slate-500 shrink-0">
-                    ({extractDomain(ref.url)})
+        <div className="pt-2">
+          <div className="p-3 rounded-lg border border-[#DACBB5] bg-[#FAF5EA] shadow-[0_1px_3px_rgba(74,52,24,0.06)] space-y-2">
+            <span className="block text-[10px] font-mono tracking-widest text-[#0F1B44] uppercase font-bold">
+              SOURCES &amp; REFERENCES
+            </span>
+            <ul className="space-y-1 text-xs">
+              {blog.references.map((ref, idx) => (
+                <li key={idx} className="flex items-baseline gap-1.5 leading-tight">
+                  <span className="text-[10px] font-mono text-[#6B7280] select-none font-medium">
+                    [{idx + 1}]
                   </span>
-                  <ExternalLink className="w-2.5 h-2.5 text-slate-500 group-hover:text-brand-cyan shrink-0" />
-                </a>
-              </li>
-            ))}
-          </ul>
+                  <a
+                    href={ref.url}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="font-sans text-xs text-[#1E40AF] hover:text-[#2563EB] hover:underline transition-colors inline-flex items-center gap-1 group truncate max-w-[280px] sm:max-w-[340px] font-medium"
+                  >
+                    <span className="truncate">{ref.label}</span>
+                    <span className="text-[10px] font-mono text-[#6B7280] shrink-0">
+                      ({extractDomain(ref.url)})
+                    </span>
+                    <ExternalLink className="w-2.5 h-2.5 text-[#1E40AF] group-hover:text-[#2563EB] shrink-0" />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
 
