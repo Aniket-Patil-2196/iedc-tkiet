@@ -265,7 +265,7 @@ export function PostageStamp({
             <ul className="space-y-1 text-xs">
               {blog.references.map((ref, idx) => (
                 <li key={idx} className="flex items-baseline gap-1.5 leading-tight">
-                  <span className="text-[10px] font-mono text-[#6B7280] select-none font-medium">
+                  <span className="text-[10px] font-mono text-[#4B5468] select-none font-medium">
                     [{idx + 1}]
                   </span>
                   <a
@@ -275,7 +275,7 @@ export function PostageStamp({
                     className="font-sans text-xs text-[#1E40AF] hover:text-[#2563EB] hover:underline transition-colors inline-flex items-center gap-1 group truncate max-w-[280px] sm:max-w-[340px] font-medium"
                   >
                     <span className="truncate">{ref.label}</span>
-                    <span className="text-[10px] font-mono text-[#6B7280] shrink-0">
+                    <span className="text-[10px] font-mono text-[#4B5468] shrink-0">
                       ({extractDomain(ref.url)})
                     </span>
                     <ExternalLink className="w-2.5 h-2.5 text-[#1E40AF] group-hover:text-[#2563EB] shrink-0" />

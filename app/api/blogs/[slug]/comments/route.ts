@@ -125,10 +125,57 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const bodyData = await request.json();
-    const { name, email, body, website } = bodyData;
+    // 1. Cross-Origin Protection
+    const origin = request.headers.get("origin");
+    if (origin) {
+      try {
+        const originHost = new URL(origin).host.toLowerCase();
+        const host = request.headers.get("host")?.toLowerCase();
+        const allowed = [host, "localhost:3000", "127.0.0.1:3000"];
+        if (process.env.NEXT_PUBLIC_SITE_URL) {
+          try {
+            allowed.push(new URL(process.env.NEXT_PUBLIC_SITE_URL).host.toLowerCase());
+          } catch {}
+        }
+        if (process.env.ALLOWED_ORIGIN) {
+          process.env.ALLOWED_ORIGIN.split(",").forEach((o) => {
+            try {
+              allowed.push(new URL(o.trim()).host.toLowerCase());
+            } catch {}
+          });
+        }
+        if (!allowed.includes(originHost)) {
+          return NextResponse.json(
+            { success: false, error: "Cross-origin comment submission rejected." },
+            { status: 403 }
+          );
+        }
+      } catch {
+        return NextResponse.json(
+          { success: false, error: "Invalid request origin." },
+          { status: 403 }
+        );
+      }
+    }
 
-    // 1. Honeypot check: Bots filling in the hidden 'website' field
+    const bodyData = await request.json();
+    const { name, email, body, website, formLoadedAt } = bodyData;
+
+    // 2. Submission Timing Bot Check: Form must be open for at least 3 seconds before submit
+    if (formLoadedAt !== undefined) {
+      const elapsed = Date.now() - Number(formLoadedAt);
+      if (elapsed < 3000) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Submission received too quickly. Please take a moment to review your remark before submitting.",
+          },
+          { status: 429 }
+        );
+      }
+    }
+
+    // 3. Honeypot check: Bots filling in the hidden 'website' field
     if (website && String(website).trim().length > 0) {
       // Silently discard bot submission without saving or notifying
       return NextResponse.json(
@@ -140,7 +187,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // 2. Validate input fields
+    // 4. Validate input fields
     const validation = validateCommentInput({ name, email, body });
     if (!validation.valid) {
       return NextResponse.json(
@@ -149,7 +196,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // 3. Client IP and salted hash
+    // 5. Client IP and salted hash
     const clientIp = getClientIp(request);
     const { ipHash, error: saltError } = hashClientIp(clientIp);
 
@@ -161,10 +208,11 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // 4. Rate limiting: 3 per 10 min per ipHash, 5 per 24h per email
+    // 6. Rate limiting: 3 per 10 min per ipHash, 5 per 24h per email, per-blog hourly & backlog caps
     const rateCheck = await checkCommentRateLimits({
       ipHash,
       email: email.trim().toLowerCase(),
+      blogSlug: slug,
     });
 
     if (!rateCheck.allowed) {

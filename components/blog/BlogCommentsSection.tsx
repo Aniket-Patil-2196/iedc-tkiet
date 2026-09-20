@@ -40,6 +40,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
   const [email, setEmail] = useState("");
   const [body, setBody] = useState("");
   const [honeypot, setHoneypot] = useState("");
+  const [formLoadedAt] = useState(() => Date.now());
 
   const fetchComments = useCallback(async () => {
     try {
@@ -89,6 +90,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
           email: email.trim(),
           body: body.trim(),
           website: honeypot, // Honeypot field
+          formLoadedAt, // Timing bot protection
         }),
       });
 
