@@ -99,25 +99,25 @@ export function EventRegistrationPanel({
     return (
       <aside
         aria-label="Event Concluded Notice"
-        className="rounded-2xl bg-foundation-darkest/90 border border-foundation-slate/70 p-6 sm:p-7 space-y-6 shadow-xl"
+        className="rounded-xl bg-foundation-dark/90 border border-foundation-slate/70 p-4 md:p-5 space-y-4 shadow-lg"
       >
         <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-typo-gray font-semibold">
           <History className="w-4 h-4 text-brand-cyan" />
           <span>Event Archived</span>
         </div>
 
-        <div className="space-y-2">
-          <h3 className="font-display text-xl sm:text-2xl font-bold text-typo-white">
+        <div className="space-y-1.5">
+          <h3 className="font-display text-lg sm:text-xl font-bold text-typo-white">
             This Event Has Concluded
           </h3>
-          <p className="font-sans text-xs sm:text-sm text-typo-gray leading-relaxed">
-            This edition wrapped up on{" "}
+          <p className="font-sans text-xs text-typo-gray leading-relaxed">
+            This edition concluded on{" "}
             <span className="text-typo-white font-medium">{formattedDate}</span>. Registrations and
-            submission portals are now closed.
+            submissions are closed.
           </p>
         </div>
 
-        <div className="p-4 rounded-xl bg-foundation-dark/60 border border-foundation-slate/50 space-y-2 text-xs font-sans text-typo-gray">
+        <div className="p-3 rounded-lg bg-foundation-darkest/60 border border-foundation-slate/50 space-y-1.5 text-xs font-sans text-typo-gray">
           <div className="flex items-center gap-2">
             <Calendar className="w-3.5 h-3.5 text-brand-cyan shrink-0" />
             <span className="text-typo-white truncate">{formattedDate}</span>
@@ -128,10 +128,10 @@ export function EventRegistrationPanel({
           </div>
         </div>
 
-        <div className="pt-2 space-y-3">
+        <div className="pt-1 space-y-2.5">
           <Link
             href="/events"
-            className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-brand-blue hover:bg-brand-blue/90 text-typo-white font-sans text-xs sm:text-sm font-semibold transition-all shadow-[0_0_20px_rgba(37,99,235,0.3)]"
+            className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-brand-blue hover:bg-brand-blue/90 text-typo-white font-sans text-xs font-semibold transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)]"
           >
             <Sparkles className="w-4 h-4 text-brand-cyan" />
             <span>Explore Upcoming Events</span>
@@ -165,13 +165,10 @@ export function EventRegistrationPanel({
   return (
     <aside
       aria-label="Event Registration and Logistics"
-      className="relative rounded-2xl bg-foundation-darkest/90 border border-brand-blue/40 p-6 sm:p-7 space-y-6 shadow-[0_0_35px_rgba(13,17,26,0.8)] overflow-hidden"
+      className="relative rounded-xl bg-foundation-dark/90 border border-foundation-slate/70 p-4 md:p-5 space-y-4 shadow-lg overflow-hidden"
     >
-      {/* Top Cyan Starlight Accent */}
-      <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-brand-cyan/50 to-transparent pointer-events-none" />
-
       {/* Pricing Header */}
-      <div className="flex items-start justify-between gap-4 pb-5 border-b border-foundation-slate/60">
+      <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-foundation-slate/50">
         <div className="space-y-1">
           <span className="text-[11px] font-mono uppercase tracking-wider text-typo-gray">
             Registration Fee

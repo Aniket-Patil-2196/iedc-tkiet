@@ -72,17 +72,23 @@ export async function POST(request: Request) {
     const rawBuffer = Buffer.from(await file.arrayBuffer());
 
     // Process with sharp: auto-rotate (EXIF), resize, convert to WebP
-    const processedBuffer = await sharp(rawBuffer)
+    const sharpInstance = sharp(rawBuffer)
       .rotate() // Respect EXIF orientation
       .resize({ width: 1600, withoutEnlargement: true })
-      .webp({ quality: 80 })
-      .toBuffer();
+      .webp({ quality: 80 });
+
+    const [processedBuffer, meta] = await Promise.all([
+      sharpInstance.toBuffer(),
+      sharpInstance.metadata(),
+    ]);
 
     // Save to MongoDB
     const imageDoc = await ImageModel.create({
       data: processedBuffer,
       contentType: "image/webp",
       size: processedBuffer.length,
+      width: meta.width,
+      height: meta.height,
     });
 
     const publicUrl = `/api/images/${imageDoc._id}`;
@@ -90,11 +96,15 @@ export async function POST(request: Request) {
       id: imageDoc._id,
       url: publicUrl,
       size: imageDoc.size,
+      width: meta.width,
+      height: meta.height,
     });
 
     return NextResponse.json({
       success: true,
       url: publicUrl,
+      width: meta.width,
+      height: meta.height,
       storage: "mongodb",
       message: "Image uploaded and optimized successfully.",
     });

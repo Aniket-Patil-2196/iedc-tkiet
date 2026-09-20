@@ -46,6 +46,8 @@ const EventSchema = new Schema<IEventDocument>(
     registrationLink: { type: String },
     coverImage: { type: String },
     posterUrl: { type: String },
+    posterWidth: { type: Number },
+    posterHeight: { type: Number },
     featured: { type: Boolean, default: false, index: true },
     published: { type: Boolean, default: false, index: true },
     category: { type: String, required: true, index: true },

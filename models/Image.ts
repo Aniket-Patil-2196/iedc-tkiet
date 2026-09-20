@@ -9,6 +9,8 @@ export interface IImageDocument extends Document {
   data: Buffer;
   contentType: string;
   size: number;
+  width?: number;
+  height?: number;
   createdAt: Date;
 }
 
@@ -17,6 +19,8 @@ const ImageSchema = new Schema<IImageDocument>(
     data: { type: Buffer, required: true },
     contentType: { type: String, required: true },
     size: { type: Number, required: true },
+    width: { type: Number },
+    height: { type: Number },
   },
   { timestamps: true }
 );

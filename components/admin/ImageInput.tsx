@@ -8,6 +8,7 @@ interface ImageInputProps {
   label?: string;
   value: string;
   onChange: (url: string) => void;
+  onDimensionsChange?: (dimensions: { width: number; height: number }) => void;
   placeholder?: string;
 }
 
@@ -15,6 +16,7 @@ export function ImageInput({
   label = "Image Asset",
   value,
   onChange,
+  onDimensionsChange,
   placeholder = "/images/... or https://...",
 }: ImageInputProps) {
   const [mode, setMode] = useState<"url" | "upload">("url");
@@ -50,6 +52,9 @@ export function ImageInput({
       }
 
       onChange(data.url);
+      if (data.width && data.height && onDimensionsChange) {
+        onDimensionsChange({ width: data.width, height: data.height });
+      }
       setIsUploading(false);
     } catch {
       setUploadError("Network error during file upload.");
@@ -168,6 +173,15 @@ export function ImageInput({
                 fill
                 unoptimized={value.startsWith("/api/images/")}
                 className="object-cover"
+                onLoad={(e) => {
+                  const img = e.currentTarget;
+                  if (img.naturalWidth && img.naturalHeight && onDimensionsChange) {
+                    onDimensionsChange({
+                      width: img.naturalWidth,
+                      height: img.naturalHeight,
+                    });
+                  }
+                }}
                 onError={() => {
                   setUrlPreviewError(true);
                 }}

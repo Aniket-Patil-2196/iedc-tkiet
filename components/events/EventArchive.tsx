@@ -1,16 +1,13 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   Search,
-  Calendar,
-  MapPin,
   Tag,
   ArrowRight,
   ChevronDown,
   ChevronUp,
-  Sparkles,
   History,
   X,
 } from "lucide-react";
@@ -34,6 +31,8 @@ export interface ArchiveEventItem {
   category: string;
   coverImage?: string;
   posterUrl?: string;
+  posterWidth?: number;
+  posterHeight?: number;
   formattedDate: string;
   formattedTime?: string | null;
   year: number;
@@ -44,10 +43,128 @@ interface EventArchiveProps {
   className?: string;
 }
 
+// Starlight timeline item with progressive draw
+function ArchiveTimelineItem({
+  event,
+  isLast,
+}: {
+  event: ArchiveEventItem;
+  isLast: boolean;
+}) {
+  const itemRef = useRef<HTMLDivElement | null>(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const el = itemRef.current;
+    if (!el) return;
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    if (prefersReducedMotion) {
+      setInView(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={itemRef} className="relative flex items-start gap-4 sm:gap-6 group">
+      {/* Galaxy timeline vertical thread & star node */}
+      <div className="relative flex flex-col items-center self-stretch shrink-0 pt-2.5">
+        {/* Star node (galaxy motif) */}
+        <div
+          className={cn(
+            "relative z-10 w-2.5 h-2.5 rounded-full border-2 transition-all duration-500",
+            inView
+              ? "bg-brand-cyan border-foundation-darkest shadow-[0_0_10px_rgba(56,189,248,0.8)] scale-110"
+              : "bg-foundation-slate border-foundation-slate scale-90 opacity-60"
+          )}
+        />
+
+        {/* Thin vertical thread drawn progressively */}
+        {!isLast && (
+          <div
+            className={cn(
+              "w-px flex-1 bg-gradient-to-b from-brand-cyan/40 via-foundation-slate/50 to-foundation-slate/20 transition-all duration-700 origin-top",
+              inView ? "scale-y-100 opacity-100" : "scale-y-0 opacity-20"
+            )}
+          />
+        )}
+      </div>
+
+      {/* Slim Row Container */}
+      <div className="flex-1 pb-6 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-foundation-dark/60 border border-foundation-slate/50 hover:border-brand-cyan/40 hover:bg-foundation-dark/80 transition-all duration-200">
+          {/* Left: Thumbnail (80-96px) + Meta + Title */}
+          <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
+            {/* Small Thumbnail (80-96px) */}
+            <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-lg overflow-hidden bg-foundation-darkest border border-foundation-slate/60">
+              <div className="w-full h-full grayscale-0 opacity-100 [@media(hover:hover)]:grayscale [@media(hover:hover)]:opacity-85 [@media(hover:hover)]:group-hover:grayscale-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300">
+                <EventPoster
+                  src={event.coverImage || event.posterUrl}
+                  alt={event.title}
+                  posterWidth={event.posterWidth}
+                  posterHeight={event.posterHeight}
+                  interactive={false}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+
+            {/* Details */}
+            <div className="space-y-1 min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap text-[11px] font-mono uppercase tracking-wider">
+                <span className="text-brand-cyan font-semibold">
+                  {event.formattedDate}
+                </span>
+                <span className="text-foundation-slate select-none">·</span>
+                <span className="inline-flex items-center gap-1 text-typo-gray">
+                  <Tag className="w-2.5 h-2.5" />
+                  {event.category}
+                </span>
+              </div>
+
+              <h4 className="font-display font-bold text-sm sm:text-base text-typo-white truncate hover:text-brand-cyan transition-colors">
+                <Link href={`/events/${event.slug}`}>{event.title}</Link>
+              </h4>
+
+              <p className="text-xs text-typo-gray truncate">{event.venue}</p>
+            </div>
+          </div>
+
+          {/* Right: "View recap →" link */}
+          <div className="shrink-0 self-end sm:self-center pl-2">
+            <Link
+              href={`/events/${event.slug}`}
+              className="inline-flex items-center gap-1.5 text-xs font-sans font-semibold text-brand-cyan hover:text-white transition-colors group/link px-2.5 py-1.5 rounded-lg bg-foundation-slate/30 hover:bg-brand-blue/20"
+            >
+              <span>View recap</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover/link:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function EventArchive({ events, className }: EventArchiveProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
-  const [selectedYear, setSelectedYear] = useState<number | "ALL">("ALL");
 
   // Extract distinct available years (sorted descending: 2026, 2025, 2024...)
   const availableYears = useMemo(() => {
@@ -60,8 +177,18 @@ export function EventArchive({ events, className }: EventArchiveProps) {
     return Array.from(yrSet).sort((a, b) => b - a);
   }, [events]);
 
-  // Track collapsed state for each year accordion
-  const [collapsedYears, setCollapsedYears] = useState<Record<number, boolean>>({});
+  const currentYear = new Date().getFullYear();
+
+  // Rule: Current year expanded, older years collapsed by default
+  const [collapsedYears, setCollapsedYears] = useState<Record<number, boolean>>(() => {
+    const initial: Record<number, boolean> = {};
+    availableYears.forEach((yr) => {
+      // Current year (or newest available year if no events for current year) is expanded (false); older collapsed (true)
+      const isExpanded = yr === currentYear || yr === availableYears[0];
+      initial[yr] = !isExpanded;
+    });
+    return initial;
+  });
 
   const toggleYearCollapse = (year: number) => {
     setCollapsedYears((prev) => ({
@@ -70,7 +197,7 @@ export function EventArchive({ events, className }: EventArchiveProps) {
     }));
   };
 
-  // Extract distinct categories
+  // Distinct categories
   const categories = useMemo(() => {
     const cats = new Set<string>();
     cats.add("ALL");
@@ -80,19 +207,19 @@ export function EventArchive({ events, className }: EventArchiveProps) {
     return Array.from(cats);
   }, [events]);
 
-  // Filter events based on search query, category, and selected year
+  // Conditional search & categories visibility rules:
+  // - Search input only when > 8 past events
+  // - Category pills only when > 1 category exists (excluding "ALL")
+  const showSearch = events.length > 8;
+  const showCategories = categories.length > 2;
+
+  // Filter events
   const filteredEvents = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return events.filter((e) => {
-      // Category filter
       if (selectedCategory !== "ALL" && e.category !== selectedCategory) {
         return false;
       }
-      // Year filter
-      if (selectedYear !== "ALL" && e.year !== selectedYear) {
-        return false;
-      }
-      // Search query filter
       if (q) {
         const titleMatch = e.title?.toLowerCase().includes(q);
         const descMatch = (e.shortDescription || e.summary || e.description || "")
@@ -104,11 +231,10 @@ export function EventArchive({ events, className }: EventArchiveProps) {
       }
       return true;
     });
-  }, [events, searchQuery, selectedCategory, selectedYear]);
+  }, [events, searchQuery, selectedCategory]);
 
   // Group filtered events by year
   const eventsByYear = useMemo(() => {
-    const groups: { year: number; events: ArchiveEventItem[] }[] = [];
     const map = new Map<number, ArchiveEventItem[]>();
 
     filteredEvents.forEach((evt) => {
@@ -119,16 +245,11 @@ export function EventArchive({ events, className }: EventArchiveProps) {
       map.get(yr)!.push(evt);
     });
 
-    // Sort years descending
     const sortedYears = Array.from(map.keys()).sort((a, b) => b - a);
-    sortedYears.forEach((yr) => {
-      groups.push({
-        year: yr,
-        events: map.get(yr)!,
-      });
-    });
-
-    return groups;
+    return sortedYears.map((yr) => ({
+      year: yr,
+      events: map.get(yr)!,
+    }));
   }, [filteredEvents]);
 
   if (!events || events.length === 0) return null;
@@ -136,18 +257,18 @@ export function EventArchive({ events, className }: EventArchiveProps) {
   return (
     <section
       id="archive"
-      aria-label="Past Event Constellation Archive"
-      className={cn("space-y-8 pt-6", className)}
+      aria-label="Past Events Archive"
+      className={cn("space-y-6 pt-4", className)}
     >
-      {/* Archive Header with Starlight Badge */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-foundation-slate/60">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs uppercase font-mono tracking-[0.2em] text-typo-gray font-bold">
+      {/* Archive Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-foundation-slate/50">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-xs uppercase font-mono tracking-[0.2em] text-brand-cyan font-bold">
             <History className="w-3.5 h-3.5 text-brand-cyan" />
             <span>Institutional Repository</span>
           </div>
-          <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-typo-white tracking-tight">
-            Past Event Constellation
+          <h2 className="font-display text-2xl sm:text-3xl font-bold text-typo-white tracking-tight">
+            Past Events Archive
           </h2>
           <p className="font-sans text-xs sm:text-sm text-typo-gray max-w-xl leading-relaxed">
             Archive of completed student hackathons, innovation conclaves, and technological workshops hosted by IEDC TKIET.
@@ -155,127 +276,105 @@ export function EventArchive({ events, className }: EventArchiveProps) {
         </div>
 
         {/* Total Events Count Badge */}
-        <div className="shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-foundation-slate/40 border border-foundation-slate text-xs font-mono text-typo-gray self-start md:self-auto">
+        <div className="shrink-0 flex items-center gap-2 px-3 py-1 rounded-full bg-foundation-slate/40 border border-foundation-slate text-xs font-mono text-typo-gray self-start md:self-auto">
           <span className="w-1.5 h-1.5 rounded-full bg-brand-cyan/60" />
-          <span>
-            {filteredEvents.length} {filteredEvents.length === 1 ? "Event" : "Events"} Archived
-          </span>
+          <span>{events.length} {events.length === 1 ? "Event" : "Events"} Archived</span>
         </div>
       </div>
 
-      {/* Interactive Controls: Search Bar + Year Pills + Category Pills */}
-      <div className="space-y-4">
-        {/* Search Input */}
-        <div className="relative w-full max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-typo-gray pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search past events by name, topic, or venue..."
-            className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-foundation-dark/80 border border-foundation-slate focus:border-brand-cyan/60 focus:outline-none text-xs sm:text-sm text-typo-white placeholder:text-typo-gray/60 transition-all font-sans"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              aria-label="Clear search"
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md text-typo-gray hover:text-typo-white hover:bg-foundation-slate/50 transition-colors"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+      {/* Conditional Search and Filters */}
+      {(showSearch || showCategories) && (
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+          {/* Search Input (only when > 8 events) */}
+          {showSearch && (
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-typo-gray" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search archive by topic, title, or venue..."
+                className="w-full pl-9 pr-8 py-2 rounded-xl bg-foundation-dark/80 border border-foundation-slate/60 text-typo-white placeholder:text-typo-gray/60 text-xs focus:outline-none focus:border-brand-cyan/60 transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-typo-gray hover:text-typo-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Category Filter Pills (only when > 1 category exists) */}
+          {showCategories && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat)}
+                  className={cn(
+                    "px-3 py-1 rounded-full text-[11px] font-mono uppercase tracking-wider transition-all",
+                    selectedCategory === cat
+                      ? "bg-brand-blue text-typo-white font-semibold shadow-sm border border-brand-cyan/40"
+                      : "bg-foundation-slate/40 text-typo-gray hover:text-typo-white hover:bg-foundation-slate/60 border border-foundation-slate/60"
+                  )}
+                >
+                  {cat === "ALL" ? "All" : cat}
+                </button>
+              ))}
+            </div>
           )}
         </div>
+      )}
 
-        {/* Filters Bar: Years + Categories */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pt-1">
-          {/* Year Filter Pills */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-typo-gray mr-1">
-              Year:
-            </span>
-            <button
-              type="button"
-              onClick={() => setSelectedYear("ALL")}
-              className={cn(
-                "px-3 py-1 rounded-full text-xs font-mono transition-all",
-                selectedYear === "ALL"
-                  ? "bg-brand-blue text-typo-white font-semibold border border-brand-cyan/40 shadow-[0_0_12px_rgba(37,99,235,0.4)]"
-                  : "bg-foundation-slate/40 text-typo-gray hover:text-typo-white hover:bg-foundation-slate/70 border border-foundation-slate/60"
-              )}
-            >
-              All Years
-            </button>
-            {availableYears.map((yr) => (
+      {/* Grouped Years */}
+      <div className="space-y-6 pt-2">
+        {eventsByYear.length === 0 ? (
+          <div className="py-12 text-center rounded-xl bg-foundation-dark/40 border border-foundation-slate/40 text-xs text-typo-gray space-y-1">
+            <p>No past events matched your query.</p>
+            {searchQuery && (
               <button
-                key={yr}
                 type="button"
-                onClick={() => setSelectedYear(yr)}
-                className={cn(
-                  "px-3 py-1 rounded-full text-xs font-mono transition-all",
-                  selectedYear === yr
-                    ? "bg-brand-blue text-typo-white font-semibold border border-brand-cyan/40 shadow-[0_0_12px_rgba(37,99,235,0.4)]"
-                    : "bg-foundation-slate/40 text-typo-gray hover:text-typo-white hover:bg-foundation-slate/70 border border-foundation-slate/60"
-                )}
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedCategory("ALL");
+                }}
+                className="text-brand-cyan hover:underline font-mono text-[11px]"
               >
-                {yr}
+                Reset Search Filters
               </button>
-            ))}
+            )}
           </div>
-
-          {/* Category Filter Pills */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-typo-gray mr-1">
-              Category:
-            </span>
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setSelectedCategory(cat)}
-                className={cn(
-                  "px-2.5 py-1 rounded-full text-[11px] font-mono uppercase tracking-wider transition-all",
-                  selectedCategory === cat
-                    ? "bg-brand-cyan/15 text-brand-cyan border border-brand-cyan/40 font-semibold"
-                    : "bg-foundation-dark text-typo-gray hover:text-typo-white hover:bg-foundation-slate/40 border border-foundation-slate/60"
-                )}
-              >
-                {cat === "ALL" ? "All" : cat}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Events Archive Content Grouped by Year */}
-      {eventsByYear.length > 0 ? (
-        <div className="space-y-10">
-          {eventsByYear.map(({ year, events: yrEvents }) => {
+        ) : (
+          eventsByYear.map(({ year, events: yrEvents }) => {
             const isCollapsed = Boolean(collapsedYears[year]);
 
             return (
               <div
                 key={year}
-                className="rounded-2xl bg-foundation-dark/40 border border-foundation-slate/50 p-4 sm:p-6 lg:p-8 space-y-6 transition-colors"
+                className="rounded-2xl bg-foundation-dark/40 border border-foundation-slate/50 overflow-hidden"
               >
-                {/* Year Header / Accordion Toggle */}
+                {/* Year Header / Accordion Trigger */}
                 <button
                   type="button"
                   onClick={() => toggleYearCollapse(year)}
-                  aria-expanded={!isCollapsed}
-                  className="w-full flex items-center justify-between pb-4 border-b border-foundation-slate/40 text-left group focus:outline-none"
+                  className="w-full flex items-center justify-between p-4 sm:p-5 bg-foundation-dark/70 hover:bg-foundation-slate/40 transition-colors text-left"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="font-display text-2xl sm:text-3xl font-extrabold text-typo-white group-hover:text-brand-cyan transition-colors">
+                    <span className="font-display text-xl sm:text-2xl font-extrabold text-typo-white">
                       {year}
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-foundation-slate/60 text-typo-gray text-xs font-mono font-medium">
-                      {yrEvents.length} {yrEvents.length === 1 ? "event" : "events"}
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono uppercase bg-foundation-slate/60 text-typo-gray border border-foundation-slate/80">
+                      {yrEvents.length} {yrEvents.length === 1 ? "Event" : "Events"}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1 text-xs font-mono text-typo-gray group-hover:text-brand-cyan transition-colors">
-                    <span>{isCollapsed ? "Expand Year" : "Collapse"}</span>
+                  <div className="flex items-center gap-1.5 text-xs font-mono text-typo-gray hover:text-brand-cyan">
+                    <span>{isCollapsed ? "Expand" : "Collapse"}</span>
                     {isCollapsed ? (
                       <ChevronDown className="w-4 h-4" />
                     ) : (
@@ -284,107 +383,25 @@ export function EventArchive({ events, className }: EventArchiveProps) {
                   </div>
                 </button>
 
-                {/* Event Cards Grid for the Year */}
+                {/* Event rows inside year (with thin vertical thread & star node) */}
                 {!isCollapsed && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {yrEvents.map((evt) => (
-                      <article
-                        key={evt.id}
-                        className="group relative rounded-xl bg-foundation-darkest/70 border border-foundation-slate/60 hover:border-brand-cyan/40 p-4 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_0_25px_rgba(13,17,26,0.8)] overflow-hidden"
-                      >
-                        <div className="space-y-4">
-                          {/* Event Poster with Grayscale-to-Color Transition (Scoped to hover-capable devices) */}
-                          <div className="relative w-full aspect-[16/10] rounded-lg overflow-hidden bg-foundation-slate/30 shadow-inner">
-                            <div className="w-full h-full grayscale-0 opacity-100 [@media(hover:hover)]:grayscale [@media(hover:hover)]:opacity-80 [@media(hover:hover)]:group-hover:grayscale-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-500 transform [@media(hover:hover)]:group-hover:scale-105">
-                              <EventPoster
-                                src={evt.coverImage || evt.posterUrl}
-                                alt={evt.title}
-                                aspectRatio="landscape"
-                                className="w-full h-full"
-                              />
-                            </div>
-
-                            {/* Completed Status Watermark Badge */}
-                            <div className="absolute top-2.5 right-2.5">
-                              <span className="px-2 py-0.5 rounded-full bg-foundation-darkest/90 backdrop-blur-md border border-foundation-slate text-[10px] font-mono uppercase tracking-wider text-typo-gray">
-                                Concluded
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Meta Badges */}
-                          <div className="flex items-center justify-between gap-2 text-xs font-sans">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-mono text-brand-cyan uppercase tracking-wider">
-                              <Tag className="w-3 h-3" />
-                              {evt.category}
-                            </span>
-                            <span className="text-[11px] font-mono text-typo-gray">
-                              {evt.formattedDate}
-                            </span>
-                          </div>
-
-                          {/* Title */}
-                          <h3 className="font-display font-bold text-base sm:text-lg text-typo-white group-hover:text-brand-cyan transition-colors leading-snug line-clamp-2">
-                            <Link href={`/events/${evt.slug}`} className="focus:outline-none">
-                              {evt.title}
-                            </Link>
-                          </h3>
-
-                          {/* Description snippet */}
-                          <p className="font-sans text-xs text-typo-gray line-clamp-2 leading-relaxed">
-                            {evt.shortDescription || evt.summary || evt.description}
-                          </p>
-
-                          {/* Venue metadata */}
-                          <div className="flex items-center gap-1.5 text-xs text-typo-gray/80 font-sans truncate pt-1">
-                            <MapPin className="w-3.5 h-3.5 text-brand-cyan shrink-0" />
-                            <span className="truncate">{evt.venue}</span>
-                          </div>
-                        </div>
-
-                        {/* Card Footer: Details Link */}
-                        <div className="pt-4 mt-4 border-t border-foundation-slate/50 flex items-center justify-between">
-                          <Link
-                            href={`/events/${evt.slug}`}
-                            className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-brand-cyan hover:text-white transition-colors group/btn"
-                          >
-                            <span>View Event Recap</span>
-                            <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform" />
-                          </Link>
-                        </div>
-                      </article>
-                    ))}
+                  <div className="p-4 sm:p-6 border-t border-foundation-slate/40">
+                    <div className="space-y-0">
+                      {yrEvents.map((evt, idx) => (
+                        <ArchiveTimelineItem
+                          key={evt.slug}
+                          event={evt}
+                          isLast={idx === yrEvents.length - 1}
+                        />
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
             );
-          })}
-        </div>
-      ) : (
-        /* Empty Archive Search State */
-        <div className="py-16 text-center max-w-md mx-auto space-y-4 rounded-2xl bg-foundation-dark/40 border border-foundation-slate/60 p-8">
-          <div className="w-12 h-12 rounded-xl bg-foundation-slate/40 border border-foundation-slate flex items-center justify-center mx-auto text-typo-gray">
-            <Search className="w-5 h-5" />
-          </div>
-          <h3 className="font-display text-lg font-bold text-typo-white">
-            No archived events match your filter.
-          </h3>
-          <p className="font-sans text-xs text-typo-gray leading-relaxed">
-            Try adjusting your search query, switching categories, or viewing All Years.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setSearchQuery("");
-              setSelectedCategory("ALL");
-              setSelectedYear("ALL");
-            }}
-            className="px-4 py-2 rounded-xl bg-foundation-slate/60 hover:bg-foundation-slate text-xs font-mono text-typo-white transition-colors"
-          >
-            Reset Filters
-          </button>
-        </div>
-      )}
+          })
+        )}
+      </div>
     </section>
   );
 }

@@ -40,6 +40,8 @@ export interface IEvent {
   registrationLink?: string; // Compatibility alias
   coverImage?: string;
   posterUrl?: string; // Compatibility alias
+  posterWidth?: number;
+  posterHeight?: number;
   featured?: boolean;
   published: boolean;
   category: string;

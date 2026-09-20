@@ -42,6 +42,8 @@ export default function AdminEventsPage() {
     registrationUrl: "",
     statusOverride: "" as EventStatusOverride | "",
     coverImage: "/images/placeholders/gallery-1.svg",
+    posterWidth: undefined as number | undefined,
+    posterHeight: undefined as number | undefined,
     published: true,
   });
 
@@ -85,6 +87,8 @@ export default function AdminEventsPage() {
       registrationUrl: "",
       statusOverride: "",
       coverImage: "/images/placeholders/gallery-1.svg",
+      posterWidth: undefined as number | undefined,
+      posterHeight: undefined as number | undefined,
       published: true,
     });
     setModalOpen(true);
@@ -111,6 +115,8 @@ export default function AdminEventsPage() {
       registrationUrl: event.registrationUrl || "",
       statusOverride: event.statusOverride || "",
       coverImage: event.coverImage || "/images/placeholders/gallery-1.svg",
+      posterWidth: event.posterWidth,
+      posterHeight: event.posterHeight,
       published: Boolean(event.published),
     });
     setModalOpen(true);
@@ -680,6 +686,13 @@ export default function AdminEventsPage() {
             label="Cover / Poster Image"
             value={formData.coverImage}
             onChange={(url) => setFormData({ ...formData, coverImage: url })}
+            onDimensionsChange={(dims) =>
+              setFormData((prev) => ({
+                ...prev,
+                posterWidth: dims.width,
+                posterHeight: dims.height,
+              }))
+            }
           />
 
           <div className="space-y-1.5">
