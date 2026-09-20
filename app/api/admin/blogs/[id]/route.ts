@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import BlogModel from "@/models/Blog";
+import {
+  sanitizeBlogContent,
+  stripHtmlToPlainText,
+  computeReadTime,
+  validateReferences,
+  validateImages,
+} from "@/lib/utils/blog-validation";
 
 interface Params {
   params: { id: string };
@@ -17,10 +24,41 @@ export async function PUT(request: Request, { params }: Params) {
     }
 
     const body = await request.json();
-    // Enforce fixed author strictly
+
+    const updateData: any = { ...body };
+
+    if (body.content !== undefined) {
+      updateData.content = sanitizeBlogContent(body.content);
+      if (!body.excerpt) {
+        updateData.excerpt = stripHtmlToPlainText(updateData.content).slice(0, 180) + "...";
+      }
+      if (!body.readTimeMinutes) {
+        updateData.readTimeMinutes = computeReadTime(updateData.content);
+      }
+    }
+
+    if (body.images !== undefined) {
+      updateData.images = validateImages(body.images);
+      if (updateData.images.length > 0) {
+        updateData.coverImage = updateData.images[0].url;
+      }
+    }
+
+    if (body.references !== undefined) {
+      updateData.references = validateReferences(body.references);
+    }
+
+    if (body.author) {
+      updateData.author = body.author.trim();
+    }
+
+    if (body.publishedAt) {
+      updateData.publishedAt = new Date(body.publishedAt);
+    }
+
     const updated = await BlogModel.findByIdAndUpdate(
       params.id,
-      { ...body, author: "IEDC TKIET" },
+      updateData,
       { new: true, runValidators: true }
     );
 

@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import BlogModel from "@/models/Blog";
+import {
+  sanitizeBlogContent,
+  stripHtmlToPlainText,
+  computeReadTime,
+  validateReferences,
+  validateImages,
+} from "@/lib/utils/blog-validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +24,7 @@ export async function GET() {
       });
     }
 
-    const blogs = await BlogModel.find().sort({ publicationDate: -1, createdAt: -1 });
+    const blogs = await BlogModel.find().sort({ publishedAt: -1, publicationDate: -1, createdAt: -1 });
     return NextResponse.json({
       success: true,
       data: blogs,
@@ -43,9 +50,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!body.title || !body.excerpt || !body.content) {
+    if (!body.title || (!body.excerpt && !body.content)) {
       return NextResponse.json(
-        { success: false, error: "Title, excerpt, and content are required." },
+        { success: false, error: "Title and content are required." },
         { status: 400 }
       );
     }
@@ -57,14 +64,39 @@ export async function POST(request: Request) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
 
+    const sanitizedContent = sanitizeBlogContent(body.content || "");
+    const excerpt = body.excerpt?.trim() || stripHtmlToPlainText(sanitizedContent).slice(0, 180) + "...";
+    const readTimeMinutes = Number(body.readTimeMinutes) || computeReadTime(sanitizedContent);
+
+    // Validate images and references
+    const images = validateImages(body.images || []);
+    // Fallback: if body.coverImage provided and images is empty, add it as first image
+    if (images.length === 0 && body.coverImage) {
+      images.push({
+        url: body.coverImage,
+        alt: body.title,
+      });
+    }
+    const references = validateReferences(body.references || []);
+
+    const publishedAt = body.publishedAt ? new Date(body.publishedAt) : new Date();
+
     const newBlog = await BlogModel.create({
-      ...body,
       slug,
-      author: "IEDC TKIET", // Strictly fixed institutional author per spec
+      title: body.title.trim(),
+      excerpt,
+      content: sanitizedContent,
+      author: body.author?.trim() || "IEDC TKIET",
+      coverImage: images[0]?.url || body.coverImage || "",
+      images,
+      references,
       publicationDate:
-        body.publicationDate || new Date().toISOString().split("T")[0],
-      readTimeMinutes: Number(body.readTimeMinutes) || 4,
+        body.publicationDate || publishedAt.toISOString().split("T")[0],
+      publishedAt,
+      readTimeMinutes,
       published: Boolean(body.published),
+      isFeatured: Boolean(body.isFeatured),
+      tags: Array.isArray(body.tags) ? body.tags : [],
     });
 
     return NextResponse.json({ success: true, data: newBlog });

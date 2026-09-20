@@ -26,6 +26,8 @@ import {
 import { IBlog } from "@/types/content";
 import { formatEventDate } from "@/lib/utils/event-status";
 import { ImageLightbox } from "./ImageLightbox";
+import { PostageStamp } from "./PostageStamp";
+import { stripHtmlToPlainText } from "@/lib/utils/blog-validation";
 import { cn } from "@/lib/utils";
 
 interface InnovationJournalBookProps {
@@ -599,108 +601,203 @@ export function InnovationJournalBook({
     </div>
   );
 
-  // Article Left Page (Images & Reference Visuals)
-  const renderArticleLeftPage = (blog: IBlog, spreadIdx: number) => {
-    const imageSrc =
-      blog.coverImage?.trim() ||
-      EDITORIAL_FALLBACK_IMAGES[(spreadIdx - 1) % EDITORIAL_FALLBACK_IMAGES.length];
-
-    return (
-      <div className="w-full h-full p-6 sm:p-8 flex flex-col justify-between select-none">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-700/60 text-xs font-mono text-brand-cyan tracking-wider uppercase">
-            <span>FIGURE &amp; ARCHIVE</span>
-            {isDevPlaceholder(blog) && (
-              <span className="inline-flex items-center gap-1 text-[10px] text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
-                <AlertTriangle className="w-3 h-3" />
-                Dev Placeholder
-              </span>
-            )}
-          </div>
-
-          {/* Stamp / Image Frame */}
-          <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border border-slate-700/60 bg-foundation-dark group shadow-md">
-            <Image
-              src={imageSrc}
-              alt={blog.title}
-              fill
-              unoptimized
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-            />
-            <button
-              type="button"
-              onClick={() => setLightboxImage({ src: imageSrc, alt: blog.title, caption: blog.title })}
-              aria-label="View full image"
-              className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-foundation-darkest/80 text-brand-cyan hover:text-typo-white backdrop-blur border border-brand-cyan/30 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Metadata / Details */}
-          <div className="space-y-2 pt-2">
-            <div className="flex items-center gap-2 text-[11px] font-mono text-brand-cyan uppercase">
-              <Calendar className="w-3.5 h-3.5 shrink-0" />
-              <span>{getPubDate(blog)}</span>
-              <span>·</span>
-              <span>{blog.author || "IEDC TKIET"}</span>
-            </div>
-            <p className="text-xs font-sans text-typo-gray leading-relaxed line-clamp-3">
-              {blog.excerpt}
-            </p>
-          </div>
-        </div>
-
-        <div className="pt-4 flex items-center justify-between border-t border-slate-800/80 text-[11px] font-mono text-typo-gray/60">
-          <span>PLATE {(spreadIdx * 2 - 1).toString().padStart(2, "0")}</span>
-          <Link
-            href={`/blog/${blog.slug}`}
-            className="text-brand-cyan hover:underline inline-flex items-center gap-1"
-          >
-            <span>Full Article</span>
-            <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
-      </div>
-    );
+  // Helper to extract first grapheme drop cap cleanly (supports English and Devanagari)
+  const extractDropCap = (text: string): { dropCap: string; remainder: string } => {
+    if (!text) return { dropCap: "", remainder: "" };
+    if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
+      try {
+        const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+        const it = segmenter.segment(text)[Symbol.iterator]();
+        const first = it.next().value;
+        if (first) {
+          return { dropCap: first.segment, remainder: text.slice(first.segment.length) };
+        }
+      } catch {
+        // fallback
+      }
+    }
+    const first = Array.from(text)[0] || "";
+    return { dropCap: first, remainder: text.slice(first.length) };
   };
 
-  // Article Right Page (Text Content & Running Head)
-  const renderArticleRightPage = (blog: IBlog, spreadIdx: number) => (
-    <div className="w-full h-full p-6 sm:p-8 flex flex-col justify-between select-none">
-      <div className="space-y-4">
-        {/* Running Head */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-700/60 text-[11px] font-mono text-brand-cyan tracking-wider uppercase">
-          <span>{getPubDate(blog)}</span>
-          <span>{blog.readTimeMinutes || 4} MIN READ</span>
+  // Dynamically computes text fitting to whole sentence without word clipping
+  const computeArticleTextFitting = (
+    rawContent: string,
+    currentBookH: number,
+    currentPageW: number
+  ): {
+    displayText: string;
+    isTruncated: boolean;
+    dropCap: string;
+    remainder: string;
+  } => {
+    const plain = stripHtmlToPlainText(rawContent);
+    if (!plain) {
+      return { displayText: "", isTruncated: false, dropCap: "", remainder: "" };
+    }
+
+    // Available height for body text:
+    // currentBookH minus header (~48px), title & author (~90px), folio (~45px), padding (~48px)
+    const availableH = Math.max(120, currentBookH - 231);
+    // Average line height for 17-18px font with 1.7 leading is ~29px
+    const linesAvailable = Math.max(4, Math.floor(availableH / 29));
+    // Available width for text (currentPageW - 48px padding)
+    const availableW = Math.max(200, currentPageW - 48);
+    // Average char width for literary serif font is ~8.5px
+    const charsPerLine = Math.max(25, Math.floor(availableW / 8.5));
+    const capacity = linesAvailable * charsPerLine;
+
+    if (plain.length <= capacity * 1.05) {
+      const { dropCap, remainder } = extractDropCap(plain);
+      return {
+        displayText: plain,
+        isTruncated: false,
+        dropCap,
+        remainder,
+      };
+    }
+
+    // Find sentence boundary within target capacity window
+    const windowSlice = plain.slice(0, capacity);
+    // Match full stops, question marks, exclamation marks, or Devanagari danda (।)
+    const sentenceEndRegex = /[.!?।]\s+|\n\n/g;
+    let lastMatchIndex = -1;
+    let match: RegExpExecArray | null;
+    while ((match = sentenceEndRegex.exec(windowSlice)) !== null) {
+      if (match.index >= capacity * 0.55) {
+        lastMatchIndex = match.index;
+      }
+    }
+
+    let truncated = "";
+    if (lastMatchIndex !== -1) {
+      truncated = windowSlice.slice(0, lastMatchIndex + 1).trim();
+    } else {
+      const lastSpace = windowSlice.lastIndexOf(" ");
+      if (lastSpace > capacity * 0.7) {
+        truncated = windowSlice.slice(0, lastSpace).trim() + "...";
+      } else {
+        truncated = windowSlice.trim() + "...";
+      }
+    }
+
+    const { dropCap, remainder } = extractDropCap(truncated);
+    return {
+      displayText: truncated,
+      isTruncated: true,
+      dropCap,
+      remainder,
+    };
+  };
+
+  // Article Left Page (Vintage Postage Stamps, Museum Sources block, Integrated metadata)
+  const renderArticleLeftPage = (blog: IBlog, spreadIdx: number) => (
+    <div className="w-full h-full p-6 sm:p-7 flex flex-col justify-between select-none overflow-y-auto sm:overflow-hidden">
+      <div className="space-y-3">
+        {/* Integrated Header / Running Head */}
+        <div className="flex items-center justify-between pb-2.5 border-b border-slate-700/60 text-[11px] font-mono text-brand-cyan tracking-wider uppercase">
+          <span>PLATE {(spreadIdx * 2 - 1).toString().padStart(2, "0")} · ARCHIVE</span>
+          {isDevPlaceholder(blog) && (
+            <span className="inline-flex items-center gap-1 text-[10px] text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
+              <AlertTriangle className="w-3 h-3" />
+              Dev Placeholder
+            </span>
+          )}
         </div>
 
-        <div className="space-y-2">
-          <h3 className="font-display text-lg sm:text-xl font-bold text-typo-white tracking-tight leading-snug">
-            {blog.title}
-          </h3>
-          <p className="font-sans text-xs sm:text-sm text-typo-gray leading-relaxed line-clamp-[10]">
-            {blog.content || blog.excerpt}
-          </p>
-        </div>
-
-        <div className="pt-2">
-          <Link
-            href={`/blog/${blog.slug}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/30 text-xs font-sans font-semibold text-brand-cyan transition-colors"
-          >
-            <span>Continue reading manuscript</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
+        {/* Vintage Postage Stamp & Museum Sources Block */}
+        <PostageStamp
+          blog={blog}
+          onOpenLightbox={(img) => setLightboxImage(img)}
+        />
       </div>
 
-      <div className="pt-4 flex items-center justify-between border-t border-slate-800/80 text-[11px] font-mono text-typo-gray/60">
-        <span>THE INNOVATION JOURNAL</span>
-        <span>PAGE {(spreadIdx * 2).toString().padStart(2, "0")}</span>
+      {/* Plate Folio / Bottom Footer */}
+      <div className="pt-3 flex items-center justify-between border-t border-slate-800/80 text-[11px] font-mono text-typo-gray/60 mt-auto">
+        <span>IEDC TKIET WARANANAGAR</span>
+        <Link
+          href={`/blog/${blog.slug}`}
+          className="text-brand-cyan hover:underline inline-flex items-center gap-1 group"
+        >
+          <span>Read full manuscript</span>
+          <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+        </Link>
       </div>
     </div>
   );
+
+  // Article Right Page (Text Content, Drop Cap, Whole-Sentence Clamping, Hanging Bookmark Ribbon)
+  const renderArticleRightPage = (blog: IBlog, spreadIdx: number) => {
+    const { dropCap, remainder, isTruncated } = computeArticleTextFitting(
+      blog.content || blog.excerpt,
+      bookHeight,
+      pageWidth
+    );
+
+    return (
+      <div className="relative w-full h-full p-6 sm:p-8 flex flex-col justify-between select-none">
+        <div className="space-y-3 relative flex-1 flex flex-col min-h-0">
+          {/* Running Head */}
+          <div className="flex items-center justify-between pb-2.5 border-b border-slate-700/60 text-[11px] font-mono text-brand-cyan tracking-wider uppercase">
+            <span>{getPubDate(blog)}</span>
+            <span>{blog.readTimeMinutes || 4} MIN READ</span>
+          </div>
+
+          {/* Title and Author Byline */}
+          <div className="space-y-1">
+            <h3 className="font-display text-lg sm:text-xl font-bold text-typo-white tracking-tight leading-snug">
+              {blog.title}
+            </h3>
+            <div className="text-[11px] font-mono text-brand-cyan/80">
+              By {blog.author || "IEDC TKIET"}
+            </div>
+          </div>
+
+          {/* Body Text with Literary Serif & Handwriting Drop Cap */}
+          <div className="relative flex-1 overflow-hidden pt-1">
+            <p className="font-book-body text-[16px] sm:text-[17px] md:text-[18px] text-slate-200/90 leading-[1.7] tracking-normal text-justify">
+              {dropCap && (
+                <span className="float-left text-4xl sm:text-5xl font-book-handwriting font-bold text-brand-cyan mr-2.5 sm:mr-3 leading-[0.8] select-none">
+                  {dropCap}
+                </span>
+              )}
+              {remainder}
+            </p>
+
+            {/* Bottom Scrim fade into paper when content is truncated */}
+            {isTruncated && (
+              <div
+                aria-hidden="true"
+                className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#080E20] via-[#080E20]/80 to-transparent pointer-events-none"
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Page Folio */}
+        <div className="pt-3 flex items-center justify-between border-t border-slate-800/80 text-[11px] font-mono text-typo-gray/60">
+          <span>THE INNOVATION JOURNAL</span>
+          <span>PAGE {(spreadIdx * 2).toString().padStart(2, "0")}</span>
+        </div>
+
+        {/* Hanging Bookmark Ribbon (Only shown if text continues / overflows) */}
+        {isTruncated && (
+          <div className="absolute -bottom-3 right-6 sm:right-10 z-30 group">
+            <Link
+              href={`/blog/${blog.slug}`}
+              className="relative flex items-center justify-center px-4 pt-1.5 pb-3 bg-gradient-to-b from-brand-cyan to-[#0284C7] text-slate-950 font-book-handwriting font-bold text-sm sm:text-base tracking-wide shadow-[0_6px_16px_rgba(56,189,248,0.4)] transition-all duration-300 group-hover:translate-y-1 hover:brightness-110"
+              style={{
+                clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 10px), 50% 100%, 0 calc(100% - 10px))",
+              }}
+              title="Continue reading this post"
+            >
+              <span>Continue reading ➔</span>
+            </Link>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div ref={containerRef} className="w-full flex flex-col items-center">

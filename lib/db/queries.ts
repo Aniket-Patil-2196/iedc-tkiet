@@ -156,7 +156,7 @@ export async function getPublishedBlogs(): Promise<IBlog[]> {
         return docs.map((d: any) => ({
           ...d,
           id: d._id.toString(),
-          author: "IEDC TKIET",
+          author: d.author || "IEDC TKIET",
         })) as IBlog[];
       }
       if (isProduction) return [];
@@ -184,7 +184,7 @@ export async function getPublishedBlogBySlug(
         return {
           ...(doc as any),
           id: (doc as any)._id.toString(),
-          author: "IEDC TKIET",
+          author: (doc as any).author || "IEDC TKIET",
         } as IBlog;
       }
       if (isProduction) return null;

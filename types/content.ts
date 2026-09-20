@@ -81,22 +81,37 @@ export interface IRegistration {
   updatedAt?: string | Date;
 }
 
+export interface IBlogImage {
+  url: string;
+  alt: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+}
+
+export interface IBlogReference {
+  label: string;
+  url: string;
+}
+
 export interface IBlog {
   id: string;
   slug: string;
   title: string;
   excerpt: string;
-  content: string; // Markdown, paragraphs, or rich text representation
+  content: string; // Markdown, paragraphs, or sanitized text
   coverImage?: string;
-  publicationDate: string; // ISO date string
-  publishedAt?: string;    // Compatibility alias
+  images?: IBlogImage[]; // Up to 4 images
+  references?: IBlogReference[]; // Up to 8 references
+  publicationDate?: string; // ISO date string or YYYY-MM-DD
+  publishedAt?: string | Date; // IST date entry or ISO string
   readTimeMinutes: number;
-  author: "IEDC TKIET";    // Fixed institutional author per spec
+  author: string; // Author name (e.g., "IEDC TKIET", "Dr. A. B. Patil", etc.)
   published: boolean;
   isFeatured?: boolean;
   tags?: string[];
-  createdAt: string;
-  updatedAt?: string;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
 }
 
 export type TeamCategory = "faculty_coordinator" | "student_lead" | "core_team" | "advisory";

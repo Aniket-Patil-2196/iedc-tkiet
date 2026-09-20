@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Syne, Manrope } from "next/font/google";
+import { Syne, Manrope, Lora, Noto_Serif_Devanagari, Kalam } from "next/font/google";
 import "./globals.css";
 import dynamic from "next/dynamic";
 import { Header } from "@/components/navigation/Header";
@@ -32,6 +32,27 @@ const manrope = Manrope({
   variable: "--font-manrope",
   display: "swap",
   weight: ["400", "500", "600", "700"],
+});
+
+const lora = Lora({
+  subsets: ["latin"],
+  variable: "--font-literary",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
+const notoSerifDevanagari = Noto_Serif_Devanagari({
+  subsets: ["devanagari", "latin"],
+  variable: "--font-devanagari",
+  display: "swap",
+  weight: ["400", "600", "700"],
+});
+
+const kalam = Kalam({
+  subsets: ["devanagari", "latin"],
+  variable: "--font-handwriting",
+  display: "swap",
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
@@ -67,7 +88,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${syne.variable} ${manrope.variable}`}>
+    <html
+      lang="en"
+      className={`${syne.variable} ${manrope.variable} ${lora.variable} ${notoSerifDevanagari.variable} ${kalam.variable}`}
+    >
       <body className="flex min-h-screen flex-col bg-foundation-darkest text-typo-white antialiased selection:bg-brand-blue selection:text-typo-white">
         <BrandedLoader />
         <Cursor />

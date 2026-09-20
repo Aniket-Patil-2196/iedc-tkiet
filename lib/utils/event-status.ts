@@ -561,10 +561,10 @@ export function getEventStatusInfo(event: IEvent): ResolvedEventStatus {
 /**
  * Formats event date in student-friendly format (e.g., "15 Apr 2025")
  */
-export function formatEventDate(isoDateString?: string): string {
+export function formatEventDate(isoDateString?: string | Date): string {
   if (!isoDateString) return "Date to be announced";
-  const d = new Date(isoDateString);
-  if (isNaN(d.getTime())) return isoDateString;
+  const d = typeof isoDateString === "string" ? new Date(isoDateString) : isoDateString;
+  if (isNaN(d.getTime())) return String(isoDateString);
 
   return d.toLocaleDateString("en-IN", {
     timeZone: "Asia/Kolkata",

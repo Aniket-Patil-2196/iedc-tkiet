@@ -3,6 +3,25 @@ import { IBlog } from "@/types/content";
 
 export interface IBlogDocument extends Omit<IBlog, "id">, Document {}
 
+const BlogImageSchema = new Schema(
+  {
+    url: { type: String, required: true },
+    alt: { type: String, required: true },
+    caption: { type: String },
+    width: { type: Number },
+    height: { type: Number },
+  },
+  { _id: false }
+);
+
+const BlogReferenceSchema = new Schema(
+  {
+    label: { type: String, required: true },
+    url: { type: String, required: true },
+  },
+  { _id: false }
+);
+
 const BlogSchema = new Schema<IBlogDocument>(
   {
     slug: { type: String, required: true, unique: true, index: true },
@@ -15,8 +34,16 @@ const BlogSchema = new Schema<IBlogDocument>(
       required: true,
     },
     coverImage: { type: String },
-    publicationDate: { type: String, required: true, index: true },
-    publishedAt: { type: String },
+    images: {
+      type: [BlogImageSchema],
+      default: [],
+    },
+    references: {
+      type: [BlogReferenceSchema],
+      default: [],
+    },
+    publicationDate: { type: String, index: true },
+    publishedAt: { type: Date, default: Date.now, index: true },
     readTimeMinutes: { type: Number, default: 4 },
     published: { type: Boolean, default: false, index: true },
     isFeatured: { type: Boolean, default: false },

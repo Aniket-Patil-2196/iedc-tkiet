@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, FileText, Eye, EyeOff, BookOpen } from "lucide-react";
+import { Plus, Edit2, Trash2, FileText, Eye, EyeOff, BookOpen, Link as LinkIcon, Image as ImageIcon, X } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminModal } from "@/components/admin/AdminModal";
 import { DeleteConfirmModal } from "@/components/admin/DeleteConfirmModal";
 import { ImageInput } from "@/components/admin/ImageInput";
 import { Button } from "@/components/ui/Button";
-import { IBlog } from "@/types/content";
+import { IBlog, IBlogImage, IBlogReference } from "@/types/content";
 
 export default function AdminBlogsPage() {
   const [blogs, setBlogs] = useState<IBlog[]>([]);
@@ -21,10 +21,14 @@ export default function AdminBlogsPage() {
   const [formData, setFormData] = useState({
     title: "",
     slug: "",
+    author: "IEDC TKIET",
     excerpt: "",
     content: "",
     coverImage: "/images/placeholders/gallery-2.svg",
+    images: [] as IBlogImage[],
+    references: [] as IBlogReference[],
     publicationDate: "",
+    publishedAt: "",
     readTimeMinutes: 4,
     published: true,
   });
@@ -50,13 +54,20 @@ export default function AdminBlogsPage() {
 
   const openCreateModal = () => {
     setEditingBlog(null);
+    const now = new Date();
     setFormData({
       title: "",
       slug: "",
+      author: "IEDC TKIET",
       excerpt: "",
       content: "",
       coverImage: "/images/placeholders/gallery-2.svg",
-      publicationDate: new Date().toISOString().split("T")[0],
+      images: [
+        { url: "/images/placeholders/gallery-2.svg", alt: "Article cover", caption: "" },
+      ],
+      references: [],
+      publicationDate: now.toISOString().split("T")[0],
+      publishedAt: now.toISOString().slice(0, 16),
       readTimeMinutes: 4,
       published: true,
     });
@@ -65,19 +76,62 @@ export default function AdminBlogsPage() {
 
   const openEditModal = (blog: IBlog) => {
     setEditingBlog(blog);
+    const pubAtStr = blog.publishedAt
+      ? new Date(blog.publishedAt).toISOString().slice(0, 16)
+      : new Date().toISOString().slice(0, 16);
+
+    const images = blog.images && blog.images.length > 0
+      ? blog.images
+      : blog.coverImage
+      ? [{ url: blog.coverImage, alt: blog.title, caption: "" }]
+      : [];
+
     setFormData({
       title: blog.title,
       slug: blog.slug,
+      author: blog.author || "IEDC TKIET",
       excerpt: blog.excerpt,
       content: blog.content,
       coverImage: blog.coverImage || "/images/placeholders/gallery-2.svg",
+      images,
+      references: blog.references || [],
       publicationDate: blog.publicationDate
         ? blog.publicationDate.split("T")[0]
-        : "",
+        : pubAtStr.split("T")[0],
+      publishedAt: pubAtStr,
       readTimeMinutes: blog.readTimeMinutes || 4,
       published: Boolean(blog.published),
     });
     setModalOpen(true);
+  };
+
+  const handleAddImage = () => {
+    if (formData.images.length >= 4) return;
+    setFormData({
+      ...formData,
+      images: [
+        ...formData.images,
+        { url: "", alt: `Figure ${formData.images.length + 1}`, caption: "" },
+      ],
+    });
+  };
+
+  const handleRemoveImage = (index: number) => {
+    const updated = formData.images.filter((_, i) => i !== index);
+    setFormData({ ...formData, images: updated });
+  };
+
+  const handleAddReference = () => {
+    if (formData.references.length >= 8) return;
+    setFormData({
+      ...formData,
+      references: [...formData.references, { label: "", url: "" }],
+    });
+  };
+
+  const handleRemoveReference = (index: number) => {
+    const updated = formData.references.filter((_, i) => i !== index);
+    setFormData({ ...formData, references: updated });
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -102,48 +156,51 @@ export default function AdminBlogsPage() {
         setModalOpen(false);
         fetchBlogs();
       } else {
-        alert(json.error || "Failed to save article.");
+        alert(json.error || "Failed to save article");
       }
-    } catch {
-      alert("Network error.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!blogToDelete) return;
-    setSaving(true);
-
-    try {
-      const id = (blogToDelete as any)._id || blogToDelete.id;
-      const res = await fetch(`/api/admin/blogs/${id}`, { method: "DELETE" });
-      const json = await res.json();
-      if (json.success) {
-        setDeleteModalOpen(false);
-        setBlogToDelete(null);
-        fetchBlogs();
-      } else {
-        alert(json.error || "Failed to delete article.");
-      }
-    } catch {
-      alert("Network error.");
+    } catch (e) {
+      console.error(e);
+      alert("Network error saving article");
     } finally {
       setSaving(false);
     }
   };
 
   const togglePublish = async (blog: IBlog) => {
-    const id = (blog as any)._id || blog.id;
     try {
-      await fetch(`/api/admin/blogs/${id}`, {
+      const isCurrentlyPublished = blog.published !== false;
+      const res = await fetch(`/api/admin/blogs/${(blog as any)._id || blog.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ published: !blog.published }),
+        body: JSON.stringify({ published: !isCurrentlyPublished }),
       });
-      fetchBlogs();
-    } catch (err) {
-      console.error(err);
+      const json = await res.json();
+      if (json.success) {
+        fetchBlogs();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!blogToDelete) return;
+    setSaving(true);
+    try {
+      const res = await fetch(
+        `/api/admin/blogs/${(blogToDelete as any)._id || blogToDelete.id}`,
+        { method: "DELETE" }
+      );
+      const json = await res.json();
+      if (json.success) {
+        setDeleteModalOpen(false);
+        setBlogToDelete(null);
+        fetchBlogs();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -162,7 +219,7 @@ export default function AdminBlogsPage() {
               Articles Archive ({blogs.length})
             </h2>
             <p className="text-xs font-sans text-typo-gray">
-              All articles are formally authored by &quot;IEDC TKIET&quot;. Drafts are excluded from the public site.
+              Manage published manuscripts and drafts. Drafts are completely hidden from the public site.
             </p>
           </div>
 
@@ -248,7 +305,7 @@ export default function AdminBlogsPage() {
 
                         <td className="p-4 whitespace-nowrap">
                           <span className="px-2 py-0.5 rounded bg-foundation-slate text-[11px] text-brand-cyan">
-                            IEDC TKIET
+                            {blog.author || "IEDC TKIET"}
                           </span>
                         </td>
 
@@ -300,10 +357,10 @@ export default function AdminBlogsPage() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingBlog ? "Edit Blog Article" : "Draft New Article"}
-        subtitle="Articles automatically credit 'IEDC TKIET' as the institutional author"
+        subtitle="Articles and figures for The Innovation Journal"
         maxWidth="3xl"
       >
-        <form onSubmit={handleSave} className="space-y-5">
+        <form onSubmit={handleSave} className="space-y-5 max-h-[80vh] overflow-y-auto pr-1">
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
               Article Title *
@@ -321,41 +378,169 @@ export default function AdminBlogsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
-                Publication Date *
+                Author Name
               </label>
               <input
-                type="date"
-                required
-                value={formData.publicationDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, publicationDate: e.target.value })
-                }
+                type="text"
+                value={formData.author}
+                onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+                placeholder="IEDC TKIET"
                 className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
               />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
-                Estimated Read Time (Minutes)
+                Publication Date (IST) *
               </label>
               <input
-                type="number"
-                min={1}
-                max={60}
-                value={formData.readTimeMinutes}
+                type="datetime-local"
+                value={formData.publishedAt}
                 onChange={(e) =>
-                  setFormData({ ...formData, readTimeMinutes: Number(e.target.value) })
+                  setFormData({
+                    ...formData,
+                    publishedAt: e.target.value,
+                    publicationDate: e.target.value.split("T")[0],
+                  })
                 }
                 className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
               />
             </div>
           </div>
 
-          <ImageInput
-            label="Cover Photograph / Illustration"
-            value={formData.coverImage}
-            onChange={(url) => setFormData({ ...formData, coverImage: url })}
-          />
+          {/* Figures / Stamp Images Section (Up to 4 images) */}
+          <div className="space-y-3 p-4 rounded-xl bg-foundation-slate/30 border border-foundation-slate/60">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-brand-cyan" />
+                <span className="text-xs font-semibold text-typo-white uppercase tracking-wider">
+                  Postage Stamp Figures ({formData.images.length}/4)
+                </span>
+              </div>
+              {formData.images.length < 4 && (
+                <button
+                  type="button"
+                  onClick={handleAddImage}
+                  className="text-xs font-mono text-brand-cyan hover:underline inline-flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Figure</span>
+                </button>
+              )}
+            </div>
+
+            {formData.images.map((img, idx) => (
+              <div key={idx} className="space-y-2 p-3 rounded-lg bg-foundation-dark/60 border border-foundation-slate/40 relative">
+                <div className="flex items-center justify-between pb-1">
+                  <span className="text-[11px] font-mono text-typo-gray">
+                    Figure {idx + 1} {idx === 0 ? "(Primary Postage Stamp)" : "(Secondary Offset)"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(idx)}
+                    className="text-red-400 hover:text-red-300 p-1"
+                    title="Remove Figure"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <ImageInput
+                  label={`Image URL`}
+                  value={img.url}
+                  onChange={(url) => {
+                    const copy = [...formData.images];
+                    copy[idx] = { ...copy[idx], url };
+                    setFormData({ ...formData, images: copy, coverImage: copy[0]?.url || formData.coverImage });
+                  }}
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <input
+                    type="text"
+                    value={img.alt}
+                    onChange={(e) => {
+                      const copy = [...formData.images];
+                      copy[idx] = { ...copy[idx], alt: e.target.value };
+                      setFormData({ ...formData, images: copy });
+                    }}
+                    placeholder="Alt description for accessibility"
+                    className="px-3 py-1.5 rounded-lg bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                  />
+                  <input
+                    type="text"
+                    value={img.caption || ""}
+                    onChange={(e) => {
+                      const copy = [...formData.images];
+                      copy[idx] = { ...copy[idx], caption: e.target.value };
+                      setFormData({ ...formData, images: copy });
+                    }}
+                    placeholder="Optional figure caption"
+                    className="px-3 py-1.5 rounded-lg bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* References / Sources Section (Up to 8 links) */}
+          <div className="space-y-3 p-4 rounded-xl bg-foundation-slate/30 border border-foundation-slate/60">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <LinkIcon className="w-4 h-4 text-brand-cyan" />
+                <span className="text-xs font-semibold text-typo-white uppercase tracking-wider">
+                  References &amp; Sources ({formData.references.length}/8)
+                </span>
+              </div>
+              {formData.references.length < 8 && (
+                <button
+                  type="button"
+                  onClick={handleAddReference}
+                  className="text-xs font-mono text-brand-cyan hover:underline inline-flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Reference</span>
+                </button>
+              )}
+            </div>
+
+            {formData.references.map((ref, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  required
+                  value={ref.label}
+                  onChange={(e) => {
+                    const copy = [...formData.references];
+                    copy[idx] = { ...copy[idx], label: e.target.value };
+                    setFormData({ ...formData, references: copy });
+                  }}
+                  placeholder="Label (e.g. Patent Gazette Publication)"
+                  className="w-1/2 px-3 py-2 rounded-lg bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                />
+                <input
+                  type="url"
+                  required
+                  value={ref.url}
+                  onChange={(e) => {
+                    const copy = [...formData.references];
+                    copy[idx] = { ...copy[idx], url: e.target.value };
+                    setFormData({ ...formData, references: copy });
+                  }}
+                  placeholder="https://example.org/source"
+                  className="w-1/2 px-3 py-2 rounded-lg bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveReference(idx)}
+                  className="text-red-400 hover:text-red-300 p-1"
+                  title="Remove reference"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
@@ -366,7 +551,7 @@ export default function AdminBlogsPage() {
               rows={2}
               value={formData.excerpt}
               onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
-              placeholder="Short 2-sentence summary introducing the essay..."
+              placeholder="Short summary introducing the essay..."
               className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
             />
           </div>
@@ -381,7 +566,7 @@ export default function AdminBlogsPage() {
               value={formData.content}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               placeholder="Write or paste your article paragraphs here..."
-              className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+              className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan font-serif"
             />
           </div>
 
