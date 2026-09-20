@@ -7,6 +7,13 @@ import RegistrationModel from "@/models/Registration";
 import { getNextReceiptNumber } from "@/models/Counter";
 import { getRazorpayClient } from "@/lib/razorpay/client";
 import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
+import {
+  getEventStatus,
+  resolveRegistrationMode,
+  isDevelopmentPlaceholder,
+} from "@/lib/utils/event-status";
+
+import { PLACEHOLDER_EVENTS } from "@/lib/data/placeholders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,8 +62,57 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
     const { name, email, phone, college, year } = validationResult.data;
 
-    // 3. Connect DB
+    // 3. Find Event by MongoDB ID or slug (or placeholder)
+    const eventIdentifier = params.id;
+    let event = null;
     const conn = await connectToDatabase();
+    if (conn) {
+      if (eventIdentifier.match(/^[0-9a-fA-F]{24}$/)) {
+        event = await EventModel.findById(eventIdentifier);
+      }
+      if (!event) {
+        event = await EventModel.findOne({ slug: eventIdentifier });
+      }
+    }
+    if (!event) {
+      event = (PLACEHOLDER_EVENTS.find(
+        (e) => e.id === eventIdentifier || e.slug === eventIdentifier
+      ) as any) || null;
+    }
+
+    if (!event) {
+      return NextResponse.json({ success: false, error: "Event not found." }, { status: 404 });
+    }
+
+    // 4. Server-side validations: Published, Not Placeholder, Mode is "onsite"
+    if (!event.published) {
+      return NextResponse.json(
+        { success: false, error: "Registration is not available for this event." },
+        { status: 400 }
+      );
+    }
+
+    if (isDevelopmentPlaceholder(event)) {
+      return NextResponse.json(
+        { success: false, error: "Registrations are disabled for development placeholder events." },
+        { status: 400 }
+      );
+    }
+
+    const regMode = resolveRegistrationMode(event);
+    if (regMode !== "onsite") {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            regMode === "external"
+              ? "This event accepts registrations via an external portal only."
+              : "This event does not require online registration.",
+        },
+        { status: 400 }
+      );
+    }
+
     if (!conn) {
       return NextResponse.json(
         { success: false, error: "Database service unavailable. Please try again shortly." },
@@ -64,43 +120,39 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // 4. Find Event by MongoDB ID or slug
-    const eventIdentifier = params.id;
-    let event = null;
-    if (eventIdentifier.match(/^[0-9a-fA-F]{24}$/)) {
-      event = await EventModel.findById(eventIdentifier);
-    }
-    if (!event) {
-      event = await EventModel.findOne({ slug: eventIdentifier });
+    // 6. Check Capacity & Shared Event Status (paid count + active 15m holds)
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+    const [paidCount, recentPendingCount] = await Promise.all([
+      RegistrationModel.countDocuments({ eventId: event._id, status: "paid" }),
+      RegistrationModel.countDocuments({
+        eventId: event._id,
+        status: "pending",
+        createdAt: { $gte: fifteenMinutesAgo },
+      }),
+    ]);
+    const totalReserved = paidCount + recentPendingCount;
+
+    const eventStatus = getEventStatus(event, totalReserved, new Date());
+
+    if (eventStatus.registration === "sold-out") {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "All seats are currently booked or reserved. If pending checkouts expire, seats may open up soon.",
+        },
+        { status: 409 }
+      );
     }
 
-    if (!event) {
-      return NextResponse.json({ success: false, error: "Event not found." }, { status: 404 });
-    }
-
-    // 5. Server-side validations: Registration Open, Not Cancelled, Deadline
-    if (
-      event.registrationOpen === false ||
-      event.statusOverride === "Registration Closed" ||
-      event.statusOverride === "Cancelled"
-    ) {
+    if (eventStatus.registration !== "open") {
       return NextResponse.json(
         { success: false, error: "Registration for this event is currently closed." },
         { status: 400 }
       );
     }
 
-    if (event.registrationDeadline) {
-      const deadline = new Date(event.registrationDeadline);
-      if (Date.now() > deadline.getTime()) {
-        return NextResponse.json(
-          { success: false, error: "The registration deadline for this event has passed." },
-          { status: 400 }
-        );
-      }
-    }
-
-    // 6. Check if email already registered with PAID status for this event
+    // 7. Check if email already registered with PAID status for this event
     const existingPaid = await RegistrationModel.findOne({
       eventId: event._id,
       email,
@@ -115,30 +167,6 @@ export async function POST(request: Request, { params }: RouteParams) {
         },
         { status: 409 }
       );
-    }
-
-    // 7. Check Capacity (count paid + active seat holds within ~15 min)
-    if (event.capacity && event.capacity > 0) {
-      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-      const [paidCount, recentPendingCount] = await Promise.all([
-        RegistrationModel.countDocuments({ eventId: event._id, status: "paid" }),
-        RegistrationModel.countDocuments({
-          eventId: event._id,
-          status: "pending",
-          createdAt: { $gte: fifteenMinutesAgo },
-        }),
-      ]);
-
-      if (paidCount + recentPendingCount >= event.capacity) {
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              "All seats are currently booked or reserved. If pending checkouts expire, seats may open up soon.",
-          },
-          { status: 409 }
-        );
-      }
     }
 
     // 8. Determine Fee (always read from DB, never trust client)

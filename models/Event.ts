@@ -37,6 +37,11 @@ const EventSchema = new Schema<IEventDocument>(
       ],
       default: null,
     },
+    registrationMode: {
+      type: String,
+      enum: ["external", "onsite", "none"],
+      default: "external",
+    },
     registrationUrl: { type: String },
     registrationLink: { type: String },
     coverImage: { type: String },

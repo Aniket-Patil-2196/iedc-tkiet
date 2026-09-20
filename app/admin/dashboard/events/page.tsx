@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Edit2, Trash2, Calendar, Eye, EyeOff, Link2, ExternalLink, Ticket, Clock, Coins } from "lucide-react";
+import { Plus, Edit2, Trash2, Calendar, Eye, EyeOff, Link2, ExternalLink, Ticket, Clock, Coins, AlertTriangle } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminModal } from "@/components/admin/AdminModal";
 import { DeleteConfirmModal } from "@/components/admin/DeleteConfirmModal";
@@ -10,6 +10,8 @@ import { ImageInput } from "@/components/admin/ImageInput";
 import { Button } from "@/components/ui/Button";
 import { IEvent, EventStatusOverride } from "@/types/content";
 import { utcDateToIstInputString, istInputToUtcDate, formatDateIST } from "@/lib/utils/date-ist";
+import { isEventDateValid } from "@/lib/utils/event-status";
+import { cn } from "@/lib/utils";
 
 export default function AdminEventsPage() {
   const [events, setEvents] = useState<IEvent[]>([]);
@@ -36,6 +38,7 @@ export default function AdminEventsPage() {
     registrationDeadline: "",
     capacity: "",
     registrationOpen: true,
+    registrationMode: "external" as "external" | "onsite" | "none",
     registrationUrl: "",
     statusOverride: "" as EventStatusOverride | "",
     coverImage: "/images/placeholders/gallery-1.svg",
@@ -78,6 +81,7 @@ export default function AdminEventsPage() {
       registrationDeadline: "",
       capacity: "",
       registrationOpen: true,
+      registrationMode: "external",
       registrationUrl: "",
       statusOverride: "",
       coverImage: "/images/placeholders/gallery-1.svg",
@@ -103,6 +107,7 @@ export default function AdminEventsPage() {
       registrationDeadline: utcDateToIstInputString(event.registrationDeadline),
       capacity: event.capacity !== undefined && event.capacity !== null ? String(event.capacity) : "",
       registrationOpen: event.registrationOpen !== false,
+      registrationMode: event.registrationMode || (event.registrationUrl ? "external" : "none"),
       registrationUrl: event.registrationUrl || "",
       statusOverride: event.statusOverride || "",
       coverImage: event.coverImage || "/images/placeholders/gallery-1.svg",
@@ -304,6 +309,12 @@ export default function AdminEventsPage() {
                           <span className="text-[11px] text-typo-gray block">
                             {event.venue}
                           </span>
+                          {!isEventDateValid(event) && event.statusOverride !== "Postponed" && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 mt-1 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-mono">
+                              <AlertTriangle className="w-3 h-3 text-rose-400 shrink-0" />
+                              <span>Missing/invalid date</span>
+                            </span>
+                          )}
                         </td>
 
                         <td className="p-4 whitespace-nowrap">
@@ -500,98 +511,170 @@ export default function AdminEventsPage() {
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
-              External Google Form URL (Optional Fallback)
+          {/* Registration Mode Selector */}
+          <div className="space-y-2 pt-2 border-t border-foundation-slate/60">
+            <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider block">
+              Registration Architecture *
             </label>
-            <input
-              type="url"
-              value={formData.registrationUrl}
-              onChange={(e) => setFormData({ ...formData, registrationUrl: e.target.value })}
-              placeholder="https://forms.google.com/..."
-              className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                {
+                  value: "external",
+                  label: "External Link",
+                  desc: "Google Form / Unstop / Devfolio",
+                  icon: ExternalLink,
+                },
+                {
+                  value: "onsite",
+                  label: "On-Site Modal",
+                  desc: "Built-in Razorpay / Free Ticket",
+                  icon: Ticket,
+                },
+                {
+                  value: "none",
+                  label: "No Registration",
+                  desc: "Open Entry / Walk-in Session",
+                  icon: EyeOff,
+                },
+              ].map((opt) => {
+                const Icon = opt.icon;
+                const isSelected = formData.registrationMode === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        registrationMode: opt.value as any,
+                      })
+                    }
+                    className={cn(
+                      "p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-2",
+                      isSelected
+                        ? "bg-brand-blue/20 border-brand-cyan text-typo-white shadow-[0_0_15px_rgba(56,189,248,0.15)]"
+                        : "bg-foundation-slate/30 border-foundation-slate/80 text-typo-gray hover:text-typo-white hover:bg-foundation-slate/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-xs font-bold text-typo-white">{opt.label}</span>
+                      <Icon className={cn("w-3.5 h-3.5", isSelected ? "text-brand-cyan" : "text-typo-gray")} />
+                    </div>
+                    <span className="text-[10px] text-typo-gray leading-tight">{opt.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {/* On-Site Registration & Razorpay Payment Configuration */}
-          <div className="p-4 rounded-xl bg-foundation-dark/80 border border-brand-blue/30 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-foundation-slate/60">
-              <div className="flex items-center gap-2">
-                <Ticket className="w-4 h-4 text-brand-cyan" />
-                <span className="text-xs font-bold text-typo-white uppercase tracking-wider">
-                  On-Site Registration &amp; Razorpay Payment
-                </span>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-typo-white">
-                <input
-                  type="checkbox"
-                  checked={formData.registrationOpen}
-                  onChange={(e) => setFormData({ ...formData, registrationOpen: e.target.checked })}
-                  className="w-4 h-4 rounded text-brand-blue focus:ring-brand-cyan bg-foundation-slate border-foundation-slate"
-                />
-                <span className={formData.registrationOpen ? "text-emerald-400 font-semibold" : "text-typo-gray"}>
-                  {formData.registrationOpen ? "Registration Open" : "Registration Closed"}
-                </span>
+          {/* Conditional Mode Panels - Strictly mutually exclusive */}
+          {formData.registrationMode === "external" && (
+            <div className="p-4 rounded-xl bg-foundation-dark/80 border border-brand-blue/30 space-y-2 animate-fade-in">
+              <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider flex items-center gap-1.5">
+                <ExternalLink className="w-3.5 h-3.5 text-brand-cyan" />
+                <span>External Registration URL *</span>
               </label>
+              <input
+                type="url"
+                required
+                value={formData.registrationUrl}
+                onChange={(e) => setFormData({ ...formData, registrationUrl: e.target.value })}
+                placeholder="https://forms.google.com/..."
+                className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+              />
+              <span className="text-[10px] text-typo-gray block">
+                Attendees will be directed to this external link in a secure new tab.
+              </span>
             </div>
+          )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider flex items-center gap-1">
-                  <Coins className="w-3.5 h-3.5 text-brand-cyan" />
-                  Fee (INR ₹) *
+          {formData.registrationMode === "onsite" && (
+            <div className="p-4 rounded-xl bg-foundation-dark/80 border border-brand-blue/30 space-y-4 animate-fade-in">
+              <div className="flex items-center justify-between pb-3 border-b border-foundation-slate/60">
+                <div className="flex items-center gap-2">
+                  <Ticket className="w-4 h-4 text-brand-cyan" />
+                  <span className="text-xs font-bold text-typo-white uppercase tracking-wider">
+                    On-Site Modal Configuration
+                  </span>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-typo-white">
+                  <input
+                    type="checkbox"
+                    checked={formData.registrationOpen}
+                    onChange={(e) => setFormData({ ...formData, registrationOpen: e.target.checked })}
+                    className="w-4 h-4 rounded text-brand-blue focus:ring-brand-cyan bg-foundation-slate border-foundation-slate"
+                  />
+                  <span className={formData.registrationOpen ? "text-emerald-400 font-semibold" : "text-typo-gray"}>
+                    {formData.registrationOpen ? "Registration Open" : "Registration Closed"}
+                  </span>
                 </label>
-                <input
-                  type="number"
-                  min={0}
-                  step={1}
-                  required
-                  value={formData.fee}
-                  onChange={(e) => setFormData({ ...formData, fee: Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                  placeholder="0 for Free"
-                  className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
-                />
-                <span className="text-[10px] text-typo-gray block">
-                  0 = Free (Instant). &gt;0 uses Razorpay.
-                </span>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-brand-cyan" />
-                  Deadline (IST)
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formData.registrationDeadline}
-                  onChange={(e) => setFormData({ ...formData, registrationDeadline: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
-                />
-                <span className="text-[10px] text-typo-gray block">
-                  Indian Standard Time. Optional cut-off.
-                </span>
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider flex items-center gap-1">
+                    <Coins className="w-3.5 h-3.5 text-brand-cyan" />
+                    Fee (INR ₹) *
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    required
+                    value={formData.fee}
+                    onChange={(e) => setFormData({ ...formData, fee: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                    placeholder="0 for Free"
+                    className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                  />
+                  <span className="text-[10px] text-typo-gray block">
+                    0 = Free (Instant). &gt;0 uses Razorpay.
+                  </span>
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider flex items-center gap-1">
-                  <Ticket className="w-3.5 h-3.5 text-brand-cyan" />
-                  Capacity (Seats)
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={formData.capacity}
-                  onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                  placeholder="Unlimited"
-                  className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
-                />
-                <span className="text-[10px] text-typo-gray block">
-                  Empty = Unlimited. Holds seat for 15m.
-                </span>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-brand-cyan" />
+                    Deadline (IST)
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.registrationDeadline}
+                    onChange={(e) => setFormData({ ...formData, registrationDeadline: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                  />
+                  <span className="text-[10px] text-typo-gray block">
+                    Indian Standard Time. Optional cut-off.
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider flex items-center gap-1">
+                    <Ticket className="w-3.5 h-3.5 text-brand-cyan" />
+                    Capacity (Seats)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={formData.capacity}
+                    onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                    placeholder="Unlimited"
+                    className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                  />
+                  <span className="text-[10px] text-typo-gray block">
+                    Empty = Unlimited seats.
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {formData.registrationMode === "none" && (
+            <div className="p-3.5 rounded-xl bg-foundation-slate/30 border border-foundation-slate/60 text-xs text-typo-gray flex items-center gap-2">
+              <EyeOff className="w-4 h-4 text-typo-gray shrink-0" />
+              <span>No registration needed. This event will be displayed as open entry / walk-in attendance.</span>
+            </div>
+          )}
 
           <ImageInput
             label="Cover / Poster Image"

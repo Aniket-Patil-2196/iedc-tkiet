@@ -5,8 +5,9 @@ import {
   getEventStatusInfo,
   formatEventDate,
   formatEventTimeRange,
+  isDevelopmentPlaceholder,
 } from "@/lib/utils/event-status";
-import { Calendar, MapPin, ArrowRight, Tag, Clock } from "lucide-react";
+import { Calendar, MapPin, ArrowRight, Tag, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface EventCardProps {
@@ -31,10 +32,18 @@ export function EventCard({ event, isFeatured = false }: EventCardProps) {
       <div className="space-y-4">
         {/* Top Badges */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-foundation-slate/60 border border-foundation-slate text-xs font-sans text-brand-cyan uppercase tracking-wider font-semibold">
-            <Tag className="w-3 h-3" />
-            {event.category}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {isDevelopmentPlaceholder(event) && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-[10px] font-mono uppercase tracking-wider text-amber-300 font-semibold">
+                <AlertTriangle className="w-3 h-3 text-amber-400" />
+                [Development Placeholder]
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-foundation-slate/60 border border-foundation-slate text-xs font-sans text-brand-cyan uppercase tracking-wider font-semibold">
+              <Tag className="w-3 h-3" />
+              {event.category}
+            </span>
+          </div>
 
           {/* Status Badge: explicitly distinguishes automatic vs admin override */}
           <span

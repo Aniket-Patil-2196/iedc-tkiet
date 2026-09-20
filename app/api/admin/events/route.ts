@@ -77,9 +77,46 @@ export async function POST(request: Request) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
 
-    // Validate and sanitize registration fields
-    const fee = typeof body.fee === "number" ? Math.max(0, Math.floor(body.fee)) : Math.max(0, parseInt(body.fee, 10) || 0);
-    const capacity = body.capacity ? Math.max(1, parseInt(body.capacity, 10) || 0) : null;
+    // Validate registrationMode
+    let registrationMode = body.registrationMode;
+    if (registrationMode !== undefined && registrationMode !== null) {
+      if (!["external", "onsite", "none"].includes(registrationMode)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid registration mode. Must be 'external', 'onsite', or 'none'." },
+          { status: 400 }
+        );
+      }
+    } else {
+      registrationMode = body.registrationUrl?.trim() ? "external" : "none";
+    }
+
+    // Validate fee: integer >= 0
+    let fee = 0;
+    if (body.fee !== undefined && body.fee !== null) {
+      const parsedFee = Number(body.fee);
+      if (!Number.isInteger(parsedFee) || parsedFee < 0) {
+        return NextResponse.json(
+          { success: false, error: "Fee must be a non-negative integer (in rupees)." },
+          { status: 400 }
+        );
+      }
+      fee = parsedFee;
+    }
+
+    // Validate capacity: integer >= 1 or null
+    let capacity: number | null = null;
+    if (body.capacity !== undefined && body.capacity !== null && body.capacity !== "") {
+      const parsedCap = Number(body.capacity);
+      if (!Number.isInteger(parsedCap) || parsedCap < 1) {
+        return NextResponse.json(
+          { success: false, error: "Capacity must be an integer of at least 1." },
+          { status: 400 }
+        );
+      }
+      capacity = parsedCap;
+    }
+
+    // Validate deadline
     let registrationDeadline: Date | null = null;
     if (body.registrationDeadline) {
       if (typeof body.registrationDeadline === "string") {
@@ -88,12 +125,19 @@ export async function POST(request: Request) {
       } else if (body.registrationDeadline instanceof Date) {
         registrationDeadline = body.registrationDeadline;
       }
+      if (registrationDeadline && Number.isNaN(registrationDeadline.getTime())) {
+        return NextResponse.json(
+          { success: false, error: "Invalid registration deadline date format." },
+          { status: 400 }
+        );
+      }
     }
     const registrationOpen = body.registrationOpen !== undefined ? Boolean(body.registrationOpen) : true;
 
     const newEvent = await EventModel.create({
       ...body,
       slug,
+      registrationMode,
       fee,
       capacity,
       registrationDeadline,

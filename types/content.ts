@@ -33,8 +33,9 @@ export interface IEvent {
   statusOverride?: EventStatusOverride | null;
   fee?: number; // Integer rupees (0 = free)
   registrationDeadline?: string | Date; // UTC date
-  capacity?: number; // Optional max seats
+  capacity?: number | null; // Optional max seats
   registrationOpen?: boolean; // Default true
+  registrationMode?: "external" | "onsite" | "none";
   registrationUrl?: string;
   registrationLink?: string; // Compatibility alias
   coverImage?: string;

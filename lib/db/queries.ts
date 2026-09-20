@@ -10,6 +10,7 @@ import AchievementModel from "@/models/Achievement";
 import GalleryImageModel from "@/models/GalleryImage";
 import PreviousSpeakerModel from "@/models/PreviousSpeaker";
 import ImpactMetricModel from "@/models/ImpactMetric";
+import RegistrationModel from "@/models/Registration";
 
 import {
   PLACEHOLDER_EVENTS,
@@ -82,6 +83,33 @@ export async function getPublishedEvents(): Promise<IEvent[]> {
 
   // Development preview fallback
   return PLACEHOLDER_EVENTS.filter((e) => e.published);
+}
+
+/**
+ * Public Events Query: Aggregates paid registration counts across all events in a single DB query.
+ */
+export async function getPaidRegistrationCounts(): Promise<Record<string, number>> {
+  try {
+    const conn = await connectToDatabase();
+    if (conn) {
+      const docs = await RegistrationModel.aggregate([
+        { $match: { status: "paid" } },
+        { $group: { _id: "$eventId", count: { $sum: 1 } } },
+      ]);
+      const result: Record<string, number> = {};
+      if (Array.isArray(docs)) {
+        for (const item of docs) {
+          if (item._id) {
+            result[item._id.toString()] = item.count;
+          }
+        }
+      }
+      return result;
+    }
+  } catch (err) {
+    console.warn("[DB QUERY WARNING - REGISTRATION COUNTS]", err);
+  }
+  return {};
 }
 
 /**

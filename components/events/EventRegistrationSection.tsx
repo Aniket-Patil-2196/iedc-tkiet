@@ -24,7 +24,7 @@ interface EventRegistrationSectionProps {
     startDate: string;
     venue: string;
     fee?: number;
-    capacity?: number;
+    capacity?: number | null;
     registrationDeadline?: string | Date;
     registrationOpen?: boolean;
     registrationUrl?: string;

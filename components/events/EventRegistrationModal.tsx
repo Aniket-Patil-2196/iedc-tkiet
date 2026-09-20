@@ -26,7 +26,7 @@ interface EventRegistrationModalProps {
     startDate: string;
     venue: string;
     fee?: number;
-    capacity?: number;
+    capacity?: number | null;
     registrationDeadline?: string | Date;
   };
 }
@@ -99,10 +99,17 @@ export function EventRegistrationModal({
         }),
       });
 
-      const data = await res.json();
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        setErrorMessage("Server communication error. Please try again shortly.");
+        setSubmitting(false);
+        return;
+      }
 
-      if (!res.ok || !data.success) {
-        setErrorMessage(data.error || "Failed to initiate registration.");
+      if (!res.ok || !data?.success) {
+        setErrorMessage(data?.error || data?.message || "Failed to initiate registration.");
         setSubmitting(false);
         return;
       }
@@ -159,11 +166,20 @@ export function EventRegistrationModal({
             });
 
             const verifyJson = await verifyRes.json();
+            if (!verifyRes.ok || !verifyJson.success) {
+              setErrorMessage(
+                verifyJson.error || "Payment verification failed. Please contact support or find your receipt."
+              );
+              setVerifying(false);
+              return;
+            }
             const token = verifyJson.receiptToken || data.receiptToken;
             router.push(`/receipt/${token}`);
-          } catch {
-            // Even if client verify call drops, the webhook processes it; redirect to receipt
-            router.push(`/receipt/${data.receiptToken}`);
+          } catch (err: any) {
+            setErrorMessage(
+              err.message || "Payment verification interrupted. Please verify receipt via Find My Receipt."
+            );
+            setVerifying(false);
           }
         },
       };
@@ -198,7 +214,7 @@ export function EventRegistrationModal({
                 Event Registration Desk
               </h3>
               <p className="text-[11px] font-sans text-typo-gray">
-                Official registration for {event.title}
+                Registration for {event.title}
               </p>
             </div>
           </div>
