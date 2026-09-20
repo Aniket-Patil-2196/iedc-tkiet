@@ -23,7 +23,7 @@ interface EventRegistrationModalProps {
   event: {
     id: string;
     title: string;
-    startDate: string;
+    startDate?: string;
     venue: string;
     fee?: number;
     capacity?: number | null;

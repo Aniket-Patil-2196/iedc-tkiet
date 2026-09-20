@@ -9,8 +9,10 @@ import {
   formatEventTimeRange,
 } from "@/lib/utils/event-status";
 import { EventHeroCanvas } from "@/components/events/EventHeroCanvas";
-import { NextEventCard } from "@/components/events/NextEventCard";
-import { UpcomingEventRow } from "@/components/events/UpcomingEventRow";
+import {
+  UpcomingEventsList,
+  UpcomingItem,
+} from "@/components/events/UpcomingEventsList";
 import {
   EventArchive,
   ArchiveEventItem,
@@ -50,53 +52,55 @@ export default async function EventsPage() {
     };
   });
 
-  // 4. Determine nearest upcoming published showcase event:
-  // Nearest upcoming published event, excluding cancelled and completed events,
-  // and excluding postponed events without a confirmed date or any missing/invalid date.
-  const eligibleForFeatured = eventsWithStatus.filter(({ status, startUtc }) => {
+  // 4. Unified Upcoming Events list:
+  // Rules:
+  // - Cancelled or completed events are NOT listed.
+  // - Scheduled upcoming events sorted chronologically (earliest first).
+  // - Postponed events without a confirmed date are listed LAST with "Date to be announced" and no countdown or registration button.
+  // - Ongoing events show "Happening now".
+  const scheduledUpcoming = eventsWithStatus.filter(({ status, startUtc }) => {
     if (status.lifecycle === "cancelled") return false;
     if (status.lifecycle === "completed") return false;
-    if (!startUtc || Number.isNaN(startUtc.getTime())) {
-      return false;
-    }
+    if (!startUtc || Number.isNaN(startUtc.getTime())) return false;
     return true;
   });
 
-  eligibleForFeatured.sort((a, b) => {
-    const timeA =
-      !a.startUtc || Number.isNaN(a.startUtc.getTime())
-        ? Infinity
-        : a.startUtc.getTime();
-    const timeB =
-      !b.startUtc || Number.isNaN(b.startUtc.getTime())
-        ? Infinity
-        : b.startUtc.getTime();
-    return timeA - timeB;
+  scheduledUpcoming.sort((a, b) => {
+    const tA = a.startUtc!.getTime();
+    const tB = b.startUtc!.getTime();
+    return tA - tB;
   });
 
-  const featuredItem = eligibleForFeatured[0] || null;
-  const featuredEvent = featuredItem?.event || null;
-  const featuredStatus = featuredItem?.status || null;
-  const featuredCountdownTarget = featuredItem?.startUtc
-    ? featuredItem.startUtc.toISOString()
-    : null;
-
-  // 5. Other upcoming events (excluding next-event card to never duplicate)
-  const otherUpcoming = eventsWithStatus
-    .filter((item) => {
-      if (item.status.lifecycle === "completed") return false;
-      if (item.event.slug === featuredEvent?.slug) return false;
-      const hasValidDate = Boolean(item.startUtc && !Number.isNaN(item.startUtc.getTime()));
-      if (!hasValidDate && item.status.lifecycle !== "postponed") return false;
+  const postponedNoDate = eventsWithStatus.filter(({ status, startUtc }) => {
+    if (status.lifecycle === "cancelled") return false;
+    if (status.lifecycle === "completed") return false;
+    if (status.lifecycle === "postponed" && (!startUtc || Number.isNaN(startUtc.getTime()))) {
       return true;
-    })
-    .sort((a, b) => {
-      const tA = a.startUtc?.getTime() ?? Infinity;
-      const tB = b.startUtc?.getTime() ?? Infinity;
-      return tA - tB;
-    });
+    }
+    return false;
+  });
 
-  // 6. Completed past events for Archive
+  const combinedUpcoming = [...scheduledUpcoming, ...postponedNoDate];
+
+  const upcomingItems: UpcomingItem[] = combinedUpcoming.map((item, idx) => {
+    const isNearest = idx === 0 && scheduledUpcoming.length > 0;
+    const isOngoing = item.status.lifecycle === "ongoing";
+    const isPostponedNoDate =
+      item.status.lifecycle === "postponed" &&
+      (!item.startUtc || Number.isNaN(item.startUtc.getTime()));
+
+    return {
+      event: item.event,
+      status: item.status,
+      startUtcIso:
+        item.startUtc && !isPostponedNoDate ? item.startUtc.toISOString() : null,
+      isNearest,
+      isOngoing,
+      isPostponedNoDate,
+    };
+  });
+
+  // 5. Completed past events for Bento Grid Archive
   const pastEvents: ArchiveEventItem[] = eventsWithStatus
     .filter((item) => item.status.lifecycle === "completed")
     .map((item) => {
@@ -143,37 +147,36 @@ export default async function EventsPage() {
 
   return (
     <div className="flex flex-col flex-1 w-full overflow-hidden bg-foundation-darkest">
-      {/* 1. Hero: 100svh minus header height (using CSS var), min-height ~560px */}
+      {/* 1. Hero: 100svh minus header height, min-height ~560px with optical vertical centering (~47%) */}
       <section
         style={{ height: "calc(100svh - var(--header-height, 4rem))" }}
-        className="relative min-h-[560px] flex flex-col justify-between items-center text-center overflow-hidden border-b border-foundation-slate/40 py-8 px-4"
+        className="relative min-h-[560px] flex flex-col justify-between items-center text-center overflow-hidden border-b border-foundation-slate/40 px-4 pt-4 pb-6"
       >
         <EventHeroCanvas />
 
         {/* Ambient radial glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-brand-blue/15 rounded-full blur-[120px] pointer-events-none" />
 
-        {/* Top spacer for vertical centering balance */}
-        <div className="w-full h-8 sm:h-12 pointer-events-none" />
+        {/* Vertically centered hero content with optical upward shift sitting at ~47% of screen height */}
+        <div className="flex-1 flex flex-col justify-center items-center w-full -translate-y-7 sm:-translate-y-9 md:-translate-y-12 lg:-translate-y-14 pointer-events-none">
+          <Container size="lg" className="relative z-10 space-y-6 pointer-events-auto">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-foundation-slate/50 border border-brand-blue/30 backdrop-blur-md text-xs font-mono tracking-widest uppercase text-brand-cyan shadow-[0_0_20px_rgba(56,189,248,0.15)]">
+              <Sparkles className="w-3.5 h-3.5 text-brand-cyan animate-pulse" />
+              <span>IEDC TKIET • EVENTS</span>
+            </div>
 
-        {/* Vertically centered hero content */}
-        <Container size="lg" className="relative z-10 space-y-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-foundation-slate/50 border border-brand-blue/30 backdrop-blur-md text-xs font-mono tracking-widest uppercase text-brand-cyan shadow-[0_0_20px_rgba(56,189,248,0.15)]">
-            <Sparkles className="w-3.5 h-3.5 text-brand-cyan animate-pulse" />
-            <span>IEDC TKIET • EVENTS</span>
-          </div>
+            <h1 className="font-display font-bold text-4xl sm:text-5xl lg:text-6xl text-typo-white tracking-tight leading-[1.1] max-w-3xl mx-auto [text-wrap:balance]">
+              Where Ideas Meet Action.
+            </h1>
 
-          <h1 className="font-display font-bold text-4xl sm:text-5xl lg:text-6xl text-typo-white tracking-tight leading-[1.1] max-w-3xl mx-auto [text-wrap:balance]">
-            Where Ideas Meet Action.
-          </h1>
-
-          <p className="font-sans text-sm sm:text-base text-typo-gray max-w-2xl mx-auto leading-relaxed">
-            Technical hackathons, venture showcases, and entrepreneurship bootcamps organized by the Innovation &amp; Entrepreneurship Development Cell at TKIET Warananagar.
-          </p>
-        </Container>
+            <p className="font-sans text-sm sm:text-base text-typo-gray max-w-2xl mx-auto leading-relaxed">
+              Technical hackathons, venture showcases, and entrepreneurship bootcamps organized by the Innovation &amp; Entrepreneurship Development Cell at TKIET Warananagar.
+            </p>
+          </Container>
+        </div>
 
         {/* Scroll cue anchored at bottom */}
-        <div className="relative z-10 pb-2 sm:pb-4">
+        <div className="relative z-10 pb-1 sm:pb-2">
           <a
             href="#upcoming"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foundation-dark/80 hover:bg-foundation-dark border border-brand-cyan/30 hover:border-brand-cyan text-xs font-mono tracking-wider uppercase text-typo-white hover:text-brand-cyan transition-all shadow-sm group"
@@ -184,19 +187,22 @@ export default async function EventsPage() {
         </div>
       </section>
 
-      {/* 2. Upcoming Section (Density rules: py-12 md:py-16, clean dividers, no outer glow panel) */}
+      {/* 2. Upcoming Section: One unified cards list */}
       <Section id="upcoming" spacing="md" className="py-12 md:py-16 bg-foundation-darkest">
         <Container size="lg" className="space-y-8">
-          {featuredEvent && featuredStatus ? (
+          {upcomingItems.length > 0 ? (
             <div className="space-y-8">
               {/* Header */}
               <div className="flex items-center justify-between flex-wrap gap-4 pb-2 border-b border-foundation-slate/40">
                 <div className="space-y-1">
                   <span className="text-[11px] font-mono tracking-[0.2em] text-brand-cyan uppercase font-bold">
-                    Next Showcase
+                    UPCOMING
                   </span>
-                  <h2 className="font-display text-2xl sm:text-3xl font-bold text-typo-white tracking-tight">
-                    Upcoming Event
+                  <h2 className="font-display text-2xl sm:text-3xl font-bold text-typo-white tracking-tight flex items-center gap-3">
+                    <span>Upcoming Event{upcomingItems.length > 1 ? "s" : ""}</span>
+                    <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-brand-cyan/15 text-brand-cyan border border-brand-cyan/30">
+                      {upcomingItems.length}
+                    </span>
                   </h2>
                 </div>
                 <span className="text-xs font-mono text-typo-gray/60">
@@ -204,36 +210,10 @@ export default async function EventsPage() {
                 </span>
               </div>
 
-              {/* Nearest upcoming event card */}
+              {/* Unified Upcoming Events List with Pagination */}
               <Reveal variant="fade-up">
-                <NextEventCard
-                  event={featuredEvent}
-                  status={featuredStatus}
-                  targetUtcIso={featuredCountdownTarget}
-                />
+                <UpcomingEventsList items={upcomingItems} />
               </Reveal>
-
-              {/* Other upcoming events (only if more than one) */}
-              {otherUpcoming.length > 0 && (
-                <div className="space-y-4 pt-6 border-t border-foundation-slate/50">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-display text-lg font-bold text-typo-white">
-                      Other Scheduled Events ({otherUpcoming.length})
-                    </h3>
-                  </div>
-
-                  <div className="space-y-3">
-                    {otherUpcoming.map((item) => (
-                      <Reveal key={item.event.slug} variant="fade-up">
-                        <UpcomingEventRow
-                          event={item.event}
-                          status={item.status}
-                        />
-                      </Reveal>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           ) : (
             /* Empty State: Zero upcoming events */
@@ -260,7 +240,7 @@ export default async function EventsPage() {
             </div>
           )}
 
-          {/* 3. Past Events Archive */}
+          {/* 3. Past Events Bento Grid Archive */}
           {pastEvents.length > 0 && (
             <div id="archive" className="pt-12 border-t border-foundation-slate/60">
               <Reveal variant="fade-up">

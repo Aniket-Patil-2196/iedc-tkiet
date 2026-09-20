@@ -6,6 +6,21 @@ const config: Config = {
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  safelist: [
+    "col-span-1",
+    "col-span-2",
+    "col-span-5",
+    "col-span-7",
+    "col-span-12",
+    "md:col-span-1",
+    "md:col-span-2",
+    "lg:col-span-5",
+    "lg:col-span-7",
+    "lg:col-span-12",
+    "grid-cols-1",
+    "md:grid-cols-2",
+    "lg:grid-cols-12",
+  ],
   theme: {
     extend: {
       colors: {

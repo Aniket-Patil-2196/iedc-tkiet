@@ -22,7 +22,7 @@ export interface IEvent {
   shortDescription: string;
   summary?: string; // Compatibility alias with earlier steps
   description: string;
-  startDate: string; // ISO date string
+  startDate?: string; // ISO date string
   endDate?: string;
   startTime?: string; // e.g., "10:00 AM"
   endTime?: string;   // e.g., "01:00 PM"
