@@ -80,6 +80,29 @@ async function runDraftAndSafetyAudit() {
   console.log(`  Response:`, regInvalidJson);
   console.log(`  Schema validation rejected with 400? ${regInvalidRes.status === 400 && !regInvalidJson.success ? "PASS" : "FAIL"}`);
 
+  // 7. Test Register API when PAYMENTS_ENABLED=false (default) on any published event
+  console.log(`\n[TEST 7] Register API when PAYMENTS_ENABLED=false on published event:`);
+  const publishedEvent = publishedList.find((e) => resolveRegistrationMode(e) === "onsite") || publishedList[0];
+  if (publishedEvent) {
+    const regPaymentsOffRes = await fetch(`http://localhost:3000/api/events/${publishedEvent.id || (publishedEvent as any)._id}/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Test Attendee",
+        email: "test@example.com",
+        phone: "9876543210",
+        college: "TKIET Warananagar",
+        year: "Final Year",
+      }),
+    });
+    const regPaymentsOffJson = await regPaymentsOffRes.json();
+    console.log(`  Target event: "${publishedEvent.title}" (mode: ${resolveRegistrationMode(publishedEvent)})`);
+    console.log(`  HTTP status: ${regPaymentsOffRes.status}`);
+    console.log(`  Response:`, regPaymentsOffJson);
+    const expectedStatus = resolveRegistrationMode(publishedEvent) === "onsite" ? 403 : 400;
+    console.log(`  Rejected properly (${expectedStatus})? ${regPaymentsOffRes.status === expectedStatus && !regPaymentsOffJson.success ? "PASS" : "FAIL"}`);
+  }
+
   console.log("\n====================================================================");
   console.log("ALL DRAFT AND API SAFETY CHECKS VERIFIED SUCCESSFULLY");
   console.log("====================================================================\n");

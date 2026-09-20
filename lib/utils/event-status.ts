@@ -63,6 +63,18 @@ export function isDevelopmentPlaceholder(event?: {
 }
 
 /**
+ * Checks whether online payments and on-site event registrations are enabled.
+ * Controlled by the PAYMENTS_ENABLED env flag (default: false).
+ */
+export function isPaymentsEnabled(): boolean {
+  if (typeof process !== "undefined" && process.env) {
+    if (process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === "true") return true;
+    if (process.env.PAYMENTS_ENABLED === "true") return true;
+  }
+  return false;
+}
+
+/**
  * Resolves the explicit registration architecture for an event.
  * Saved mode takes precedence; if absent, defaults to "external" ONLY if registrationUrl exists; else "none".
  */
@@ -294,7 +306,8 @@ export function getEventStatus(
  */
 export function getRegistrationAction(
   event: Partial<IEvent> & { _id?: any },
-  status: EventStatusResult
+  status: EventStatusResult,
+  paymentsEnabledOverride?: boolean
 ): RegistrationAction {
   if (status.lifecycle === "cancelled") {
     return {
@@ -387,6 +400,20 @@ export function getRegistrationAction(
   }
 
   if (status.registration === "open") {
+    const paymentsActive =
+      paymentsEnabledOverride !== undefined
+        ? paymentsEnabledOverride
+        : isPaymentsEnabled();
+
+    if (!paymentsActive) {
+      return {
+        type: "disabled",
+        label: "Online registration opens soon",
+        reason: "Online registration opens soon.",
+        disabled: true,
+      };
+    }
+
     const feeRupees = event.fee !== undefined && event.fee > 0 ? Math.floor(event.fee) : 0;
     return {
       type: "onsite",

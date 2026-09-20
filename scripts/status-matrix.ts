@@ -353,6 +353,38 @@ const testCases: TestCase[] = [
     },
     paidCount: 0,
   },
+  {
+    name: "22. Onsite open with PAYMENTS_ENABLED=false",
+    event: {
+      id: "evt-test-22",
+      slug: "onsite-payments-disabled",
+      title: "Design Thinking Bootcamp",
+      startDate: "2026-11-20T10:00:00.000Z",
+      registrationMode: "onsite",
+      fee: 250,
+      registrationOpen: true,
+      published: true,
+      category: "Bootcamp",
+      venue: "Seminar Hall",
+    },
+    paidCount: 0,
+  },
+  {
+    name: "23. Onsite open with PAYMENTS_ENABLED=true",
+    event: {
+      id: "evt-test-23",
+      slug: "onsite-payments-enabled",
+      title: "Design Thinking Bootcamp",
+      startDate: "2026-11-20T10:00:00.000Z",
+      registrationMode: "onsite",
+      fee: 250,
+      registrationOpen: true,
+      published: true,
+      category: "Bootcamp",
+      venue: "Seminar Hall",
+    },
+    paidCount: 0,
+  },
 ];
 
 console.log("\n====================================================================================================");
@@ -364,7 +396,14 @@ const tableRows = testCases.map((tc) => {
   const fullEvent = tc.event as IEvent;
   const evaluationTime = tc.customNow || testNow;
   const status = getEventStatus(fullEvent, tc.paidCount, evaluationTime);
-  const action = getRegistrationAction(fullEvent, status);
+  // For case 22 force false, for case 23 and 5 force true, else default
+  const paymentsOverride =
+    tc.name.includes("PAYMENTS_ENABLED=false")
+      ? false
+      : tc.name.includes("PAYMENTS_ENABLED=true") || tc.name.includes("5. Onsite with fee")
+      ? true
+      : undefined;
+  const action = getRegistrationAction(fullEvent, status, paymentsOverride);
 
   return {
     "Test Scenario": tc.name,

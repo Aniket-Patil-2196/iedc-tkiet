@@ -58,7 +58,7 @@ export async function generateMetadata({
   }
 
   const isPlaceholder = isDevelopmentPlaceholder(event);
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://iedc.tkiet.ac.in";
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://iedc.tkiet.ac.in").replace(/\/$/, "");
   const rawPoster = event.coverImage || event.posterUrl || "/images/og-event-default.jpg";
   const posterAbsolute = rawPoster.startsWith("http")
     ? rawPoster

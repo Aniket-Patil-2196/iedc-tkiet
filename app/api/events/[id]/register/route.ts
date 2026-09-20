@@ -11,6 +11,7 @@ import {
   getEventStatus,
   resolveRegistrationMode,
   isDevelopmentPlaceholder,
+  isPaymentsEnabled,
 } from "@/lib/utils/event-status";
 
 import { PLACEHOLDER_EVENTS } from "@/lib/data/placeholders";
@@ -74,7 +75,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         event = await EventModel.findOne({ slug: eventIdentifier });
       }
     }
-    if (!event) {
+    if (!event && process.env.NODE_ENV !== "production") {
       event = (PLACEHOLDER_EVENTS.find(
         (e) => e.id === eventIdentifier || e.slug === eventIdentifier
       ) as any) || null;
@@ -110,6 +111,14 @@ export async function POST(request: Request, { params }: RouteParams) {
               : "This event does not require online registration.",
         },
         { status: 400 }
+      );
+    }
+
+    // 5. Check if online registration and payments are enabled
+    if (!isPaymentsEnabled()) {
+      return NextResponse.json(
+        { success: false, error: "Online registration is not currently enabled." },
+        { status: 403 }
       );
     }
 

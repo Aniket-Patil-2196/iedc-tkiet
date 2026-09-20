@@ -11,7 +11,7 @@ export const SITE_CONFIG = {
   tagline: "Empowering Student Innovators & Pioneering Future Entrepreneurs",
   description:
     "Official website of the Innovation and Entrepreneurship Development Cell (IEDC) at Tatyasaheb Kore Institute of Engineering and Technology (TKIET), fostering creativity, startup culture, and technological innovation.",
-  url: "https://iedc.tkiet.ac.in",
+  url: process.env.NEXT_PUBLIC_SITE_URL || "https://iedc.tkiet.ac.in",
 } as const;
 
 export interface NavItem {

@@ -10,12 +10,11 @@ import { Calendar, MapPin, ArrowRight, Sparkles, Tag } from "lucide-react";
 import { formatEventDate } from "@/lib/utils/event-status";
 
 interface FeaturedEventSectionProps {
-  // Configured to accept future MongoDB event document or fallback to placeholder
-  event?: typeof PLACEHOLDER_EVENTS[0];
+  event?: typeof PLACEHOLDER_EVENTS[0] | null;
 }
 
 export function FeaturedEventSection({
-  event = PLACEHOLDER_EVENTS[0],
+  event,
 }: FeaturedEventSectionProps) {
   if (!event) {
     return null;
