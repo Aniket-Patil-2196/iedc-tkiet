@@ -239,3 +239,73 @@ body {
 .postage-stamp-shadow {
   filter: drop-shadow(0 4px 12px rgba(74, 52, 24, 0.22));
 }
+
+/* ==========================================================================
+   StPageFlip Core & Custom Book Presentation Styles
+   ========================================================================== */
+.stf__parent {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  transform: translateZ(0);
+  -ms-touch-action: pan-y;
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
+}
+
+.stf__parent:active,
+.stf__parent.is-grabbing {
+  cursor: grabbing;
+}
+
+.stf__wrapper,
+.sft__wrapper {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.stf__parent canvas {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+.stf__block {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  perspective: 2000px;
+}
+
+.stf__item {
+  display: none;
+  position: absolute;
+  transform-style: preserve-3d;
+}
+
+.stf__outerShadow,
+.stf__innerShadow,
+.stf__hardShadow,
+.stf__hardInnerShadow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+/* Hide native corner folds under reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .stf__outerShadow,
+  .stf__innerShadow,
+  .stf__hardShadow,
+  .stf__hardInnerShadow {
+    display: none !important;
+  }
+}
+
