@@ -30,7 +30,7 @@ export async function generateMetadata({
   }
 
   return constructMetadata({
-    title: `${article.title} — The Innovation Journal`,
+    title: `${article.title} — The Innovation Blog`,
     description: article.excerpt,
     path: `/blog/${article.slug}`,
   });
@@ -80,19 +80,19 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
 
   return (
     <div className="flex flex-col flex-1 w-full min-h-screen bg-foundation-darkest py-6 sm:py-10 px-4 sm:px-6">
-      {/* Top Breadcrumb: Clear Back to Journal link returning to book opened at post (?post=[slug]) */}
+      {/* Top Breadcrumb: Clear Back to Blog link returning to book opened at post (?post=[slug]) */}
       <div className="max-w-4xl mx-auto w-full mb-6 flex items-center justify-between">
         <Link
           href={`/blog?post=${article.slug}`}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/90 border border-brand-cyan/40 hover:border-brand-cyan text-xs font-mono uppercase tracking-wider text-brand-cyan hover:text-white transition-all shadow-md group"
         >
           <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
-          <span>Back to Journal (Spread View)</span>
+          <span>Back to the Blog</span>
         </Link>
 
         <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-slate-400">
           <BookOpen className="w-3.5 h-3.5 text-brand-cyan" />
-          <span>The Innovation Journal · Issue {currentIndex + 1}</span>
+          <span>The Innovation Blog · Edition {currentIndex + 1}</span>
         </div>
       </div>
 

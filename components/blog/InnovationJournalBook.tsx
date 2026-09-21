@@ -25,7 +25,7 @@ import { formatEventDate } from "@/lib/utils/event-status";
 import { ImageLightbox } from "./ImageLightbox";
 import { PostageStamp } from "./PostageStamp";
 import { BlogCommentsSection } from "./BlogCommentsSection";
-import { ThePen } from "./ThePen";
+import { ThePen, BookDisplayState } from "./ThePen";
 import { stripHtmlToPlainText } from "@/lib/utils/blog-validation";
 import { SITE_CONFIG } from "@/lib/constants/site";
 import { cn } from "@/lib/utils";
@@ -51,9 +51,12 @@ export function InnovationJournalBook({
     return blogs.findIndex((b) => b.slug === initialPostSlug);
   }, [blogs, initialPostSlug]);
 
-  const [isOpen, setIsOpen] = useState(initialPostIndex !== -1);
+  // FIX 1.1: Single Source of Truth for display state and animation
+  const [displayState, setDisplayState] = useState<BookDisplayState>(
+    initialPostIndex !== -1 ? "open" : "closed-front"
+  );
+  const [isAnimating, setIsAnimating] = useState(false);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  const [isTurning, setIsTurning] = useState(false);
 
   const [lightboxImage, setLightboxImage] = useState<{
     src: string;
@@ -76,6 +79,7 @@ export function InnovationJournalBook({
   const innerFrameRef = useRef<HTMLDivElement>(null);
   const innovationWordRef = useRef<HTMLHeadingElement>(null);
   const firstHeadingRef = useRef<HTMLHeadingElement>(null);
+  const animationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [headerHeight, setHeaderHeight] = useState(82);
   const [containerWidth, setContainerWidth] = useState(1200);
@@ -95,7 +99,6 @@ export function InnovationJournalBook({
   const contentsPagesCount = Math.max(1, Math.ceil(blogs.length / itemsPerContentsPage));
 
   // Introductory pages: Intro (1) + Contents (contentsPagesCount)
-  // If (1 + contentsPagesCount) is odd, add 1 transitional page so blog posts always start on a Left page (odd index)
   const hasIntroTransition = (1 + contentsPagesCount) % 2 !== 0;
   const totalIntroPages = 1 + contentsPagesCount + (hasIntroTransition ? 1 : 0);
 
@@ -103,7 +106,7 @@ export function InnovationJournalBook({
   // Total page count must be strictly EVEN so the back cover stands alone on the left
   const totalPages = 1 + totalIntroPages + blogs.length * 2 + 1;
 
-  // STEP 1.3: Size book from height first by MEASURING DOM offsets
+  // Sizing from height first by MEASURING DOM offsets
   const computeDimensions = useCallback(() => {
     if (typeof window === "undefined") return;
     const vw = window.innerWidth;
@@ -123,30 +126,24 @@ export function InnovationJournalBook({
     }
 
     if (mobile) {
-      // Mobile: size page by width (viewport width - 32px, ratio 3:4), allow normal scrolling
       const pw = Math.min(vw - 32, 420);
       const bh = Math.round(pw / 0.75);
       setDimensions({ bookHeight: bh, pageWidth: pw });
       return;
     }
 
-    // Desktop: Height-first calculation with at least 16px clear gap below header
     const headerClearance = 16;
     const controlsRowHeight = 48;
-    const controlsGap = 16; // 12-16px gap between book and controls
+    const controlsGap = 16;
     const bottomPadding = 16;
 
     const bookTopOffset = measuredHeaderBottom + headerClearance;
     const availableHeight = vh - bookTopOffset - controlsRowHeight - controlsGap - bottomPadding;
 
-    // Clamp book height to minimum 420px (below that let page scroll)
     const targetHeight = Math.max(420, availableHeight);
-
-    // Ideal page width from 3:4 aspect ratio
     let idealPageWidth = Math.round(targetHeight * 0.75);
     let openSpreadWidth = idealPageWidth * 2;
 
-    // If open spread exceeds container width minus 24px gutter on each side (48px total), reduce height
     const maxAllowedSpreadWidth = containerW - 48;
     if (openSpreadWidth > maxAllowedSpreadWidth) {
       openSpreadWidth = maxAllowedSpreadWidth;
@@ -201,7 +198,7 @@ export function InnovationJournalBook({
     } else {
       setCoverTitleScale(1);
     }
-  }, [pageWidth, isOpen]);
+  }, [pageWidth, displayState]);
 
   // Sync URL ?post=<slug> with history.replaceState
   const syncUrlParam = useCallback((slug?: string) => {
@@ -224,7 +221,7 @@ export function InnovationJournalBook({
   }, [initialPostIndex, totalIntroPages]);
 
   // -------------------------------------------------------------
-  // StPageFlip (B1 & Step 1.2: Explicit Landscape vs Portrait)
+  // StPageFlip (B1 & Explicit Landscape vs Portrait)
   // -------------------------------------------------------------
   useEffect(() => {
     let isMounted = true;
@@ -236,7 +233,6 @@ export function InnovationJournalBook({
         const { PageFlip } = await import("page-flip");
         if (!isMounted || !flipBookRef.current) return;
 
-        // Safely destroy existing instance before re-initializing
         if (pageFlipRef.current) {
           try {
             pageFlipRef.current.getUI()?.clear();
@@ -251,15 +247,12 @@ export function InnovationJournalBook({
           "(prefers-reduced-motion: reduce)"
         ).matches;
 
-        // STEP 1.2: Explicit orientation choice from viewport min-width 900px
-        // 900px and above: usePortrait = false (strict two-page spread)
-        // below 900px: usePortrait = true (single page)
         const isDesktop = window.matchMedia("(min-width: 900px)").matches;
         const usePortraitMode = !isDesktop;
 
         console.log(
           `[InnovationJournalBook] Initializing PageFlip: orientation=${
-            isDesktop ? "landscape (two-page spread)" : "portrait (single-page)"
+            isDesktop ? "landscape" : "portrait"
           }, width=${pageWidth}px, height=${bookHeight}px`
         );
 
@@ -267,7 +260,7 @@ export function InnovationJournalBook({
           width: pageWidth,
           height: bookHeight,
           size: "stretch",
-          minWidth: 100, // low enough so library can never force portrait on desktop
+          minWidth: 100,
           maxWidth: 1600,
           minHeight: 100,
           maxHeight: 1600,
@@ -287,14 +280,24 @@ export function InnovationJournalBook({
         const pageElements = flipBookRef.current.querySelectorAll(".stf-page-item");
         pf.loadFromHTML(pageElements);
 
-        // Sync state from page-flip flip events
+        // FIX 1.1: Sync state from page-flip flip and changeState events
         pf.on("flip", (e: any) => {
           if (!isMounted) return;
           const pageIdx = typeof e.data === "number" ? e.data : pf.getCurrentPageIndex();
           setCurrentPageIndex(pageIdx);
 
-          const openState = pageIdx > 0 && pageIdx < totalPages - 1;
-          setIsOpen(openState);
+          if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+          animationTimerRef.current = setTimeout(() => {
+            if (!isMounted) return;
+            setIsAnimating(false);
+            if (pageIdx === 0) {
+              setDisplayState("closed-front");
+            } else if (pageIdx === totalPages - 1) {
+              setDisplayState("closed-back");
+            } else {
+              setDisplayState("open");
+            }
+          }, prefersReducedMotion ? 30 : 850);
 
           // Determine current post if on post spread
           const postSpreadStart = 1 + totalIntroPages;
@@ -310,10 +313,9 @@ export function InnovationJournalBook({
             }
           }
 
-          // Non-post pages
           syncUrlParam(undefined);
           if (pageIdx === 0) {
-            setAnnouncement("Book closed. Front cover.");
+            setAnnouncement("Blog closed. Front cover.");
           } else if (pageIdx === 1) {
             setAnnouncement(`Page 2 of ${totalPages}: Editorial Preface`);
           } else if (pageIdx < postSpreadStart) {
@@ -326,14 +328,32 @@ export function InnovationJournalBook({
         pf.on("changeState", (e: any) => {
           if (!isMounted) return;
           const state = e.data;
-          setIsTurning(state === "user_fold" || state === "flipping");
+          if (state === "user_fold" || state === "fold_corner" || state === "flipping") {
+            setIsAnimating(true);
+            setDisplayState("open");
+          } else if (state === "read") {
+            setIsAnimating(false);
+            const p = pf.getCurrentPageIndex();
+            if (p === 0) {
+              setDisplayState("closed-front");
+            } else if (p === totalPages - 1) {
+              setDisplayState("closed-back");
+            } else {
+              setDisplayState("open");
+            }
+          }
         });
 
         pageFlipRef.current = pf;
 
-        // Sync initial state
         setCurrentPageIndex(startPageIndex);
-        setIsOpen(startPageIndex > 0 && startPageIndex < totalPages - 1);
+        if (startPageIndex === 0) {
+          setDisplayState("closed-front");
+        } else if (startPageIndex >= totalPages - 1) {
+          setDisplayState("closed-back");
+        } else {
+          setDisplayState("open");
+        }
       } catch (err) {
         console.error("Error initializing StPageFlip:", err);
       }
@@ -343,6 +363,7 @@ export function InnovationJournalBook({
 
     return () => {
       isMounted = false;
+      if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
       if (pageFlipRef.current) {
         try {
           pageFlipRef.current.getUI()?.clear();
@@ -364,30 +385,65 @@ export function InnovationJournalBook({
     syncUrlParam,
   ]);
 
+  // FIX 1.1: Trigger turn with immediate state update at start of turn
+  const handleJumpToPage = useCallback((targetIdx: number) => {
+    if (!pageFlipRef.current) return;
+
+    // Immediately start animating and update display state for layout
+    setIsAnimating(true);
+    if (targetIdx > 0 && targetIdx < totalPages - 1) {
+      setDisplayState("open");
+    } else if (targetIdx === totalPages - 1) {
+      // While animating to back cover, treat as open for layout until rest
+      setDisplayState("open");
+    }
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    if (prefersReducedMotion) {
+      pageFlipRef.current.turnToPage(targetIdx);
+      setIsAnimating(false);
+      if (targetIdx === 0) setDisplayState("closed-front");
+      else if (targetIdx === totalPages - 1) setDisplayState("closed-back");
+      else setDisplayState("open");
+    } else {
+      pageFlipRef.current.flip(targetIdx);
+    }
+  }, [totalPages]);
+
+  const handleNextPage = useCallback(() => {
+    if (!pageFlipRef.current || currentPageIndex >= totalPages - 1) return;
+    setIsAnimating(true);
+    setDisplayState("open");
+    pageFlipRef.current.flipNext();
+  }, [currentPageIndex, totalPages]);
+
+  const handlePrevPage = useCallback(() => {
+    if (!pageFlipRef.current || currentPageIndex <= 0) return;
+    setIsAnimating(true);
+    setDisplayState("open");
+    pageFlipRef.current.flipPrev();
+  }, [currentPageIndex]);
+
   // Keyboard Navigation: Arrows, Space/Enter, Escape (B2 & B4)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (lightboxImage) return;
 
       if (e.key === "Escape") {
-        if (isOpen && pageFlipRef.current) {
-          const prefersReducedMotion = window.matchMedia(
-            "(prefers-reduced-motion: reduce)"
-          ).matches;
-          if (prefersReducedMotion) {
-            pageFlipRef.current.turnToPage(0);
-          } else {
-            pageFlipRef.current.flip(0);
-          }
+        if (displayState !== "closed-front") {
+          handleJumpToPage(0);
         }
         return;
       }
 
-      if (!isOpen) {
+      if (displayState === "closed-front") {
         if (e.key === "Enter" || e.key === " ") {
           if (document.activeElement === coverButtonRef.current) {
             e.preventDefault();
-            pageFlipRef.current?.flip(1);
+            handleJumpToPage(1);
           }
         }
         return;
@@ -395,16 +451,16 @@ export function InnovationJournalBook({
 
       if (e.key === "ArrowRight") {
         e.preventDefault();
-        pageFlipRef.current?.flipNext();
+        handleNextPage();
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
-        pageFlipRef.current?.flipPrev();
+        handlePrevPage();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, lightboxImage]);
+  }, [displayState, lightboxImage, handleJumpToPage, handleNextPage, handlePrevPage]);
 
   // Safe publication date formatting
   const getPubDate = (blog: IBlog) => {
@@ -435,7 +491,7 @@ export function InnovationJournalBook({
     return { dropCap: first, remainder: text.slice(first.length) };
   };
 
-  // Dynamically computes text fitting in fixed reference canvas space (A3 & Step 2)
+  // Dynamically computes text fitting in fixed reference canvas space
   const computeArticleTextFitting = (
     rawContent: string,
     isMobileMode: boolean
@@ -493,19 +549,6 @@ export function InnovationJournalBook({
     };
   };
 
-  // Jump helper
-  const handleJumpToPage = (targetIdx: number) => {
-    if (!pageFlipRef.current) return;
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-    if (prefersReducedMotion) {
-      pageFlipRef.current.turnToPage(targetIdx);
-    } else {
-      pageFlipRef.current.flip(targetIdx);
-    }
-  };
-
   // Active blog for comments section
   const activeCommentBlog = useMemo(() => {
     const postSpreadStart = 1 + totalIntroPages;
@@ -516,38 +559,37 @@ export function InnovationJournalBook({
     return blogs[0] || null;
   }, [currentPageIndex, totalIntroPages, totalPages, blogs]);
 
-  // Page label for controls row (Step 3.8)
+  // Page label for controls row (Step 3.8 & Fix 1.3)
   const controlsPageLabel = useMemo(() => {
-    if (!isOpen || currentPageIndex === 0) {
+    if (displayState === "closed-front" || currentPageIndex === 0) {
       return "Cover";
     }
-    if (currentPageIndex >= totalPages - 1) {
-      return `Back Cover (Page ${totalPages})`;
+    if (displayState === "closed-back" || currentPageIndex >= totalPages - 1) {
+      return `Back Cover`;
     }
     if (isMobile) {
       return `Page ${currentPageIndex + 1} of ${totalPages}`;
     }
-    // In landscape spread mode, display both facing pages: Pages 2-3 of 6
     const leftPage = currentPageIndex % 2 === 1 ? currentPageIndex : currentPageIndex - 1;
     const rightPage = leftPage + 1;
     return `Pages ${leftPage + 1}-${rightPage + 1} of ${totalPages}`;
-  }, [isOpen, currentPageIndex, totalPages, isMobile]);
+  }, [displayState, currentPageIndex, totalPages, isMobile]);
 
   return (
     <div ref={containerRef} className="w-full flex flex-col items-center">
-      {/* 1. Header Row (Step 1.5: Tighter header block, >= 16px clear gap to book) */}
+      {/* 1. Header Row (FIX 2: The Innovation Blog + Chip: IEDC TKIET) */}
       <header
         ref={headerRef}
         id="blog-header-row"
         className="w-full max-w-6xl mx-auto flex flex-col md:flex-row md:items-end md:justify-between gap-2 md:gap-6 pt-1 pb-2.5 border-b border-foundation-slate/50 select-none min-h-[72px] md:min-h-[82px] [@media(max-height:700px)]:pb-1.5"
       >
         <div className="flex flex-col items-start gap-1 min-w-0">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-foundation-slate/60 border border-brand-cyan/30 text-[10px] sm:text-xs font-mono tracking-widest text-brand-cyan uppercase">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-foundation-slate/60 border border-brand-cyan/30 text-[10px] sm:text-xs font-mono tracking-widest text-brand-cyan uppercase font-bold">
             <Sparkles className="w-3 h-3 text-brand-cyan" />
-            BLOG
+            IEDC TKIET
           </span>
           <h1 className="font-display font-bold text-typo-white tracking-tight text-[clamp(1.75rem,2.6vw,2.5rem)] leading-tight [text-wrap:balance]">
-            The Innovation Journal
+            The Innovation Blog
           </h1>
         </div>
 
@@ -561,7 +603,7 @@ export function InnovationJournalBook({
         {announcement}
       </div>
 
-      {/* 2. Main Book Stage (Step 1.1: Relative box, centered horizontally, spans full width, >= 16px gap below header) */}
+      {/* 2. Main Book Stage (Step 1.1: Relative box, centered horizontally, spans full width) */}
       <div
         ref={bookStageRef}
         style={
@@ -572,14 +614,16 @@ export function InnovationJournalBook({
         }
         className="relative w-full flex flex-col items-center justify-center mt-4 select-none"
       >
-        {/* Step 1.1 & Step 4: The Pen as Absolute Overlay in Free Margins Outside the Book */}
+        {/* FIX 1: The Pen as Absolute Overlay in Free Margins Outside the Book */}
         <ThePen
-          isOpen={isOpen}
+          displayState={displayState}
+          isAnimating={isAnimating}
           containerWidth={containerWidth}
           pageWidth={pageWidth}
+          bookStageRef={bookStageRef}
         />
 
-        {/* Optical Centering Wrapper (Step 1.4: Smooth 3D centering transition) */}
+        {/* Optical Centering Wrapper */}
         <div
           ref={centerWrapperRef}
           className="relative flex items-center justify-center select-none"
@@ -597,7 +641,7 @@ export function InnovationJournalBook({
             transition: "transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)",
           }}
         >
-          {/* StPageFlip Host Container (B1 & Step 1.2: Host container with exact spread dimensions) */}
+          {/* StPageFlip Host Container */}
           <div
             ref={flipBookRef}
             style={{
@@ -618,7 +662,7 @@ export function InnovationJournalBook({
                 ref={coverButtonRef}
                 type="button"
                 onClick={() => handleJumpToPage(1)}
-                aria-label="Open The Innovation Journal"
+                aria-label="Open The Innovation Blog"
                 className="group relative w-full h-full text-left p-6 sm:p-8 flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan cursor-pointer"
               >
                 {/* Spine crease shading on left edge */}
@@ -668,7 +712,7 @@ export function InnovationJournalBook({
                     </span>
                   </div>
 
-                  {/* Title Area */}
+                  {/* FIX 2: Title Area: THE INNOVATION BLOG */}
                   <div className="space-y-3 text-center my-auto py-4">
                     <span className="block text-xs font-mono tracking-[0.3em] text-brand-cyan/90 uppercase">
                       THE
@@ -685,7 +729,7 @@ export function InnovationJournalBook({
                       INNOVATION
                     </h2>
                     <span className="block font-display text-lg sm:text-xl font-semibold text-slate-200 tracking-wider">
-                      JOURNAL
+                      BLOG
                     </span>
                     <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-brand-cyan to-transparent mx-auto pt-1" />
                     <span className="block text-[11px] font-sans text-slate-400 font-medium pt-1">
@@ -697,7 +741,7 @@ export function InnovationJournalBook({
                   <div className="text-center pt-2">
                     <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-slate-900/90 border border-brand-cyan/40 text-xs font-mono tracking-wider uppercase text-brand-cyan group-hover:text-typo-white group-hover:border-brand-cyan shadow-md transition-all">
                       <BookOpen className="w-3.5 h-3.5" />
-                      <span>Open book →</span>
+                      <span>Open blog →</span>
                     </span>
                   </div>
                 </div>
@@ -739,7 +783,7 @@ export function InnovationJournalBook({
                   </h2>
 
                   <p className="font-sans text-xs sm:text-sm text-[#1B2333] leading-relaxed">
-                    Welcome to <span className="text-[#1E40AF] font-semibold">The Innovation Journal</span>,
+                    Welcome to <span className="text-[#1E40AF] font-semibold">The Innovation Blog</span>,
                     the institutional publication of the {SITE_CONFIG.fullName} at {SITE_CONFIG.institution}.
                   </p>
 
@@ -1041,7 +1085,7 @@ export function InnovationJournalBook({
                             className="relative flex items-center justify-center px-4 pt-1.5 pb-3 bg-gradient-to-b from-[#1E3A8A] via-[#1E40AF] to-[#172554] text-[#FBF6E9] font-book-handwriting font-bold text-xs sm:text-sm tracking-wide shadow-[0_4px_14px_rgba(74,52,24,0.35)] transition-all duration-300 group-hover:translate-y-1 hover:brightness-110"
                             style={{
                               clipPath:
-                                "polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 8px), 0 100%)",
+                                "polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 7px), 0 100%)",
                             }}
                             title="Continue reading this post"
                           >
@@ -1139,7 +1183,7 @@ export function InnovationJournalBook({
           </div>
         </div>
 
-        {/* 3. Controls Row (Step 3.8: Directly below book with 12-16px gap, centered group, compact close button) */}
+        {/* 3. Controls Row (FIX 1.3: Conditioned by displayState) */}
         <div
           style={{
             width: isMobile ? `${pageWidth}px` : `${pageWidth * 2}px`,
@@ -1147,13 +1191,58 @@ export function InnovationJournalBook({
           }}
           className="relative min-h-[48px] h-12 flex items-center justify-between px-2 select-none mt-3 sm:mt-4"
         >
-          {isOpen ? (
+          {displayState === "closed-front" ? (
+            // CLOSED FRONT HINT (Fix 1.3: "Click the cover or press Enter to open the blog")
+            <div className="w-full h-full flex items-center justify-center text-center">
+              <span className="text-xs sm:text-sm font-mono text-typo-gray/90 flex items-center gap-1.5">
+                <span>Click the cover or press</span>
+                <kbd className="px-2 py-0.5 rounded bg-slate-800 text-brand-cyan border border-slate-700 font-semibold shadow-sm">
+                  Enter ↵
+                </kbd>
+                <span>to open the blog</span>
+              </span>
+            </div>
+          ) : displayState === "closed-back" ? (
+            // CLOSED BACK CONTROLS (Fix 1.3: Back to first page + Prev to reopen; Next disabled)
+            <div className="w-full h-full flex items-center justify-between">
+              <button
+                type="button"
+                onClick={handlePrevPage}
+                aria-label="Previous page (reopen from back)"
+                className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl bg-foundation-dark/90 hover:bg-foundation-dark border border-slate-700/80 text-xs font-mono text-brand-cyan hover:border-brand-cyan inline-flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Prev</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleJumpToPage(0)}
+                aria-label="Back to the first page"
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-brand-cyan/40 hover:border-brand-cyan text-xs font-mono text-brand-cyan hover:text-white inline-flex items-center justify-center gap-2 active:scale-95 cursor-pointer transition-all shadow-md"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Back to the first page</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={true}
+                aria-disabled={true}
+                aria-label="Next page (disabled on back cover)"
+                className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl bg-foundation-dark/40 border border-slate-800 text-xs font-mono text-slate-600 inline-flex items-center justify-center gap-1.5 opacity-30 cursor-not-allowed"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            // OPEN SPREAD CONTROLS (Fix 1.3: Prev, Facing Spread label, Next, compact Close)
             <>
-              {/* Centered Prev / Pages X-Y of Z / Next group */}
               <div className="flex items-center gap-3 sm:gap-4 mx-auto">
                 <button
                   type="button"
-                  onClick={() => pageFlipRef.current?.flipPrev()}
+                  onClick={handlePrevPage}
                   disabled={currentPageIndex <= 0}
                   aria-label="Previous page"
                   className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl bg-foundation-dark/90 hover:bg-foundation-dark border border-slate-700/80 text-xs font-mono text-brand-cyan hover:border-brand-cyan inline-flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-all"
@@ -1168,7 +1257,7 @@ export function InnovationJournalBook({
 
                 <button
                   type="button"
-                  onClick={() => pageFlipRef.current?.flipNext()}
+                  onClick={handleNextPage}
                   disabled={currentPageIndex >= totalPages - 1}
                   aria-label="Next page"
                   className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl bg-foundation-dark/90 hover:bg-foundation-dark border border-slate-700/80 text-xs font-mono text-brand-cyan hover:border-brand-cyan inline-flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-all"
@@ -1190,21 +1279,11 @@ export function InnovationJournalBook({
                 <span className="hidden md:inline">Close</span>
               </button>
             </>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-center">
-              <span className="text-xs sm:text-sm font-mono text-typo-gray/90 flex items-center gap-1.5">
-                <span>Click cover or press</span>
-                <kbd className="px-2 py-0.5 rounded bg-slate-800 text-brand-cyan border border-slate-700 font-semibold shadow-sm">
-                  Enter ↵
-                </kbd>
-                <span>to open journal</span>
-              </span>
-            </div>
           )}
         </div>
       </div>
 
-      {/* 4. Readers' Remarks & Discussion Section (Scrollable below book) */}
+      {/* 4. Readers' Remarks & Discussion Section */}
       {activeCommentBlog && (
         <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-12">
           <BlogCommentsSection

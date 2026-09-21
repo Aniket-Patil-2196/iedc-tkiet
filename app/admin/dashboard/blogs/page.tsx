@@ -357,7 +357,7 @@ export default function AdminBlogsPage() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingBlog ? "Edit Blog Article" : "Draft New Article"}
-        subtitle="Articles and figures for The Innovation Journal"
+        subtitle="Articles and figures for The Innovation Blog"
         maxWidth="3xl"
       >
         <form onSubmit={handleSave} className="space-y-5 max-h-[80vh] overflow-y-auto pr-1">

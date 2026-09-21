@@ -3,25 +3,36 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 
+export type BookDisplayState = "closed-front" | "open" | "closed-back";
+
 interface ThePenProps {
-  isOpen: boolean;
+  displayState: BookDisplayState;
+  isAnimating: boolean;
   containerWidth: number;
   pageWidth: number;
+  bookStageRef: React.RefObject<HTMLDivElement>;
 }
 
 export function ThePen({
-  isOpen,
+  displayState,
+  isAnimating,
   containerWidth,
   pageWidth,
+  bookStageRef,
 }: ThePenProps) {
   // Retractable click pen state (toggle state, plunger bounce)
   const [isRetracted, setIsRetracted] = useState(false);
   const [isPlungerDown, setIsPlungerDown] = useState(false);
   const [isHoveredProximity, setIsHoveredProximity] = useState(false);
   const [offsets, setOffsets] = useState({ x: 0, y: 0, rot: 0 });
+  const [isIntersecting, setIsIntersecting] = useState(false);
 
   const penRef = useRef<HTMLButtonElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
+
+  const isOpen = displayState === "open";
+  const isClosedFront = displayState === "closed-front";
 
   // Free margin calculation:
   // Closed book: single front cover centered (width = pageWidth)
@@ -29,14 +40,52 @@ export function ThePen({
   const bookWidth = isOpen ? pageWidth * 2 : pageWidth;
   const freeMargin = (containerWidth - bookWidth) / 2;
 
-  // Visibility constraints (Step 4.9):
+  // Visibility constraints (Step 4.9 & Fix 1.2):
   // 1. Desktop & larger displays only (>= 1100px wide; hidden below that)
-  // 2. Hide pen and note if less than 150px of margin is free
-  const isVisible = containerWidth >= 1100 && freeMargin >= 150;
+  // 2. Hide if less than 150px of margin is free
+  // 3. Pen is visible ONLY when displayState === "closed-front" AND !isAnimating
+  // 4. Pen NEVER appears on back cover ("closed-back") or when animating
+  const meetsWidthConstraint = containerWidth >= 1100 && freeMargin >= 150;
+  const isPenEligible = isClosedFront && !isAnimating && meetsWidthConstraint && !isIntersecting;
+  const isRemarkEligible = isOpen && !isAnimating && meetsWidthConstraint && !isIntersecting;
+
+  // Safety net: bounding box collision detection against book stage and controls row (Fix 1.4)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const checkCollision = () => {
+      if (!containerRef.current || !bookStageRef.current) {
+        setIsIntersecting(false);
+        return;
+      }
+
+      const penRect = containerRef.current.getBoundingClientRect();
+      const stageRect = bookStageRef.current.getBoundingClientRect();
+
+      // Check if pen overlaps horizontal or vertical bounds of the active book area (with 12px margin)
+      const bookLeft = stageRect.left + (stageRect.width - bookWidth) / 2 - 12;
+      const bookRight = bookLeft + bookWidth + 24;
+      const bookTop = stageRect.top - 8;
+      const bookBottom = stageRect.bottom + 8;
+
+      const overlaps = !(
+        penRect.right < bookLeft ||
+        penRect.left > bookRight ||
+        penRect.bottom < bookTop ||
+        penRect.top > bookBottom
+      );
+
+      setIsIntersecting(overlaps);
+    };
+
+    checkCollision();
+    window.addEventListener("resize", checkCollision, { passive: true });
+    return () => window.removeEventListener("resize", checkCollision);
+  }, [bookWidth, isAnimating, displayState, bookStageRef]);
 
   // Proximity reaction: when cursor comes within ~80px (fine pointers only)
   useEffect(() => {
-    if (!isVisible || typeof window === "undefined") return;
+    if (!isPenEligible || typeof window === "undefined") return;
 
     const isFinePointer = window.matchMedia("(pointer: fine)").matches;
     const prefersReducedMotion = window.matchMedia(
@@ -60,10 +109,9 @@ export function ThePen({
 
         if (dist < 80) {
           setIsHoveredProximity(true);
-          // Drift max 10px toward cursor, lift a few pixels, slight tilt
           const factor = (80 - dist) / 80;
           const driftX = (dx / dist) * 10 * factor;
-          const driftY = (dy / dist) * 8 * factor - 4 * factor; // lift
+          const driftY = (dy / dist) * 8 * factor - 4 * factor;
           const tilt = (dx > 0 ? 4 : -4) * factor;
 
           setOffsets({ x: driftX, y: driftY, rot: tilt });
@@ -79,7 +127,7 @@ export function ThePen({
       window.removeEventListener("pointermove", handlePointerMove);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [isVisible]);
+  }, [isPenEligible]);
 
   // Retractable click action (Step 4.10 & 4.11: Does NOT open the book)
   const handleClickPen = useCallback(() => {
@@ -114,22 +162,25 @@ export function ThePen({
     }
   }, []);
 
-  if (!isVisible) return null;
+  if (!meetsWidthConstraint) return null;
 
-  // Margin placement with exact 24px gap from the book edge:
-  // Container is centered. Book right edge is at 50% + bookWidth / 2.
-  // We place the pen overlay at 50% + (bookWidth / 2) + 24px.
+  // Margin placement with exact 24px gap from the book edge
   const penLeftOffset = `calc(50% + ${Math.round(bookWidth / 2 + 24)}px)`;
 
   return (
     <div
-      aria-hidden="false"
+      ref={containerRef}
+      aria-hidden={!isPenEligible && !isRemarkEligible}
       style={{ left: penLeftOffset }}
-      className="absolute top-1/2 -translate-y-1/2 z-20 pointer-events-none select-none flex flex-col items-center"
+      className={cn(
+        "absolute top-1/2 -translate-y-1/2 z-20 select-none flex flex-col items-center pointer-events-none transition-opacity duration-300 ease-out",
+        // Fades out in 150ms when not eligible, fades back in over 300ms when eligible
+        (isPenEligible || isRemarkEligible) ? "opacity-100" : "opacity-0 pointer-events-none duration-150"
+      )}
     >
-      {!isOpen ? (
-        // CLOSED STATE: Handwritten note "Click the pen" + Retractable Click Fountain Pen
-        <>
+      {/* CLOSED-FRONT STATE: The Retractable Fountain Pen */}
+      {isClosedFront && (
+        <div className={cn("flex flex-col items-center", !isPenEligible && "pointer-events-none")}>
           <div
             className={cn(
               "flex flex-col items-center mb-3 transition-opacity duration-300 pointer-events-none",
@@ -167,11 +218,12 @@ export function ThePen({
             </svg>
           </div>
 
-          {/* Retractable Click Pen Button (Hit area: pointer-events-auto) */}
+          {/* Retractable Click Pen Button (Hit area: pointer-events-auto when visible) */}
           <button
             ref={penRef}
             type="button"
             onClick={handleClickPen}
+            disabled={!isPenEligible}
             aria-label="Click the pen"
             title="Click the pen"
             style={{
@@ -181,7 +233,8 @@ export function ThePen({
               transition: "filter 0.2s ease, transform 0.12s ease-out",
             }}
             className={cn(
-              "group relative p-2 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan cursor-pointer pointer-events-auto",
+              "group relative p-2 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan cursor-pointer",
+              isPenEligible ? "pointer-events-auto" : "pointer-events-none",
               isHoveredProximity && "brightness-110"
             )}
           >
@@ -352,15 +405,21 @@ export function ThePen({
               </defs>
             </svg>
           </button>
-        </>
-      ) : (
-        // OPEN STATE: Separate small handwritten button "Leave a remark" (Step 4.11)
-        <div className="flex flex-col items-center pointer-events-auto">
+        </div>
+      )}
+
+      {/* OPEN STATE: Separate small handwritten button "Leave a remark" (Fix 1.5) */}
+      {isOpen && (
+        <div className={cn("flex flex-col items-center", !isRemarkEligible && "pointer-events-none")}>
           <button
             type="button"
             onClick={handleLeaveRemark}
+            disabled={!isRemarkEligible}
             aria-label="Leave a remark"
-            className="group flex flex-col items-center p-3 rounded-2xl bg-foundation-dark/60 hover:bg-foundation-dark/90 border border-slate-700/80 hover:border-brand-cyan/60 shadow-xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan"
+            className={cn(
+              "group flex flex-col items-center p-3 rounded-2xl bg-foundation-dark/60 hover:bg-foundation-dark/90 border border-slate-700/80 hover:border-brand-cyan/60 shadow-xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan",
+              isRemarkEligible ? "pointer-events-auto" : "pointer-events-none"
+            )}
           >
             <span className="font-book-handwriting font-bold text-brand-cyan drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)] tracking-wide text-[clamp(20px,1.6vw,26px)] leading-tight group-hover:scale-105 transition-transform">
               Leave a remark

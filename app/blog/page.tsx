@@ -8,9 +8,9 @@ import { formatEventDate } from "@/lib/utils/event-status";
 export const dynamic = "force-dynamic";
 
 export const metadata = constructMetadata({
-  title: "The Innovation Journal — Blog",
+  title: "The Innovation Blog",
   description:
-    "An interactive innovation journal presenting editorial perspectives on engineering breakthroughs, student incubation, and entrepreneurial thinking from IEDC TKIET.",
+    "An interactive innovation blog presenting editorial perspectives on engineering breakthroughs, student incubation, and entrepreneurial thinking from IEDC TKIET.",
   path: "/blog",
 });
 
