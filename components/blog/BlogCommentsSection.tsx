@@ -277,12 +277,12 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
             </div>
           )}
 
-          {/* Submit button */}
-          <div className="pt-2 flex justify-end">
+          {/* Submit button with full-width on mobile and >= 44px tap target */}
+          <div className="pt-2 flex flex-col sm:flex-row sm:justify-end">
             <button
               type="submit"
               disabled={submitting}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-brand-blue to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-mono text-xs uppercase tracking-wider font-bold shadow-lg shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-50"
+              className="w-full sm:w-auto inline-flex items-center justify-center min-h-[44px] gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-brand-blue to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-mono text-xs uppercase tracking-wider font-bold shadow-lg shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-50"
             >
               <Send className="w-3.5 h-3.5" />
               <span>{submitting ? "Submitting..." : "Post Remark"}</span>
@@ -329,18 +329,18 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
               </div>
 
               {/* Comment Text with safe pre-wrap and break-words */}
-              <p className="text-xs sm:text-sm text-slate-300 font-sans leading-relaxed whitespace-pre-wrap break-words pl-9">
+              <p className="text-xs sm:text-sm text-slate-300 font-sans leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] break-words pl-0 sm:pl-9">
                 {comment.body}
               </p>
 
               {/* Admin Official Response if Present */}
               {comment.adminReply && (
-                <div className="mt-3 ml-9 p-4 rounded-xl bg-slate-900/90 border border-brand-cyan/30 space-y-1.5">
+                <div className="mt-3 ml-0 sm:ml-9 p-3.5 sm:p-4 rounded-xl bg-slate-900/90 border border-brand-cyan/30 space-y-1.5 [overflow-wrap:anywhere]">
                   <div className="flex items-center gap-1.5 text-[11px] font-mono text-brand-cyan font-bold uppercase tracking-wider">
                     <CornerDownRight className="w-3.5 h-3.5" />
                     <span>IEDC TKIET Editorial Team</span>
                   </div>
-                  <p className="text-xs sm:text-sm text-slate-200 whitespace-pre-wrap break-words leading-relaxed pl-5">
+                  <p className="text-xs sm:text-sm text-slate-200 whitespace-pre-wrap [overflow-wrap:anywhere] break-words leading-relaxed pl-2 sm:pl-5">
                     {comment.adminReply}
                   </p>
                 </div>

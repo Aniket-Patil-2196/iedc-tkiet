@@ -241,8 +241,8 @@ export function PostageStamp({
                 {postmarkDate}
               </span>
             </div>
-            <div className="text-[9px] font-mono text-[#6E5D46] text-right font-medium">
-              EST. 2014
+            <div className="text-[9px] font-mono text-[#6E5D46] text-right font-medium tracking-wider">
+              TKIET · ARCHIVE
             </div>
           </div>
         )}

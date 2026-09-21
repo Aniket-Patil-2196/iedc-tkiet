@@ -29,12 +29,19 @@ import { ImageLightbox } from "./ImageLightbox";
 import { PostageStamp } from "./PostageStamp";
 import { BlogCommentsSection } from "./BlogCommentsSection";
 import { stripHtmlToPlainText } from "@/lib/utils/blog-validation";
+import { SITE_CONFIG } from "@/lib/constants/site";
 import { cn } from "@/lib/utils";
 
 interface InnovationJournalBookProps {
   blogs: IBlog[];
   initialPostSlug?: string;
 }
+
+// Reference Canvas dimensions (Ratio 3:4)
+const DESKTOP_REF_W = 450;
+const DESKTOP_REF_H = 600;
+const MOBILE_REF_W = 340;
+const MOBILE_REF_H = 453;
 
 const EDITORIAL_FALLBACK_IMAGES = [
   "/images/placeholders/gallery-1.svg",
@@ -97,73 +104,102 @@ export function InnovationJournalBook({
   const innovationWordRef = useRef<HTMLHeadingElement>(null);
   const firstHeadingRef = useRef<HTMLHeadingElement>(null);
 
-  const [headerHeight, setHeaderHeight] = useState(120);
+  const [headerHeight, setHeaderHeight] = useState(96);
   const [containerWidth, setContainerWidth] = useState(1200);
   const [viewportHeight, setViewportHeight] = useState(900);
   const [isMobile, setIsMobile] = useState(false);
   const [coverTitleScale, setCoverTitleScale] = useState(1);
+  const [dimensions, setDimensions] = useState({ bookHeight: 560, pageWidth: 420 });
+  const { bookHeight, pageWidth } = dimensions;
+
+  // Active Reference Canvas for current mode (Ratio 3:4)
+  const refW = isMobile ? MOBILE_REF_W : DESKTOP_REF_W;
+  const refH = isMobile ? MOBILE_REF_H : DESKTOP_REF_H;
+  const pageScale = pageWidth / refW;
 
   const totalSpreads = useMemo(() => 1 + blogs.length, [blogs.length]);
   const totalMobilePages = useMemo(() => 2 + blogs.length * 2, [blogs.length]);
 
-  // Dynamic Responsive Dimensions Calculation
+  // Dynamic Responsive Dimensions Calculation based on real DOM measurements
+  const computeDimensions = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    setViewportHeight(vh);
+    const mobile = vw < 900;
+    setIsMobile(mobile);
+
+    const containerW = containerRef.current ? containerRef.current.clientWidth : vw - 32;
+    setContainerWidth(containerW);
+
+    if (headerRef.current) {
+      setHeaderHeight(headerRef.current.getBoundingClientRect().height);
+    }
+
+    if (mobile) {
+      // Mobile: size page by width (viewport width - 32px, ratio 3:4), allow normal scrolling
+      const pw = Math.min(containerW - 32, 420);
+      const bh = Math.round(pw / 0.75);
+      setDimensions({ bookHeight: bh, pageWidth: pw });
+      return;
+    }
+
+    // Desktop: Compute available height by MEASURING DOM offsets
+    // available = window.innerHeight - (bookContainer top offset in the document) - controlsRowHeight - bottomPadding
+    const controlsRowHeight = 48;
+    const bottomPadding = 16;
+    let bookTop = 130;
+    if (bookStageRef.current) {
+      const rect = bookStageRef.current.getBoundingClientRect();
+      bookTop = rect.top + window.scrollY;
+    } else if (headerRef.current) {
+      const hRect = headerRef.current.getBoundingClientRect();
+      bookTop = hRect.bottom + 12;
+    }
+
+    const available = vh - bookTop - controlsRowHeight - bottomPadding;
+    // Clamp the book height to a minimum of about 420px; below that let the page scroll
+    const clampedH = Math.max(420, Math.min(780, available));
+
+    // Cap page width so open spread never exceeds container width:
+    // page-w = min(book-height * 0.75, (container-width - space for arrows) / 2)
+    const arrowSpace = 100;
+    const maxPageW = Math.floor((containerW - arrowSpace) / 2);
+    const idealPageW = Math.round(clampedH * 0.75);
+    const pw = Math.max(260, Math.min(idealPageW, maxPageW));
+    const finalH = Math.round(pw / 0.75);
+
+    setDimensions({ bookHeight: finalH, pageWidth: pw });
+  }, []);
+
   useEffect(() => {
-    const handleResize = () => {
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      setViewportHeight(vh);
-      setIsMobile(vw < 900);
+    computeDimensions();
+    window.addEventListener("resize", computeDimensions);
+    window.addEventListener("orientationchange", computeDimensions);
 
-      if (containerRef.current) {
-        setContainerWidth(containerRef.current.clientWidth);
-      }
-      if (headerRef.current) {
-        setHeaderHeight(headerRef.current.getBoundingClientRect().height);
-      }
-    };
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", computeDimensions);
+    }
 
-    handleResize();
-    window.addEventListener("resize", handleResize);
+    if (typeof document !== "undefined" && document.fonts?.ready) {
+      document.fonts.ready.then(() => computeDimensions());
+    }
 
     const ro = new ResizeObserver(() => {
-      handleResize();
+      computeDimensions();
     });
     if (headerRef.current) ro.observe(headerRef.current);
     if (containerRef.current) ro.observe(containerRef.current);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("resize", computeDimensions);
+      window.removeEventListener("orientationchange", computeDimensions);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", computeDimensions);
+      }
       ro.disconnect();
     };
-  }, []);
-
-  // Compute Book Dimensions according to math rules
-  const { bookHeight, pageWidth } = useMemo(() => {
-    if (isMobile) {
-      // Mobile: size page by width, allow normal scrolling
-      const pw = Math.min(containerWidth - 32, 420);
-      const bh = Math.round(pw / 0.75);
-      return { bookHeight: bh, pageWidth: pw };
-    }
-
-    // Desktop: fit within 100svh minus header-height, blog-head-h, and padding
-    // Short viewport (< 700px) shrinks header first, book height clamped between 400px and 780px
-    const headerH = headerHeight || 120;
-    const siteHeaderH = 64; // ~4rem
-    const pad = 36;
-    const availableH = viewportHeight - siteHeaderH - headerH - pad;
-    const clampedH = Math.max(400, Math.min(780, availableH));
-
-    // Cap page width so open spread never exceeds container width:
-    // page-w = min(book-height * 0.75, (container-width - space for arrows) / 2)
-    const arrowSpace = 100;
-    const maxPageW = Math.floor((containerWidth - arrowSpace) / 2);
-    const idealPageW = Math.round(clampedH * 0.75);
-    const pw = Math.max(260, Math.min(idealPageW, maxPageW));
-    const finalH = Math.round(pw / 0.75);
-
-    return { bookHeight: finalH, pageWidth: pw };
-  }, [isMobile, containerWidth, viewportHeight, headerHeight]);
+  }, [computeDimensions]);
 
   // Cover Typography Protection (8% margin rule on inner frame)
   useLayoutEffect(() => {
@@ -498,13 +534,21 @@ export function InnovationJournalBook({
   // ==========================================
 
   // Intro Page (Spread 0 Left)
-  // Intro Page (Spread 0 Left) - Warm Parchment Paper Style
+  // Intro Page (Spread 0 Left) - Warm Parchment Paper Style inside Reference Canvas (A3)
   const renderIntroPage = () => (
-    <div className="w-full h-full p-6 sm:p-8 flex flex-col justify-between select-none">
-      <div className="space-y-4 sm:space-y-6">
-        <div className="flex items-center justify-between pb-3 border-b border-[#D8C7A7] text-xs font-mono text-[#4B5468] tracking-wider uppercase font-semibold">
-          <span>IEDC TKIET</span>
-          <span>EST. 2014</span>
+    <div
+      style={{
+        width: `${refW}px`,
+        height: `${refH}px`,
+        transform: `scale(${pageScale})`,
+        transformOrigin: "top left",
+      }}
+      className="w-full h-full p-6 sm:p-7 flex flex-col justify-between select-none overflow-hidden min-w-0 [overflow-wrap:anywhere]"
+    >
+      <div className="space-y-3.5 sm:space-y-4">
+        <div className="flex items-center justify-between pb-2.5 border-b border-[#D8C7A7] text-xs font-mono text-[#4B5468] tracking-wider uppercase font-semibold">
+          <span>{SITE_CONFIG.name}</span>
+          <span>{SITE_CONFIG.institutionShort}</span>
         </div>
 
         <h2
@@ -517,8 +561,7 @@ export function InnovationJournalBook({
 
         <p className="font-sans text-xs sm:text-sm text-[#1B2333] leading-relaxed">
           Welcome to <span className="text-[#1E40AF] font-semibold">The Innovation Journal</span>,
-          the institutional publication of the Innovation &amp; Entrepreneurship Development Cell at
-          TKIET Warananagar.
+          the institutional publication of the {SITE_CONFIG.fullName} at {SITE_CONFIG.institution}.
         </p>
 
         <p className="font-sans text-xs sm:text-sm text-[#1B2333] leading-relaxed">
@@ -526,31 +569,42 @@ export function InnovationJournalBook({
           and entrepreneurial breakthroughs emerging from campus incubators.
         </p>
 
-        <div className="pt-2">
-          <div className="p-3.5 rounded-xl bg-[#FAF5EA] border border-[#DACBB5] space-y-1 shadow-sm">
+        <div className="pt-1">
+          <div className="p-3 rounded-xl bg-[#FAF5EA] border border-[#DACBB5] space-y-1 shadow-sm">
             <span className="text-[10px] font-mono text-[#1E40AF] uppercase tracking-widest block font-bold">
-              CELL MANDATE
+              CELL VISION
             </span>
             <span className="text-xs text-[#4B5468] leading-relaxed block font-medium">
-              Transforming academic engineering ideas into validated prototypes and regional startups.
+              {SITE_CONFIG.tagline}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="pt-4 flex items-center justify-between border-t border-[#D8C7A7] text-[11px] font-mono text-[#4B5468]">
-        <span>WARANANAGAR, MH</span>
-        <span>FOLIO I</span>
+      <div className="pt-3 flex items-center justify-between border-t border-[#D8C7A7] text-[11px] font-mono text-[#4B5468]">
+        <span>{SITE_CONFIG.location}</span>
+        <span>PREFACE</span>
       </div>
     </div>
   );
 
-  // Contents Page (Spread 0 Right) - Warm Parchment Paper Style
-  const renderContentsPage = () => (
-    <div className="w-full h-full p-6 sm:p-8 flex flex-col justify-between select-none">
-      <div className="space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-[#D8C7A7] text-xs font-mono text-[#4B5468] tracking-wider uppercase font-semibold">
-          <span>TABLE OF CONTENTS</span>
+  // Contents Page (Spread 0 Right) - Warm Parchment Paper Style with Multi-Page Chunking (A3)
+  const ITEMS_PER_CONTENTS_PAGE = isMobile ? 4 : 6;
+  const totalContentsPages = Math.max(1, Math.ceil(blogs.length / ITEMS_PER_CONTENTS_PAGE));
+
+  const renderContentsPage = (pageIndex = 0) => (
+    <div
+      style={{
+        width: `${refW}px`,
+        height: `${refH}px`,
+        transform: `scale(${pageScale})`,
+        transformOrigin: "top left",
+      }}
+      className="w-full h-full p-6 sm:p-7 flex flex-col justify-between select-none overflow-hidden min-w-0 [overflow-wrap:anywhere]"
+    >
+      <div className="space-y-3 flex-1 min-h-0 flex flex-col">
+        <div className="flex items-center justify-between pb-2.5 border-b border-[#D8C7A7] text-xs font-mono text-[#4B5468] tracking-wider uppercase font-semibold">
+          <span>TABLE OF CONTENTS {totalContentsPages > 1 ? `(${pageIndex + 1}/${totalContentsPages})` : ""}</span>
           <span>{blogs.length} ARTICLES</span>
         </div>
 
@@ -566,39 +620,44 @@ export function InnovationJournalBook({
             </p>
           </div>
         ) : (
-          <div className="space-y-1.5 max-h-[58vh] overflow-y-auto pr-1">
-            {blogs.map((b, idx) => (
-              <button
-                key={b.id || b.slug}
-                type="button"
-                onClick={() => handleJumpToArticle(idx)}
-                className="w-full text-left p-2.5 rounded-lg hover:bg-[#EAE0CA]/70 border border-transparent hover:border-[#DACBB5] transition-colors group flex items-start justify-between gap-3"
-              >
-                <div className="space-y-0.5 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-[#1E40AF] font-bold">
-                      {(idx + 1).toString().padStart(2, "0")}
+          <div className="space-y-1.5 flex-1 min-h-0 overflow-hidden pt-1">
+            {blogs
+              .slice(pageIndex * ITEMS_PER_CONTENTS_PAGE, (pageIndex + 1) * ITEMS_PER_CONTENTS_PAGE)
+              .map((b, relativeIdx) => {
+                const idx = pageIndex * ITEMS_PER_CONTENTS_PAGE + relativeIdx;
+                return (
+                  <button
+                    key={b.id || b.slug}
+                    type="button"
+                    onClick={() => handleJumpToArticle(idx)}
+                    className="w-full text-left p-2 rounded-lg hover:bg-[#EAE0CA]/70 border border-transparent hover:border-[#DACBB5] transition-colors group flex items-start justify-between gap-2"
+                  >
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[10px] font-mono text-[#1E40AF] font-bold shrink-0">
+                          {(idx + 1).toString().padStart(2, "0")}
+                        </span>
+                        <span className="font-display text-xs sm:text-sm font-semibold text-[#0F1B44] group-hover:text-[#1E40AF] truncate transition-colors">
+                          {b.title}
+                        </span>
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-mono text-[#4B5468] block pl-5 truncate">
+                        {getPubDate(b)} · {b.readTimeMinutes || 3} min read
+                      </span>
+                    </div>
+                    <span className="text-xs font-mono text-[#1E40AF] opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      P. {(idx + 2).toString().padStart(2, "0")} →
                     </span>
-                    <span className="font-display text-xs sm:text-sm font-semibold text-[#0F1B44] group-hover:text-[#1E40AF] truncate transition-colors">
-                      {b.title}
-                    </span>
-                  </div>
-                  <span className="text-[11px] font-mono text-[#4B5468] block pl-5">
-                    {getPubDate(b)} · {b.readTimeMinutes || 3} min read
-                  </span>
-                </div>
-                <span className="text-xs font-mono text-[#1E40AF] opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  P. {(idx + 2).toString().padStart(2, "0")} →
-                </span>
-              </button>
-            ))}
+                  </button>
+                );
+              })}
           </div>
         )}
       </div>
 
-      <div className="pt-4 flex items-center justify-between border-t border-[#D8C7A7] text-[11px] font-mono text-[#4B5468]">
-        <span>INDEX SECTION</span>
-        <span>FOLIO II</span>
+      <div className="pt-3 flex items-center justify-between border-t border-[#D8C7A7] text-[11px] font-mono text-[#4B5468]">
+        <span>{SITE_CONFIG.institutionShort} ARCHIVE</span>
+        <span>{pageIndex === 0 ? "INDEX" : `INDEX II`}</span>
       </div>
     </div>
   );
@@ -622,11 +681,10 @@ export function InnovationJournalBook({
     return { dropCap: first, remainder: text.slice(first.length) };
   };
 
-  // Dynamically computes text fitting to whole sentence without word clipping
+  // Dynamically computes text fitting in fixed reference canvas space (A3)
   const computeArticleTextFitting = (
     rawContent: string,
-    currentBookH: number,
-    currentPageW: number
+    isMobileMode: boolean
   ): {
     displayText: string;
     isTruncated: boolean;
@@ -638,16 +696,10 @@ export function InnovationJournalBook({
       return { displayText: "", isTruncated: false, dropCap: "", remainder: "" };
     }
 
-    // Available height for body text:
-    // currentBookH minus header (~48px), title & author (~90px), folio (~45px), padding (~48px)
-    const availableH = Math.max(120, currentBookH - 231);
-    // Average line height for 17-18px font with 1.7 leading is ~29px
-    const linesAvailable = Math.max(4, Math.floor(availableH / 29));
-    // Available width for text (currentPageW - 48px padding)
-    const availableW = Math.max(200, currentPageW - 48);
-    // Average char width for literary serif font is ~8.5px
-    const charsPerLine = Math.max(25, Math.floor(availableW / 8.5));
-    const capacity = linesAvailable * charsPerLine;
+    // Reference canvas capacity (invariant across browser window resizes)
+    // Desktop (450x600): ~13 lines * ~40 chars = 520 chars
+    // Mobile (340x453): ~10 lines * ~32 chars = 320 chars
+    const capacity = isMobileMode ? 320 : 520;
 
     if (plain.length <= capacity * 1.05) {
       const { dropCap, remainder } = extractDropCap(plain);
@@ -661,7 +713,6 @@ export function InnovationJournalBook({
 
     // Find sentence boundary within target capacity window
     const windowSlice = plain.slice(0, capacity);
-    // Match full stops, question marks, exclamation marks, or Devanagari danda (।)
     const sentenceEndRegex = /[.!?।]\s+|\n\n/g;
     let lastMatchIndex = -1;
     let match: RegExpExecArray | null;
@@ -694,8 +745,16 @@ export function InnovationJournalBook({
 
   // Article Left Page (Vintage Postage Stamps, Museum Sources block, Integrated metadata)
   const renderArticleLeftPage = (blog: IBlog, spreadIdx: number) => (
-    <div className="w-full h-full p-6 sm:p-7 flex flex-col justify-between select-none overflow-y-auto sm:overflow-hidden">
-      <div className="space-y-3">
+    <div
+      style={{
+        width: `${refW}px`,
+        height: `${refH}px`,
+        transform: `scale(${pageScale})`,
+        transformOrigin: "top left",
+      }}
+      className="w-full h-full p-6 sm:p-7 flex flex-col justify-between select-none overflow-hidden min-w-0 [overflow-wrap:anywhere]"
+    >
+      <div className="space-y-3 min-h-0 overflow-hidden">
         {/* Integrated Header / Running Head */}
         <div className="flex items-center justify-between pb-2.5 border-b border-[#D8C7A7] text-[11px] font-mono text-[#4B5468] tracking-wider uppercase font-semibold">
           <span className="text-[#1E40AF]">PLATE {(spreadIdx * 2 - 1).toString().padStart(2, "0")} · ARCHIVE</span>
@@ -716,7 +775,7 @@ export function InnovationJournalBook({
 
       {/* Plate Folio / Bottom Footer */}
       <div className="pt-3 flex items-center justify-between border-t border-[#D8C7A7] text-[11px] font-mono text-[#4B5468] mt-auto">
-        <span>IEDC TKIET WARANANAGAR</span>
+        <span>{SITE_CONFIG.institutionShort} ARCHIVE</span>
         <Link
           href={`/blog/${blog.slug}`}
           className="text-[#1E40AF] hover:text-[#2563EB] hover:underline inline-flex items-center gap-1 group font-medium"
@@ -732,34 +791,47 @@ export function InnovationJournalBook({
   const renderArticleRightPage = (blog: IBlog, spreadIdx: number) => {
     const { dropCap, remainder, isTruncated } = computeArticleTextFitting(
       blog.content || blog.excerpt,
-      bookHeight,
-      pageWidth
+      isMobile
     );
 
+    const bodyFontSize = isMobile ? "16px" : "17.5px";
+    const bodyLineHeight = isMobile ? "1.6" : "1.65";
+
     return (
-      <div className="relative w-full h-full p-6 sm:p-8 flex flex-col justify-between select-none">
-        <div className="space-y-3 relative flex-1 flex flex-col min-h-0">
+      <div
+        style={{
+          width: `${refW}px`,
+          height: `${refH}px`,
+          transform: `scale(${pageScale})`,
+          transformOrigin: "top left",
+        }}
+        className="relative w-full h-full p-6 sm:p-7 flex flex-col justify-between select-none overflow-hidden min-w-0 [overflow-wrap:anywhere]"
+      >
+        <div className="space-y-2.5 relative flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Running Head */}
-          <div className="flex items-center justify-between pb-2.5 border-b border-[#D8C7A7] text-[11px] font-mono text-[#4B5468] tracking-wider uppercase font-semibold">
+          <div className="flex items-center justify-between pb-2 border-b border-[#D8C7A7] text-[11px] font-mono text-[#4B5468] tracking-wider uppercase font-semibold">
             <span>{getPubDate(blog)}</span>
             <span>{blog.readTimeMinutes || 4} MIN READ</span>
           </div>
 
           {/* Title and Author Byline */}
-          <div className="space-y-1">
-            <h3 className="font-display text-lg sm:text-xl font-bold text-[#0F1B44] tracking-tight leading-snug">
+          <div className="space-y-0.5">
+            <h3 className="font-display text-base sm:text-lg font-bold text-[#0F1B44] tracking-tight leading-snug truncate">
               {blog.title}
             </h3>
             <div className="text-[11px] font-mono text-[#1E40AF] font-semibold">
-              By {blog.author || "IEDC TKIET"}
+              By {blog.author || SITE_CONFIG.name}
             </div>
           </div>
 
-          {/* Body Text with Literary Serif & Handwriting Drop Cap (ragged right text-left, NO wide gaps!) */}
+          {/* Body Text with Literary Serif & Handwriting Drop Cap */}
           <div className="relative flex-1 overflow-hidden pt-1">
-            <p className="font-book-body text-[16px] sm:text-[17px] md:text-[18px] text-[#1B2333] leading-[1.7] tracking-normal text-left [hyphens:manual]">
+            <p
+              style={{ fontSize: bodyFontSize, lineHeight: bodyLineHeight }}
+              className="font-book-body text-[#1B2333] tracking-normal text-left [hyphens:manual] [overflow-wrap:anywhere]"
+            >
               {dropCap && (
-                <span className="float-left text-4xl sm:text-5xl font-book-handwriting font-bold ink-drop-cap mr-2.5 sm:mr-3 leading-[0.8] select-none">
+                <span className="float-left text-4xl sm:text-5xl font-book-handwriting font-bold ink-drop-cap mr-2.5 leading-[0.8] select-none">
                   {dropCap}
                 </span>
               )}
@@ -778,18 +850,18 @@ export function InnovationJournalBook({
 
         {/* Page Folio */}
         <div className="pt-3 flex items-center justify-between border-t border-[#D8C7A7] text-[11px] font-mono text-[#4B5468]">
-          <span>THE INNOVATION JOURNAL</span>
+          <span>{SITE_CONFIG.name}</span>
           <span>PAGE {(spreadIdx * 2).toString().padStart(2, "0")}</span>
         </div>
 
-        {/* Hanging Bookmark Ribbon (Only shown if text continues / overflows) */}
+        {/* Hanging Bookmark Ribbon with swallowtail cut (Only shown if text continues / overflows) */}
         {isTruncated && (
-          <div className="absolute -bottom-3 right-6 sm:right-10 z-30 group">
+          <div className="absolute -bottom-3 right-6 sm:right-8 z-30 group">
             <Link
               href={`/blog/${blog.slug}`}
-              className="relative flex items-center justify-center px-4 pt-1.5 pb-3 bg-gradient-to-b from-[#1E3A8A] to-[#172554] text-[#FBF6E9] font-book-handwriting font-bold text-sm sm:text-base tracking-wide shadow-[0_4px_14px_rgba(74,52,24,0.35)] transition-all duration-300 group-hover:translate-y-1 hover:brightness-110"
+              className="relative flex items-center justify-center px-4 pt-1.5 pb-3 bg-gradient-to-b from-[#1E3A8A] via-[#1E40AF] to-[#172554] text-[#FBF6E9] font-book-handwriting font-bold text-xs sm:text-sm tracking-wide shadow-[0_4px_14px_rgba(74,52,24,0.35)] transition-all duration-300 group-hover:translate-y-1 hover:brightness-110"
               style={{
-                clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 10px), 50% 100%, 0 calc(100% - 10px))",
+                clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 8px), 50% 100%, 0 calc(100% - 8px))",
               }}
               title="Continue reading this post"
             >
@@ -803,32 +875,26 @@ export function InnovationJournalBook({
 
   return (
     <div ref={containerRef} className="w-full flex flex-col items-center">
-      {/* 1. Compact Header Row (~120-140px, shrinks on short viewports <= 700px) */}
+      {/* 1. Two-Column Header Row (A1) */}
       <header
         ref={headerRef}
         id="blog-header-row"
-        className="w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4 py-4 sm:py-6 border-b border-foundation-slate/50 mb-4 sm:mb-6 select-none"
+        className="w-full max-w-6xl mx-auto flex flex-col md:flex-row md:items-end md:justify-between gap-3 md:gap-8 pt-1 sm:pt-2 pb-3 sm:pb-4 border-b border-foundation-slate/50 mb-3 sm:mb-4 select-none min-h-[85px] md:min-h-[96px] [@media(max-height:700px)]:mb-2 [@media(max-height:700px)]:pb-2"
       >
-        <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-4 min-w-0">
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-foundation-slate/60 border border-brand-cyan/30 text-[10px] sm:text-xs font-mono tracking-widest text-brand-cyan uppercase">
-              <Sparkles className="w-3 h-3 text-brand-cyan" />
-              BLOG
-            </span>
-            <h1 className="font-display font-bold text-typo-white whitespace-nowrap tracking-tight text-[clamp(1.75rem,3.8vw,3rem)] leading-none">
-              The Innovation Journal
-            </h1>
-          </div>
-
-          {/* Subtitle inline - hides on short viewports to save space */}
-          <span className="hidden md:inline text-xs sm:text-sm font-sans text-brand-cyan/80 font-medium [@media(max-height:700px)]:hidden">
-            Ideas · People · Impact
+        {/* Left Column (Desktop) / Stacks on Mobile */}
+        <div className="flex flex-col items-start gap-1.5 min-w-0">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-foundation-slate/60 border border-brand-cyan/30 text-[10px] sm:text-xs font-mono tracking-widest text-brand-cyan uppercase">
+            <Sparkles className="w-3 h-3 text-brand-cyan" />
+            BLOG
           </span>
+          <h1 className="font-display font-bold text-typo-white tracking-tight text-[clamp(1.75rem,3vw,2.75rem)] leading-tight [text-wrap:balance]">
+            The Innovation Journal
+          </h1>
         </div>
 
-        {/* Short description on the right - hides on short viewports */}
-        <p className="hidden lg:block max-w-xs text-xs font-sans text-typo-gray leading-relaxed text-right [@media(max-height:700px)]:hidden">
-          Editorial perspectives on student incubation, deep tech breakthroughs, and startup ventures from IEDC TKIET.
+        {/* Right Column (Desktop) / Stacks below on Mobile */}
+        <p className="max-w-[380px] text-xs font-sans text-typo-gray leading-relaxed text-left md:self-end md:pb-1 [@media(max-height:700px)]:hidden">
+          Editorial perspectives on student incubation, deep tech breakthroughs, and startup ventures from {SITE_CONFIG.name}.
         </p>
       </header>
 
@@ -1014,8 +1080,16 @@ export function InnovationJournalBook({
                     <div className="absolute inset-y-0 right-0 w-2.5 bg-gradient-to-l from-[#CBD5E1]/20 via-[#94A3B8]/10 to-transparent pointer-events-none" />
                     <div className="absolute inset-x-0 bottom-0 h-2 bg-gradient-to-t from-[#CBD5E1]/20 via-[#94A3B8]/10 to-transparent pointer-events-none" />
 
-                    {/* Small Silk Bookmark Ribbon peeking out at bottom */}
-                    <div className="absolute -bottom-3 left-16 w-5 h-7 rounded-b bg-gradient-to-b from-brand-blue to-brand-cyan shadow-md pointer-events-none" />
+                    {/* Proper Silk Bookmark Ribbon hanging from the page block with swallowtail cut (A4.2) */}
+                    <div
+                      className="absolute -bottom-5 left-14 w-4 h-9 bg-gradient-to-b from-[#1E3A8A] via-[#1E40AF] to-[#172554] shadow-md pointer-events-none z-20"
+                      style={{
+                        clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 7px), 0 100%)",
+                      }}
+                    >
+                      <div className="absolute inset-y-0 left-0 w-[1px] bg-amber-300/40" />
+                      <div className="absolute inset-y-0 right-0 w-[1px] bg-amber-300/40" />
+                    </div>
 
                     {/* Embossed Inner Cover Frame (CSS Container with 8% margin rule) */}
                     <div
@@ -1029,13 +1103,20 @@ export function InnovationJournalBook({
                       <div className="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-brand-cyan/60 rounded-bl" />
                       <div className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-brand-cyan/60 rounded-br" />
 
-                      {/* Top Emblem & Header */}
+                      {/* Top Emblem & Header with Official IEDC Logo (A4.3) */}
                       <div className="space-y-3 text-center">
-                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-900/80 border border-brand-cyan/40 shadow-[0_0_15px_rgba(56,189,248,0.25)] text-brand-cyan mx-auto">
-                          <Sparkles className="w-6 h-6 animate-pulse" />
+                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-900/80 border border-brand-cyan/40 shadow-[0_0_15px_rgba(56,189,248,0.25)] p-1.5 mx-auto">
+                          <Image
+                            src="/images/iedc-logo.png"
+                            alt="IEDC Logo"
+                            width={36}
+                            height={36}
+                            className="object-contain"
+                            priority
+                          />
                         </div>
                         <span className="block text-[11px] font-mono tracking-[0.25em] text-slate-300 uppercase font-semibold">
-                          IEDC TKIET
+                          {SITE_CONFIG.name}
                         </span>
                       </div>
 
@@ -1084,7 +1165,7 @@ export function InnovationJournalBook({
                   type="button"
                   onClick={() => triggerSpreadTurn("prev")}
                   aria-label="Previous spread"
-                  className="absolute -left-12 p-3 rounded-full bg-foundation-dark/80 hover:bg-foundation-dark border border-slate-700 hover:border-brand-cyan text-brand-cyan shadow-lg transition-all active:scale-95"
+                  className="absolute -left-12 p-3 rounded-full bg-foundation-dark/80 hover:bg-foundation-dark border border-slate-700 hover:border-brand-cyan text-brand-cyan shadow-lg transition-all active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
@@ -1094,7 +1175,7 @@ export function InnovationJournalBook({
                   disabled={currentSpread >= totalSpreads - 1}
                   aria-label="Next spread"
                   className={cn(
-                    "absolute -right-12 p-3 rounded-full bg-foundation-dark/80 hover:bg-foundation-dark border border-slate-700 hover:border-brand-cyan text-brand-cyan shadow-lg transition-all active:scale-95",
+                    "absolute -right-12 p-3 rounded-full bg-foundation-dark/80 hover:bg-foundation-dark border border-slate-700 hover:border-brand-cyan text-brand-cyan shadow-lg transition-all active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center",
                     currentSpread >= totalSpreads - 1 && "opacity-30 cursor-not-allowed"
                   )}
                 >
@@ -1134,8 +1215,17 @@ export function InnovationJournalBook({
                   className="w-full h-full p-6 flex flex-col justify-between text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan"
                 >
                   <div className="flex items-center justify-between border-b border-slate-700 pb-3 text-xs font-mono text-brand-cyan">
-                    <span>IEDC TKIET</span>
-                    <span>WARANANAGAR</span>
+                    <div className="flex items-center gap-2">
+                      <Image
+                        src="/images/iedc-logo.png"
+                        alt="IEDC Logo"
+                        width={20}
+                        height={20}
+                        className="object-contain"
+                      />
+                      <span>{SITE_CONFIG.name}</span>
+                    </div>
+                    <span>{SITE_CONFIG.institutionShort}</span>
                   </div>
 
                   <div className="space-y-2 text-center my-auto py-6">
@@ -1154,7 +1244,7 @@ export function InnovationJournalBook({
                   </div>
 
                   <div className="text-center pt-2">
-                    <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 border border-brand-cyan/40 text-xs font-mono text-brand-cyan">
+                    <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 border border-brand-cyan/40 text-xs font-mono text-brand-cyan min-h-[44px]">
                       <BookOpen className="w-3.5 h-3.5" />
                       <span>Tap to open book →</span>
                     </span>
@@ -1180,20 +1270,21 @@ export function InnovationJournalBook({
           </div>
         )}
 
-        {/* 3. Controls & Pagination Footer Under Book */}
-        <div className="flex items-center justify-between w-full max-w-xl mx-auto pt-4 sm:pt-6 px-4 select-none">
+        {/* 3. Reserved 48px Controls Row Under Book in BOTH States (A2 & A5) */}
+        <div className="w-full max-w-xl mx-auto min-h-[48px] h-12 flex items-center justify-between px-4 select-none">
           {isOpen ? (
             <>
               <button
                 type="button"
                 onClick={handleCloseBook}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foundation-dark/80 hover:bg-foundation-dark border border-slate-700 hover:border-slate-500 text-xs font-mono text-typo-gray hover:text-typo-white transition-all"
+                aria-label="Close book"
+                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-foundation-dark/80 hover:bg-foundation-dark border border-slate-700 hover:border-slate-500 text-xs font-mono text-typo-gray hover:text-typo-white transition-all active:scale-95"
               >
-                <X className="w-3.5 h-3.5" />
-                <span>Close book</span>
+                <X className="w-4 h-4" />
+                <span>Close</span>
               </button>
 
-              <span className="text-xs font-mono text-brand-cyan">
+              <span className="text-xs font-mono text-brand-cyan font-semibold">
                 {isMobile
                   ? `Page ${mobilePage + 1} of ${totalMobilePages}`
                   : `Spread ${currentSpread + 1} of ${totalSpreads}`}
@@ -1204,8 +1295,8 @@ export function InnovationJournalBook({
                   <button
                     type="button"
                     onClick={() => handleMobileTurn("prev")}
-                    aria-label="Previous mobile page"
-                    className="p-2 rounded-lg bg-foundation-dark border border-slate-700 text-brand-cyan hover:border-brand-cyan"
+                    aria-label="Previous page"
+                    className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg bg-foundation-dark border border-slate-700 text-brand-cyan hover:border-brand-cyan active:scale-95"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
@@ -1213,8 +1304,8 @@ export function InnovationJournalBook({
                     type="button"
                     onClick={() => handleMobileTurn("next")}
                     disabled={mobilePage >= totalMobilePages - 1}
-                    aria-label="Next mobile page"
-                    className="p-2 rounded-lg bg-foundation-dark border border-slate-700 text-brand-cyan hover:border-brand-cyan disabled:opacity-40"
+                    aria-label="Next page"
+                    className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg bg-foundation-dark border border-slate-700 text-brand-cyan hover:border-brand-cyan disabled:opacity-40 active:scale-95"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -1225,9 +1316,9 @@ export function InnovationJournalBook({
                     type="button"
                     onClick={() => triggerSpreadTurn("prev")}
                     aria-label="Previous spread"
-                    className="px-3 py-1.5 rounded-lg bg-foundation-dark border border-slate-700 text-xs font-mono text-brand-cyan hover:border-brand-cyan inline-flex items-center gap-1"
+                    className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-lg bg-foundation-dark border border-slate-700 text-xs font-mono text-brand-cyan hover:border-brand-cyan inline-flex items-center justify-center gap-1.5 active:scale-95"
                   >
-                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <ChevronLeft className="w-4 h-4" />
                     <span>Prev</span>
                   </button>
                   <button
@@ -1235,18 +1326,22 @@ export function InnovationJournalBook({
                     onClick={() => triggerSpreadTurn("next")}
                     disabled={currentSpread >= totalSpreads - 1}
                     aria-label="Next spread"
-                    className="px-3 py-1.5 rounded-lg bg-foundation-dark border border-slate-700 text-xs font-mono text-brand-cyan hover:border-brand-cyan inline-flex items-center gap-1 disabled:opacity-40"
+                    className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-lg bg-foundation-dark border border-slate-700 text-xs font-mono text-brand-cyan hover:border-brand-cyan inline-flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
                   >
                     <span>Next</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
+                    <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
               )}
             </>
           ) : (
-            <div className="w-full text-center">
-              <span className="text-xs font-mono text-typo-gray/70">
-                Press <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-brand-cyan border border-slate-700">Enter</kbd> or click cover to open journal
+            <div className="w-full h-full flex items-center justify-center text-center">
+              <span className="text-xs font-mono text-typo-gray/80 flex items-center gap-1.5">
+                <span>Click cover or press</span>
+                <kbd className="px-2 py-0.5 rounded bg-slate-800 text-brand-cyan border border-slate-700 font-semibold shadow-sm">
+                  Enter ↵
+                </kbd>
+                <span>to open journal</span>
               </span>
             </div>
           )}
