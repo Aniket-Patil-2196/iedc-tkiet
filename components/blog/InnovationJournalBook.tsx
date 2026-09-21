@@ -77,12 +77,12 @@ export function InnovationJournalBook({
   const innovationWordRef = useRef<HTMLHeadingElement>(null);
   const firstHeadingRef = useRef<HTMLHeadingElement>(null);
 
-  const [headerHeight, setHeaderHeight] = useState(96);
+  const [headerHeight, setHeaderHeight] = useState(82);
   const [containerWidth, setContainerWidth] = useState(1200);
   const [viewportHeight, setViewportHeight] = useState(900);
   const [isMobile, setIsMobile] = useState(false);
   const [coverTitleScale, setCoverTitleScale] = useState(1);
-  const [dimensions, setDimensions] = useState({ bookHeight: 560, pageWidth: 420 });
+  const [dimensions, setDimensions] = useState({ bookHeight: 620, pageWidth: 465 });
   const { bookHeight, pageWidth } = dimensions;
 
   // Active Reference Canvas for current mode (Ratio 3:4)
@@ -103,7 +103,7 @@ export function InnovationJournalBook({
   // Total page count must be strictly EVEN so the back cover stands alone on the left
   const totalPages = 1 + totalIntroPages + blogs.length * 2 + 1;
 
-  // Dynamic Responsive Dimensions Calculation based on real DOM measurements (A2)
+  // STEP 1.3: Size book from height first by MEASURING DOM offsets
   const computeDimensions = useCallback(() => {
     if (typeof window === "undefined") return;
     const vw = window.innerWidth;
@@ -112,43 +112,49 @@ export function InnovationJournalBook({
     const mobile = vw < 900;
     setIsMobile(mobile);
 
-    const containerW = containerRef.current ? containerRef.current.clientWidth : vw - 32;
+    const containerW = containerRef.current ? containerRef.current.clientWidth : vw;
     setContainerWidth(containerW);
 
+    let measuredHeaderBottom = 82;
     if (headerRef.current) {
-      setHeaderHeight(headerRef.current.getBoundingClientRect().height);
+      const hRect = headerRef.current.getBoundingClientRect();
+      setHeaderHeight(hRect.height);
+      measuredHeaderBottom = hRect.bottom + window.scrollY;
     }
 
     if (mobile) {
       // Mobile: size page by width (viewport width - 32px, ratio 3:4), allow normal scrolling
-      const pw = Math.min(containerW - 32, 420);
+      const pw = Math.min(vw - 32, 420);
       const bh = Math.round(pw / 0.75);
       setDimensions({ bookHeight: bh, pageWidth: pw });
       return;
     }
 
-    // Desktop: Compute available height by MEASURING DOM offsets
+    // Desktop: Height-first calculation with at least 16px clear gap below header
+    const headerClearance = 16;
     const controlsRowHeight = 48;
+    const controlsGap = 16; // 12-16px gap between book and controls
     const bottomPadding = 16;
-    let bookTop = 130;
-    if (bookStageRef.current) {
-      const rect = bookStageRef.current.getBoundingClientRect();
-      bookTop = rect.top + window.scrollY;
-    } else if (headerRef.current) {
-      const hRect = headerRef.current.getBoundingClientRect();
-      bookTop = hRect.bottom + 12;
+
+    const bookTopOffset = measuredHeaderBottom + headerClearance;
+    const availableHeight = vh - bookTopOffset - controlsRowHeight - controlsGap - bottomPadding;
+
+    // Clamp book height to minimum 420px (below that let page scroll)
+    const targetHeight = Math.max(420, availableHeight);
+
+    // Ideal page width from 3:4 aspect ratio
+    let idealPageWidth = Math.round(targetHeight * 0.75);
+    let openSpreadWidth = idealPageWidth * 2;
+
+    // If open spread exceeds container width minus 24px gutter on each side (48px total), reduce height
+    const maxAllowedSpreadWidth = containerW - 48;
+    if (openSpreadWidth > maxAllowedSpreadWidth) {
+      openSpreadWidth = maxAllowedSpreadWidth;
+      idealPageWidth = Math.floor(openSpreadWidth / 2);
     }
+    const finalBookHeight = Math.round(idealPageWidth / 0.75);
 
-    const available = vh - bookTop - controlsRowHeight - bottomPadding;
-    const clampedH = Math.max(420, Math.min(780, available));
-
-    const arrowSpace = 100;
-    const maxPageW = Math.floor((containerW - arrowSpace) / 2);
-    const idealPageW = Math.round(clampedH * 0.75);
-    const pw = Math.max(260, Math.min(idealPageW, maxPageW));
-    const finalH = Math.round(pw / 0.75);
-
-    setDimensions({ bookHeight: finalH, pageWidth: pw });
+    setDimensions({ bookHeight: finalBookHeight, pageWidth: idealPageWidth });
   }, []);
 
   useEffect(() => {
@@ -218,7 +224,7 @@ export function InnovationJournalBook({
   }, [initialPostIndex, totalIntroPages]);
 
   // -------------------------------------------------------------
-  // StPageFlip (B1 & B2) Integration via client-only dynamic import
+  // StPageFlip (B1 & Step 1.2: Explicit Landscape vs Portrait)
   // -------------------------------------------------------------
   useEffect(() => {
     let isMounted = true;
@@ -230,13 +236,13 @@ export function InnovationJournalBook({
         const { PageFlip } = await import("page-flip");
         if (!isMounted || !flipBookRef.current) return;
 
-        // Safely destroy existing instance if re-initializing
+        // Safely destroy existing instance before re-initializing
         if (pageFlipRef.current) {
           try {
             pageFlipRef.current.getUI()?.clear();
             pageFlipRef.current.destroy();
           } catch {
-            // ignore cleanup errors
+            // ignore
           }
           pageFlipRef.current = null;
         }
@@ -245,16 +251,28 @@ export function InnovationJournalBook({
           "(prefers-reduced-motion: reduce)"
         ).matches;
 
+        // STEP 1.2: Explicit orientation choice from viewport min-width 900px
+        // 900px and above: usePortrait = false (strict two-page spread)
+        // below 900px: usePortrait = true (single page)
+        const isDesktop = window.matchMedia("(min-width: 900px)").matches;
+        const usePortraitMode = !isDesktop;
+
+        console.log(
+          `[InnovationJournalBook] Initializing PageFlip: orientation=${
+            isDesktop ? "landscape (two-page spread)" : "portrait (single-page)"
+          }, width=${pageWidth}px, height=${bookHeight}px`
+        );
+
         const pf = new PageFlip(flipBookRef.current, {
           width: pageWidth,
           height: bookHeight,
           size: "stretch",
-          minWidth: 260,
-          maxWidth: 1200,
-          minHeight: 380,
-          maxHeight: 1400,
+          minWidth: 100, // low enough so library can never force portrait on desktop
+          maxWidth: 1600,
+          minHeight: 100,
+          maxHeight: 1600,
           showCover: true,
-          usePortrait: true,
+          usePortrait: usePortraitMode,
           drawShadow: true,
           maxShadowOpacity: 0.45,
           flippingTime: prefersReducedMotion ? 0 : 850,
@@ -313,7 +331,7 @@ export function InnovationJournalBook({
 
         pageFlipRef.current = pf;
 
-        // Set initial state matching start page
+        // Sync initial state
         setCurrentPageIndex(startPageIndex);
         setIsOpen(startPageIndex > 0 && startPageIndex < totalPages - 1);
       } catch (err) {
@@ -417,7 +435,7 @@ export function InnovationJournalBook({
     return { dropCap: first, remainder: text.slice(first.length) };
   };
 
-  // Dynamically computes text fitting in fixed reference canvas space (A3)
+  // Dynamically computes text fitting in fixed reference canvas space (A3 & Step 2)
   const computeArticleTextFitting = (
     rawContent: string,
     isMobileMode: boolean
@@ -498,25 +516,42 @@ export function InnovationJournalBook({
     return blogs[0] || null;
   }, [currentPageIndex, totalIntroPages, totalPages, blogs]);
 
+  // Page label for controls row (Step 3.8)
+  const controlsPageLabel = useMemo(() => {
+    if (!isOpen || currentPageIndex === 0) {
+      return "Cover";
+    }
+    if (currentPageIndex >= totalPages - 1) {
+      return `Back Cover (Page ${totalPages})`;
+    }
+    if (isMobile) {
+      return `Page ${currentPageIndex + 1} of ${totalPages}`;
+    }
+    // In landscape spread mode, display both facing pages: Pages 2-3 of 6
+    const leftPage = currentPageIndex % 2 === 1 ? currentPageIndex : currentPageIndex - 1;
+    const rightPage = leftPage + 1;
+    return `Pages ${leftPage + 1}-${rightPage + 1} of ${totalPages}`;
+  }, [isOpen, currentPageIndex, totalPages, isMobile]);
+
   return (
     <div ref={containerRef} className="w-full flex flex-col items-center">
-      {/* 1. Two-Column Header Row (A1) */}
+      {/* 1. Header Row (Step 1.5: Tighter header block, >= 16px clear gap to book) */}
       <header
         ref={headerRef}
         id="blog-header-row"
-        className="w-full max-w-6xl mx-auto flex flex-col md:flex-row md:items-end md:justify-between gap-3 md:gap-8 pt-1 sm:pt-2 pb-3 sm:pb-4 border-b border-foundation-slate/50 mb-3 sm:mb-4 select-none min-h-[85px] md:min-h-[96px] [@media(max-height:700px)]:mb-2 [@media(max-height:700px)]:pb-2"
+        className="w-full max-w-6xl mx-auto flex flex-col md:flex-row md:items-end md:justify-between gap-2 md:gap-6 pt-1 pb-2.5 border-b border-foundation-slate/50 select-none min-h-[72px] md:min-h-[82px] [@media(max-height:700px)]:pb-1.5"
       >
-        <div className="flex flex-col items-start gap-1.5 min-w-0">
+        <div className="flex flex-col items-start gap-1 min-w-0">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-foundation-slate/60 border border-brand-cyan/30 text-[10px] sm:text-xs font-mono tracking-widest text-brand-cyan uppercase">
             <Sparkles className="w-3 h-3 text-brand-cyan" />
             BLOG
           </span>
-          <h1 className="font-display font-bold text-typo-white tracking-tight text-[clamp(1.75rem,3vw,2.75rem)] leading-tight [text-wrap:balance]">
+          <h1 className="font-display font-bold text-typo-white tracking-tight text-[clamp(1.75rem,2.6vw,2.5rem)] leading-tight [text-wrap:balance]">
             The Innovation Journal
           </h1>
         </div>
 
-        <p className="max-w-[380px] text-xs font-sans text-typo-gray leading-relaxed text-left md:self-end md:pb-1 [@media(max-height:700px)]:hidden">
+        <p className="max-w-[380px] text-xs font-sans text-typo-gray leading-relaxed text-left md:self-end md:pb-0.5 [@media(max-height:700px)]:hidden">
           Editorial perspectives on student incubation, deep tech breakthroughs, and startup ventures from {SITE_CONFIG.name}.
         </p>
       </header>
@@ -526,7 +561,7 @@ export function InnovationJournalBook({
         {announcement}
       </div>
 
-      {/* 2. Main Book Stage */}
+      {/* 2. Main Book Stage (Step 1.1: Relative box, centered horizontally, spans full width, >= 16px gap below header) */}
       <div
         ref={bookStageRef}
         style={
@@ -535,24 +570,22 @@ export function InnovationJournalBook({
             "--page-w": `${pageWidth}px`,
           } as React.CSSProperties
         }
-        className={cn(
-          "relative flex flex-col items-center justify-center w-full",
-          isMobile ? "min-h-0" : "h-[var(--book-h)]"
-        )}
+        className="relative w-full flex flex-col items-center justify-center mt-4 select-none"
       >
-        {/* Interactive The Pen (B3: Desktop & Tablet >= 1100px) */}
+        {/* Step 1.1 & Step 4: The Pen as Absolute Overlay in Free Margins Outside the Book */}
         <ThePen
           isOpen={isOpen}
-          onOpenBook={() => handleJumpToPage(1)}
           containerWidth={containerWidth}
           pageWidth={pageWidth}
         />
 
-        {/* Optical Centering Wrapper (B2: Slides smoothly to stay centered) */}
+        {/* Optical Centering Wrapper (Step 1.4: Smooth 3D centering transition) */}
         <div
           ref={centerWrapperRef}
           className="relative flex items-center justify-center select-none"
           style={{
+            width: isMobile ? `${pageWidth}px` : `${pageWidth * 2}px`,
+            height: `${bookHeight}px`,
             transform: isMobile
               ? "none"
               : currentPageIndex === 0
@@ -564,7 +597,7 @@ export function InnovationJournalBook({
             transition: "transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)",
           }}
         >
-          {/* StPageFlip Host Container (B1: All pages loaded from HTML) */}
+          {/* StPageFlip Host Container (B1 & Step 1.2: Host container with exact spread dimensions) */}
           <div
             ref={flipBookRef}
             style={{
@@ -586,7 +619,7 @@ export function InnovationJournalBook({
                 type="button"
                 onClick={() => handleJumpToPage(1)}
                 aria-label="Open The Innovation Journal"
-                className="group relative w-full h-full text-left p-6 sm:p-8 flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan"
+                className="group relative w-full h-full text-left p-6 sm:p-8 flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan cursor-pointer"
               >
                 {/* Spine crease shading on left edge */}
                 <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-black via-black/60 to-transparent pointer-events-none" />
@@ -790,7 +823,7 @@ export function InnovationJournalBook({
                                 key={b.id || b.slug}
                                 type="button"
                                 onClick={() => handleJumpToPage(targetPage)}
-                                className="w-full text-left p-2 rounded-lg hover:bg-[#EAE0CA]/70 border border-transparent hover:border-[#DACBB5] transition-colors group flex items-start justify-between gap-2"
+                                className="w-full text-left p-2 rounded-lg hover:bg-[#EAE0CA]/70 border border-transparent hover:border-[#DACBB5] transition-colors group flex items-start justify-between gap-2 cursor-pointer"
                               >
                                 <div className="space-y-0.5 min-w-0 flex-1">
                                   <div className="flex items-center gap-2 min-w-0">
@@ -1094,7 +1127,7 @@ export function InnovationJournalBook({
                     <button
                       type="button"
                       onClick={() => handleJumpToPage(0)}
-                      className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-slate-900/90 border border-brand-cyan/40 text-xs font-mono tracking-wider uppercase text-brand-cyan hover:text-typo-white hover:border-brand-cyan shadow-md transition-all active:scale-95"
+                      className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-slate-900/90 border border-brand-cyan/40 text-xs font-mono tracking-wider uppercase text-brand-cyan hover:text-typo-white hover:border-brand-cyan shadow-md transition-all active:scale-95 cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>Return to Cover</span>
@@ -1106,50 +1139,60 @@ export function InnovationJournalBook({
           </div>
         </div>
 
-        {/* 3. Reserved 48px Controls Row Under Book in BOTH States (A2 & B2) */}
-        <div className="w-full max-w-xl mx-auto min-h-[48px] h-12 flex items-center justify-between px-4 select-none mt-2">
+        {/* 3. Controls Row (Step 3.8: Directly below book with 12-16px gap, centered group, compact close button) */}
+        <div
+          style={{
+            width: isMobile ? `${pageWidth}px` : `${pageWidth * 2}px`,
+            maxWidth: "100%",
+          }}
+          className="relative min-h-[48px] h-12 flex items-center justify-between px-2 select-none mt-3 sm:mt-4"
+        >
           {isOpen ? (
             <>
-              <button
-                type="button"
-                onClick={() => handleJumpToPage(0)}
-                aria-label="Close book"
-                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-foundation-dark/80 hover:bg-foundation-dark border border-slate-700 hover:border-slate-500 text-xs font-mono text-typo-gray hover:text-typo-white transition-all active:scale-95"
-              >
-                <X className="w-4 h-4" />
-                <span>Close</span>
-              </button>
-
-              <span className="text-xs font-mono text-brand-cyan font-semibold">
-                Page {currentPageIndex + 1} of {totalPages}
-              </span>
-
-              <div className="flex items-center gap-2">
+              {/* Centered Prev / Pages X-Y of Z / Next group */}
+              <div className="flex items-center gap-3 sm:gap-4 mx-auto">
                 <button
                   type="button"
                   onClick={() => pageFlipRef.current?.flipPrev()}
                   disabled={currentPageIndex <= 0}
                   aria-label="Previous page"
-                  className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-lg bg-foundation-dark border border-slate-700 text-xs font-mono text-brand-cyan hover:border-brand-cyan inline-flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+                  className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl bg-foundation-dark/90 hover:bg-foundation-dark border border-slate-700/80 text-xs font-mono text-brand-cyan hover:border-brand-cyan inline-flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-all"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   <span className="hidden sm:inline">Prev</span>
                 </button>
+
+                <span className="text-xs sm:text-sm font-mono text-brand-cyan font-semibold tracking-wide">
+                  {controlsPageLabel}
+                </span>
+
                 <button
                   type="button"
                   onClick={() => pageFlipRef.current?.flipNext()}
                   disabled={currentPageIndex >= totalPages - 1}
                   aria-label="Next page"
-                  className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-lg bg-foundation-dark border border-slate-700 text-xs font-mono text-brand-cyan hover:border-brand-cyan inline-flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+                  className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl bg-foundation-dark/90 hover:bg-foundation-dark border border-slate-700/80 text-xs font-mono text-brand-cyan hover:border-brand-cyan inline-flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-all"
                 >
                   <span className="hidden sm:inline">Next</span>
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
+
+              {/* Compact Close button at right end aligned with book right edge */}
+              <button
+                type="button"
+                onClick={() => handleJumpToPage(0)}
+                aria-label="Close book"
+                title="Close book (Esc)"
+                className="absolute right-0 min-h-[44px] min-w-[44px] inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-foundation-dark/90 hover:bg-foundation-dark border border-slate-700/80 hover:border-slate-500 text-xs font-mono text-typo-gray hover:text-typo-white transition-all active:scale-95 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+                <span className="hidden md:inline">Close</span>
+              </button>
             </>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-center">
-              <span className="text-xs font-mono text-typo-gray/80 flex items-center gap-1.5">
+              <span className="text-xs sm:text-sm font-mono text-typo-gray/90 flex items-center gap-1.5">
                 <span>Click cover or press</span>
                 <kbd className="px-2 py-0.5 rounded bg-slate-800 text-brand-cyan border border-slate-700 font-semibold shadow-sm">
                   Enter ↵
@@ -1163,7 +1206,7 @@ export function InnovationJournalBook({
 
       {/* 4. Readers' Remarks & Discussion Section (Scrollable below book) */}
       {activeCommentBlog && (
-        <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 pt-6 pb-12">
+        <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-12">
           <BlogCommentsSection
             blogSlug={activeCommentBlog.slug}
             blogTitle={activeCommentBlog.title}

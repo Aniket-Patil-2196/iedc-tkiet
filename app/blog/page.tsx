@@ -35,7 +35,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   return (
     <div className="flex flex-col flex-1 w-full bg-foundation-darkest min-h-[calc(100svh-var(--header-height,4rem))] px-3 sm:px-6 pt-1 sm:pt-2 pb-4 sm:pb-6 [@media(max-height:700px)]:pt-0.5 [@media(max-height:700px)]:pb-1">
       {/* Container sizing the first screen cleanly */}
-      <div className="w-full max-w-7xl mx-auto flex flex-col items-center">
+      <div className="w-full max-w-[1720px] mx-auto flex flex-col items-center">
         <InnovationJournalBook
           blogs={publishedBlogs}
           initialPostSlug={validInitialSlug}
