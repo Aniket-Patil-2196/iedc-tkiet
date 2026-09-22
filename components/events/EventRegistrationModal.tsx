@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -68,6 +69,7 @@ export function EventRegistrationModal({
   event,
 }: EventRegistrationModalProps) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -79,7 +81,43 @@ export function EventRegistrationModal({
   const [verifying, setVerifying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Body scroll locking with scrollbar compensation
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+
+    document.body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
+  }, [isOpen]);
+
+  // Handle Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !submitting && !verifying) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, submitting, verifying, onClose]);
+
+  if (!isOpen || !mounted) return null;
 
   const feeRupees = event.fee !== undefined && event.fee >= 0 ? Math.floor(event.fee) : 0;
   const isFree = feeRupees === 0;
@@ -116,6 +154,7 @@ export function EventRegistrationModal({
 
       // 2. Free Event: Redirect immediately to receipt
       if (data.isFree) {
+        onClose();
         router.push(`/receipt/${data.receiptToken}`);
         return;
       }
@@ -174,6 +213,7 @@ export function EventRegistrationModal({
               return;
             }
             const token = verifyJson.receiptToken || data.receiptToken;
+            onClose();
             router.push(`/receipt/${token}`);
           } catch (err: any) {
             setErrorMessage(
@@ -200,17 +240,30 @@ export function EventRegistrationModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foundation-darkest/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-xl rounded-2xl bg-foundation-dark border border-brand-blue/30 shadow-[0_0_50px_rgba(37,99,235,0.2)] overflow-hidden">
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="event-registration-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-foundation-darkest/80 backdrop-blur-md animate-fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !submitting && !verifying) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="relative w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl bg-foundation-dark border border-brand-blue/30 shadow-[0_0_50px_rgba(37,99,235,0.2)] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header Strip */}
-        <div className="flex items-center justify-between p-6 border-b border-foundation-slate/60">
+        <div className="shrink-0 flex items-center justify-between p-6 border-b border-foundation-slate/60">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-brand-blue/20 border border-brand-cyan/40 flex items-center justify-center text-brand-cyan">
               <Ticket className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-display font-bold text-typo-white text-lg leading-tight">
+              <h3 id="event-registration-modal-title" className="font-display font-bold text-typo-white text-lg leading-tight">
                 Event Registration Desk
               </h3>
               <p className="text-[11px] font-sans text-typo-gray">
@@ -246,7 +299,7 @@ export function EventRegistrationModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
           {errorMessage && (
             <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
@@ -412,6 +465,7 @@ export function EventRegistrationModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
