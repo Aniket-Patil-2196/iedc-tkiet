@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import TeamMemberModel from "@/models/TeamMember";
+import { validateTeamMember } from "@/lib/utils/team-validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,8 +51,18 @@ export async function POST(request: Request) {
       );
     }
 
+    const validationError = validateTeamMember(body);
+    if (validationError) {
+      return NextResponse.json(
+        { success: false, error: validationError },
+        { status: 400 }
+      );
+    }
+
     const member = await TeamMemberModel.create({
       ...body,
+      linkedinUrl: body.linkedinUrl?.trim() || undefined,
+      email: body.email?.trim() || undefined,
       order: Number(body.order) || 0,
     });
 

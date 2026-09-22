@@ -27,6 +27,7 @@ export default function AdminTeamPage() {
     bio: "",
     avatarUrl: "",
     order: 1,
+    email: "",
     linkedinUrl: "",
     githubUrl: "",
   });
@@ -61,6 +62,7 @@ export default function AdminTeamPage() {
       bio: "",
       avatarUrl: "",
       order: members.length + 1,
+      email: "",
       linkedinUrl: "",
       githubUrl: "",
     });
@@ -78,6 +80,7 @@ export default function AdminTeamPage() {
       bio: m.bio || "",
       avatarUrl: m.avatarUrl || "",
       order: m.order || 1,
+      email: m.email || "",
       linkedinUrl: m.linkedinUrl || "",
       githubUrl: m.githubUrl || "",
     });
@@ -417,6 +420,34 @@ export default function AdminTeamPage() {
             value={formData.avatarUrl}
             onChange={(url) => setFormData({ ...formData, avatarUrl: url })}
           />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                LinkedIn Profile URL
+              </label>
+              <input
+                type="url"
+                value={formData.linkedinUrl}
+                onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
+                placeholder="https://linkedin.com/in/username"
+                className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="member@tkiet.ac.in"
+                className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+              />
+            </div>
+          </div>
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">

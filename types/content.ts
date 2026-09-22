@@ -124,6 +124,7 @@ export interface ITeamMember {
   category: TeamCategory;
   avatarUrl?: string;
   bio?: string;
+  email?: string;
   linkedinUrl?: string;
   githubUrl?: string;
   twitterUrl?: string;

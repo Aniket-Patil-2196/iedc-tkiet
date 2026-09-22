@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import TeamMemberModel from "@/models/TeamMember";
+import { validateTeamMember } from "@/lib/utils/team-validation";
 
 interface Params {
   params: { id: string };
@@ -17,9 +18,22 @@ export async function PUT(request: Request, { params }: Params) {
     }
 
     const body = await request.json();
+
+    const validationError = validateTeamMember(body);
+    if (validationError) {
+      return NextResponse.json(
+        { success: false, error: validationError },
+        { status: 400 }
+      );
+    }
+
     const updated = await TeamMemberModel.findByIdAndUpdate(
       params.id,
-      { ...body },
+      {
+        ...body,
+        linkedinUrl: body.linkedinUrl ? body.linkedinUrl.trim() : undefined,
+        email: body.email ? body.email.trim() : undefined,
+      },
       { new: true, runValidators: true }
     );
 
