@@ -89,16 +89,25 @@ export async function POST(request: Request) {
       );
     }
 
-    // 5. Look up registration
+    // 5. Look up registration strictly by verified Razorpay order ID
     const registration = await RegistrationModel.findOne({
-      $or: [{ razorpayOrderId: order_id }, { receiptToken }],
+      razorpayOrderId: order_id,
     });
 
     if (!registration) {
-      console.error(`[VERIFY ERROR] Registration not found for order ${order_id} or token ${receiptToken}`);
+      console.error(`[VERIFY ERROR] Registration not found for order ${order_id}`);
       return NextResponse.json(
         { success: false, error: "Registration record not found for this transaction." },
         { status: 404 }
+      );
+    }
+
+    // Security validation: verify provided receiptToken matches the registration's actual token
+    if (receiptToken && registration.receiptToken !== receiptToken) {
+      console.warn(`[VERIFY WARNING] receiptToken mismatch for order ${order_id}`);
+      return NextResponse.json(
+        { success: false, error: "Transaction verification token mismatch." },
+        { status: 400 }
       );
     }
 
@@ -106,16 +115,37 @@ export async function POST(request: Request) {
     const razorpay = getRazorpayClient();
     const payment = await razorpay.payments.fetch(payment_id);
 
+    // Security check: ensure payment belongs to the order being verified
+    if (payment.order_id && payment.order_id !== registration.razorpayOrderId) {
+      console.error(
+        `[VERIFY ERROR] Payment order mismatch: ${payment.order_id} !== ${registration.razorpayOrderId}`
+      );
+      return NextResponse.json(
+        { success: false, error: "Payment does not match registration order." },
+        { status: 400 }
+      );
+    }
+
     // 7. Finalize payment using shared function
     const result = await finalizePayment(registration, payment);
 
+    if (!result.success || result.status !== "paid") {
+      return NextResponse.json(
+        {
+          success: false,
+          status: result.status,
+          error: result.reason || "Payment could not be finalized.",
+          refundId: result.refundId,
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json({
-      success: result.success,
-      status: result.status,
-      receiptToken: result.receiptToken || registration.receiptToken,
+      success: true,
+      status: "paid",
+      receiptToken: registration.receiptToken,
       receiptNumber: result.receiptNumber || registration.receiptNumber,
-      refundId: result.refundId,
-      reason: result.reason,
     });
   } catch (error: any) {
     console.error("[PAYMENT VERIFY ERROR]", error);

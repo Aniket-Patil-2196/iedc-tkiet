@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -81,6 +81,10 @@ export function EventRegistrationModal({
   const [verifying, setVerifying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Guards against duplicate verification calls and duplicate redirects
+  const isVerifyingRef = useRef(false);
+  const hasRedirectedRef = useRef(false);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -126,6 +130,8 @@ export function EventRegistrationModal({
     e.preventDefault();
     setErrorMessage(null);
     setSubmitting(true);
+    isVerifyingRef.current = false;
+    hasRedirectedRef.current = false;
 
     try {
       // 1. Call registration endpoint
@@ -154,7 +160,8 @@ export function EventRegistrationModal({
 
       // 2. Free Event: Redirect immediately to receipt
       if (data.isFree) {
-        onClose();
+        if (hasRedirectedRef.current) return;
+        hasRedirectedRef.current = true;
         router.push(`/receipt/${data.receiptToken}`);
         return;
       }
@@ -187,11 +194,18 @@ export function EventRegistrationModal({
         },
         modal: {
           ondismiss: () => {
-            setSubmitting(false);
+            if (!isVerifyingRef.current && !hasRedirectedRef.current) {
+              setSubmitting(false);
+              setVerifying(false);
+            }
           },
         },
         handler: async (paymentResponse: any) => {
+          if (isVerifyingRef.current || hasRedirectedRef.current) return;
+          isVerifyingRef.current = true;
           setVerifying(true);
+          setErrorMessage(null);
+
           try {
             const verifyRes = await fetch("/api/payments/verify", {
               method: "POST",
@@ -204,39 +218,66 @@ export function EventRegistrationModal({
               }),
             });
 
-            const verifyJson = await verifyRes.json();
-            if (!verifyRes.ok || !verifyJson.success) {
-              setErrorMessage(
-                verifyJson.error || "Payment verification failed. Please contact support or find your receipt."
-              );
-              setVerifying(false);
+            let verifyJson: any = null;
+            try {
+              verifyJson = await verifyRes.json();
+            } catch {
+              // JSON parse error handled below
+            }
+
+            if (
+              verifyRes.ok &&
+              verifyJson?.success === true &&
+              verifyJson?.status === "paid" &&
+              typeof verifyJson?.receiptToken === "string" &&
+              verifyJson.receiptToken.length > 0
+            ) {
+              if (hasRedirectedRef.current) return;
+              hasRedirectedRef.current = true;
+              router.push(`/receipt/${verifyJson.receiptToken}`);
               return;
             }
-            const token = verifyJson.receiptToken || data.receiptToken;
-            onClose();
-            router.push(`/receipt/${token}`);
-          } catch (err: any) {
-            setErrorMessage(
-              err.message || "Payment verification interrupted. Please verify receipt via Find My Receipt."
-            );
+
+            // Verification failed or status is not paid: show error and restore state
+            isVerifyingRef.current = false;
             setVerifying(false);
+            setSubmitting(false);
+            setErrorMessage(
+              verifyJson?.error ||
+                verifyJson?.reason ||
+                "Payment verification failed. Please contact support or find your receipt."
+            );
+          } catch (err: any) {
+            isVerifyingRef.current = false;
+            setVerifying(false);
+            setSubmitting(false);
+            setErrorMessage(
+              err?.message ||
+                "Payment verification interrupted. Please verify receipt via Find My Receipt."
+            );
           }
         },
       };
 
       const razorpayInstance = new (window as any).Razorpay(options);
       razorpayInstance.on("payment.failed", (failRes: any) => {
-        setErrorMessage(
-          failRes.error?.description ||
-            "Payment attempt failed. You may retry or use another payment method."
-        );
-        setSubmitting(false);
+        if (!hasRedirectedRef.current) {
+          isVerifyingRef.current = false;
+          setVerifying(false);
+          setSubmitting(false);
+          setErrorMessage(
+            failRes.error?.description ||
+              "Payment attempt failed. You may retry or use another payment method."
+          );
+        }
       });
 
       razorpayInstance.open();
     } catch (err: any) {
-      setErrorMessage(err.message || "Network error. Please try again.");
+      isVerifyingRef.current = false;
+      setVerifying(false);
       setSubmitting(false);
+      setErrorMessage(err.message || "Network error. Please try again.");
     }
   };
 
@@ -320,9 +361,9 @@ export function EventRegistrationModal({
             <div className="p-4 rounded-xl bg-brand-blue/10 border border-brand-cyan/40 text-xs text-brand-cyan flex items-center gap-3">
               <Loader2 className="w-5 h-5 animate-spin shrink-0" />
               <div>
-                <p className="font-semibold text-typo-white">Verifying payment with bank...</p>
+                <p className="font-semibold text-typo-white">Payment successful. Generating your receipt...</p>
                 <p className="text-[11px] text-typo-gray">
-                  Generating official receipt, please do not close this window.
+                  Please do not close this window.
                 </p>
               </div>
             </div>
@@ -452,7 +493,7 @@ export function EventRegistrationModal({
                 {submitting || verifying ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>{verifying ? "Verifying..." : "Processing..."}</span>
+                    <span>{verifying ? "Generating receipt..." : "Processing..."}</span>
                   </>
                 ) : (
                   <>
