@@ -41,6 +41,7 @@ export interface EventRegistrationPanelProps {
     registrationMode?: "external" | "onsite" | "none";
     registrationUrl?: string;
     isPlaceholder?: boolean;
+    registrationOpen?: boolean;
   };
   status: EventStatusResult;
   paidCount: number;

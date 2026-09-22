@@ -336,6 +336,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
                   registrationMode: resolveRegistrationMode(event),
                   registrationUrl: event.registrationUrl || event.registrationLink,
                   isPlaceholder,
+                  registrationOpen: event.registrationOpen,
                 }}
                 status={status}
                 paidCount={paidCount}
