@@ -76,10 +76,17 @@ export function InnovationJournalBook({
   const flipBookRef = useRef<HTMLDivElement>(null);
   const pageFlipRef = useRef<any>(null);
   const coverButtonRef = useRef<HTMLButtonElement>(null);
+  const staticCoverButtonRef = useRef<HTMLButtonElement>(null);
   const innerFrameRef = useRef<HTMLDivElement>(null);
   const innovationWordRef = useRef<HTMLHeadingElement>(null);
   const firstHeadingRef = useRef<HTMLHeadingElement>(null);
   const animationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const rafRetryCount = useRef(0);
+  const openPendingRef = useRef(false);
+
+  // Engine Readiness & Error Recovery (Safeguards c & d)
+  const [isLibraryReady, setIsLibraryReady] = useState(false);
+  const [hasEngineFailed, setHasEngineFailed] = useState(false);
 
   const [headerHeight, setHeaderHeight] = useState(82);
   const [containerWidth, setContainerWidth] = useState(1200);
@@ -92,7 +99,12 @@ export function InnovationJournalBook({
   // Active Reference Canvas for current mode (Ratio 3:4)
   const refW = isMobile ? MOBILE_REF_W : DESKTOP_REF_W;
   const refH = isMobile ? MOBILE_REF_H : DESKTOP_REF_H;
-  const pageScale = pageWidth / refW;
+  // Safeguard a: Never scale to 0 or NaN; enforce a safe floor
+  const rawPageScale = pageWidth / refW;
+  const pageScale =
+    Number.isNaN(rawPageScale) || rawPageScale <= 0
+      ? 1
+      : Math.max(0.2, rawPageScale);
 
   // Multi-page Table of Contents chunking (A3)
   const itemsPerContentsPage = isMobile ? 4 : 6;
@@ -106,27 +118,61 @@ export function InnovationJournalBook({
   // Total page count must be strictly EVEN so the back cover stands alone on the left
   const totalPages = 1 + totalIntroPages + blogs.length * 2 + 1;
 
-  // Sizing from height first by MEASURING DOM offsets
+  // BUG 1.2: Sizing from measured DOM node's getBoundingClientRect() with < 50 guard and 5 retries
   const computeDimensions = useCallback(() => {
     if (typeof window === "undefined") return;
+
+    const stageEl = bookStageRef.current;
+    if (!stageEl) {
+      if (rafRetryCount.current < 5) {
+        rafRetryCount.current++;
+        requestAnimationFrame(computeDimensions);
+      }
+      return;
+    }
+
+    const rect = stageEl.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+
+    // Guard: delayed until node has non-zero size (< 50 guard, max 5 retries)
+    if (width < 50 || height < 50) {
+      if (rafRetryCount.current < 5) {
+        rafRetryCount.current++;
+        requestAnimationFrame(computeDimensions);
+      } else {
+        setHasEngineFailed(true);
+      }
+      return;
+    }
+
+    rafRetryCount.current = 0;
+
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     setViewportHeight(vh);
+
     const mobile = vw < 900;
     setIsMobile(mobile);
 
-    const containerW = containerRef.current ? containerRef.current.clientWidth : vw;
+    let containerW = containerRef.current ? containerRef.current.clientWidth : vw;
+    if (!containerW || Number.isNaN(containerW) || containerW <= 0) {
+      containerW = vw;
+    }
     setContainerWidth(containerW);
 
     let measuredHeaderBottom = 82;
     if (headerRef.current) {
       const hRect = headerRef.current.getBoundingClientRect();
-      setHeaderHeight(hRect.height);
-      measuredHeaderBottom = hRect.bottom + window.scrollY;
+      if (hRect.height > 0) {
+        setHeaderHeight(hRect.height);
+        measuredHeaderBottom = hRect.bottom + window.scrollY;
+      }
     }
 
     if (mobile) {
-      const pw = Math.min(vw - 32, 420);
+      // Measured width from DOM node, clamped cleanly
+      const pw = Math.max(240, Math.min(width, 420));
       const bh = Math.round(pw / 0.75);
       setDimensions({ bookHeight: bh, pageWidth: pw });
       return;
@@ -170,6 +216,7 @@ export function InnovationJournalBook({
     const ro = new ResizeObserver(() => {
       computeDimensions();
     });
+    if (bookStageRef.current) ro.observe(bookStageRef.current);
     if (headerRef.current) ro.observe(headerRef.current);
     if (containerRef.current) ro.observe(containerRef.current);
 
@@ -200,17 +247,32 @@ export function InnovationJournalBook({
     }
   }, [pageWidth, displayState]);
 
-  // Sync URL ?post=<slug> with history.replaceState
-  const syncUrlParam = useCallback((slug?: string) => {
+  // BUG 2.1: currentPost state variable (null on cover, intro, contents, back cover; never default to first post)
+  const [currentPost, setCurrentPost] = useState<IBlog | null>(() => {
+    if (!initialPostSlug) return null;
+    return blogs.find((b) => b.slug === initialPostSlug) || null;
+  });
+
+  // BUG 2.3: isInternalUpdate ref set to true right before app calls replaceState
+  const isInternalUpdate = useRef(false);
+
+  // BUG 2.2: history.replaceState must only run when current post is non-null. When null, remove ?post= param.
+  useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    if (slug) {
-      url.searchParams.set("post", slug);
+
+    if (currentPost) {
+      if (url.searchParams.get("post") === currentPost.slug) return;
+      url.searchParams.set("post", currentPost.slug);
+      isInternalUpdate.current = true;
+      window.history.replaceState(null, "", url.toString());
     } else {
+      if (!url.searchParams.has("post")) return;
       url.searchParams.delete("post");
+      isInternalUpdate.current = true;
+      window.history.replaceState(null, "", url.toString());
     }
-    window.history.replaceState(null, "", url.toString());
-  }, []);
+  }, [currentPost]);
 
   // Compute start page index for initial post
   const startPageIndex = useMemo(() => {
@@ -221,10 +283,20 @@ export function InnovationJournalBook({
   }, [initialPostIndex, totalIntroPages]);
 
   // -------------------------------------------------------------
-  // StPageFlip (B1 & Explicit Landscape vs Portrait)
+  // StPageFlip (B1 & Explicit Landscape vs Portrait + Safeguards)
   // -------------------------------------------------------------
   useEffect(() => {
     let isMounted = true;
+
+    // Safeguard d: 3-second initialization timeout fallback
+    const initTimer = setTimeout(() => {
+      if (isMounted && !pageFlipRef.current) {
+        console.error(
+          "[InnovationJournalBook] Flip engine initialization timed out after 3000ms"
+        );
+        setHasEngineFailed(true);
+      }
+    }, 3000);
 
     const initPageFlip = async () => {
       if (!flipBookRef.current || typeof window === "undefined") return;
@@ -250,25 +322,42 @@ export function InnovationJournalBook({
         const isDesktop = window.matchMedia("(min-width: 900px)").matches;
         const usePortraitMode = !isDesktop;
 
+        // BUG 1.2: Width/height read from measured DOM node's getBoundingClientRect()
+        const stageRect = bookStageRef.current?.getBoundingClientRect();
+        const stageW = stageRect?.width || 0;
+        const stageH = stageRect?.height || 0;
+
+        if (stageW < 50 || stageH < 50) {
+          if (rafRetryCount.current < 5) {
+            rafRetryCount.current++;
+            requestAnimationFrame(initPageFlip);
+            return;
+          }
+        }
+
+        const flipWidth = isDesktop ? pageWidth : Math.max(240, Math.min(Math.round(stageW), 420));
+        const flipHeight = isDesktop ? bookHeight : Math.round(flipWidth / 0.75);
+
         console.log(
           `[InnovationJournalBook] Initializing PageFlip: orientation=${
             isDesktop ? "landscape" : "portrait"
-          }, width=${pageWidth}px, height=${bookHeight}px`
+          }, width=${flipWidth}px, height=${flipHeight}px`
         );
 
+        // BUG 1.3: minWidth: 200, minHeight: 260 (lower than any mobile size 280-414px)
         const pf = new PageFlip(flipBookRef.current, {
-          width: pageWidth,
-          height: bookHeight,
-          size: "stretch",
-          minWidth: 100,
+          width: flipWidth,
+          height: flipHeight,
+          size: isDesktop ? "stretch" : "fixed",
+          minWidth: 200,
+          minHeight: 260,
           maxWidth: 1600,
-          minHeight: 100,
           maxHeight: 1600,
           showCover: true,
           usePortrait: usePortraitMode,
           drawShadow: true,
           maxShadowOpacity: 0.45,
-          flippingTime: prefersReducedMotion ? 0 : 850,
+          flippingTime: prefersReducedMotion ? 40 : 850,
           showPageCorners: !prefersReducedMotion,
           clickEventForward: true,
           mobileScrollSupport: true,
@@ -299,29 +388,28 @@ export function InnovationJournalBook({
             }
           }, prefersReducedMotion ? 30 : 850);
 
-          // Determine current post if on post spread
-          const postSpreadStart = 1 + totalIntroPages;
-          if (pageIdx >= postSpreadStart && pageIdx < totalPages - 1) {
-            const blogIdx = Math.floor((pageIdx - postSpreadStart) / 2);
-            const activeBlog = blogs[blogIdx];
+          // BUG 2.1: currentPost is null on cover, intro, contents, back cover; set ONLY on post page
+          const postStart = 1 + totalIntroPages;
+          if (pageIdx >= postStart && pageIdx < totalPages - 1) {
+            const blogIdx = Math.floor((pageIdx - postStart) / 2);
+            const activeBlog = blogs[blogIdx] || null;
+            setCurrentPost(activeBlog);
             if (activeBlog) {
-              syncUrlParam(activeBlog.slug);
               setAnnouncement(
                 `Page ${pageIdx + 1} of ${totalPages}: ${activeBlog.title}`
               );
-              return;
             }
-          }
-
-          syncUrlParam(undefined);
-          if (pageIdx === 0) {
-            setAnnouncement("Blog closed. Front cover.");
-          } else if (pageIdx === 1) {
-            setAnnouncement(`Page 2 of ${totalPages}: Editorial Preface`);
-          } else if (pageIdx < postSpreadStart) {
-            setAnnouncement(`Page ${pageIdx + 1} of ${totalPages}: Table of Contents`);
-          } else if (pageIdx === totalPages - 1) {
-            setAnnouncement(`Page ${pageIdx + 1} of ${totalPages}: Back cover`);
+          } else {
+            setCurrentPost(null);
+            if (pageIdx === 0) {
+              setAnnouncement("Blog closed. Front cover.");
+            } else if (pageIdx === 1) {
+              setAnnouncement(`Page 2 of ${totalPages}: Editorial Preface`);
+            } else if (pageIdx < postStart) {
+              setAnnouncement(`Page ${pageIdx + 1} of ${totalPages}: Table of Contents`);
+            } else if (pageIdx === totalPages - 1) {
+              setAnnouncement(`Page ${pageIdx + 1} of ${totalPages}: Back cover`);
+            }
           }
         });
 
@@ -344,18 +432,41 @@ export function InnovationJournalBook({
           }
         });
 
+        clearTimeout(initTimer);
         pageFlipRef.current = pf;
+        setIsLibraryReady(true);
+        setHasEngineFailed(false);
 
         setCurrentPageIndex(startPageIndex);
         if (startPageIndex === 0) {
           setDisplayState("closed-front");
+          setCurrentPost(null);
         } else if (startPageIndex >= totalPages - 1) {
           setDisplayState("closed-back");
+          setCurrentPost(null);
         } else {
           setDisplayState("open");
+          const postStart = 1 + totalIntroPages;
+          if (startPageIndex >= postStart && startPageIndex < totalPages - 1) {
+            const blogIdx = Math.floor((startPageIndex - postStart) / 2);
+            setCurrentPost(blogs[blogIdx] || null);
+          } else {
+            setCurrentPost(null);
+          }
+        }
+
+        // Process any open request queued before library was ready
+        if (openPendingRef.current) {
+          openPendingRef.current = false;
+          setCurrentPost(null);
+          setDisplayState("open");
+          setCurrentPageIndex(1);
+          pf.turnToPage(1);
         }
       } catch (err) {
-        console.error("Error initializing StPageFlip:", err);
+        clearTimeout(initTimer);
+        console.error("[InnovationJournalBook] Error initializing StPageFlip:", err);
+        if (isMounted) setHasEngineFailed(true);
       }
     };
 
@@ -363,6 +474,7 @@ export function InnovationJournalBook({
 
     return () => {
       isMounted = false;
+      clearTimeout(initTimer);
       if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
       if (pageFlipRef.current) {
         try {
@@ -382,19 +494,34 @@ export function InnovationJournalBook({
     totalIntroPages,
     startPageIndex,
     blogs,
-    syncUrlParam,
   ]);
 
   // FIX 1.1: Trigger turn with immediate state update at start of turn
   const handleJumpToPage = useCallback((targetIdx: number) => {
-    if (!pageFlipRef.current) return;
+    if (!pageFlipRef.current) {
+      if (targetIdx === 1) {
+        openPendingRef.current = true;
+        setCurrentPost(null);
+        setDisplayState("open");
+      }
+      return;
+    }
+
+    const postStart = 1 + totalIntroPages;
+    if (targetIdx >= postStart && targetIdx < totalPages - 1) {
+      const blogIdx = Math.floor((targetIdx - postStart) / 2);
+      setCurrentPost(blogs[blogIdx] || null);
+    } else {
+      setCurrentPost(null);
+    }
 
     // Immediately start animating and update display state for layout
     setIsAnimating(true);
     if (targetIdx > 0 && targetIdx < totalPages - 1) {
       setDisplayState("open");
     } else if (targetIdx === totalPages - 1) {
-      // While animating to back cover, treat as open for layout until rest
+      setDisplayState("open");
+    } else if (targetIdx === 0) {
       setDisplayState("open");
     }
 
@@ -405,26 +532,93 @@ export function InnovationJournalBook({
     if (prefersReducedMotion) {
       pageFlipRef.current.turnToPage(targetIdx);
       setIsAnimating(false);
+      setCurrentPageIndex(targetIdx);
       if (targetIdx === 0) setDisplayState("closed-front");
       else if (targetIdx === totalPages - 1) setDisplayState("closed-back");
       else setDisplayState("open");
     } else {
       pageFlipRef.current.flip(targetIdx);
     }
-  }, [totalPages]);
+  }, [totalPages, totalIntroPages, blogs]);
+
+  // BUG 2.4: open() function calls flip library turnToPage(1) explicitly as its LAST action, after state resets
+  const handleOpenBook = useCallback(() => {
+    setCurrentPost(null);
+    setDisplayState("open");
+    setIsAnimating(false);
+    setCurrentPageIndex(1);
+
+    if (pageFlipRef.current) {
+      pageFlipRef.current.turnToPage(1);
+    } else {
+      openPendingRef.current = true;
+    }
+  }, []);
+
+  const open = handleOpenBook;
+
+  // BUG 2.3: Read ?post= URL parameter ONLY on initial load and on popstate (skipping when isInternalUpdate is true)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handlePopState = () => {
+      if (isInternalUpdate.current) {
+        isInternalUpdate.current = false;
+        return;
+      }
+
+      const params = new URL(window.location.href).searchParams;
+      const urlSlug = params.get("post");
+
+      if (!urlSlug) {
+        setCurrentPost(null);
+        if (pageFlipRef.current) {
+          pageFlipRef.current.turnToPage(1);
+        }
+        return;
+      }
+
+      const targetPostIndex = blogs.findIndex((b) => b.slug === urlSlug);
+      if (targetPostIndex !== -1 && pageFlipRef.current) {
+        const targetPage = 1 + totalIntroPages + targetPostIndex * 2;
+        setCurrentPost(blogs[targetPostIndex]);
+        pageFlipRef.current.turnToPage(targetPage);
+      } else if (pageFlipRef.current) {
+        setCurrentPost(null);
+        pageFlipRef.current.turnToPage(0);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [blogs, totalIntroPages]);
 
   const handleNextPage = useCallback(() => {
     if (!pageFlipRef.current || currentPageIndex >= totalPages - 1) return;
     setIsAnimating(true);
     setDisplayState("open");
-    pageFlipRef.current.flipNext();
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion) {
+      pageFlipRef.current.turnToNextPage();
+    } else {
+      pageFlipRef.current.flipNext();
+    }
   }, [currentPageIndex, totalPages]);
 
   const handlePrevPage = useCallback(() => {
     if (!pageFlipRef.current || currentPageIndex <= 0) return;
     setIsAnimating(true);
     setDisplayState("open");
-    pageFlipRef.current.flipPrev();
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion) {
+      pageFlipRef.current.turnToPrevPage();
+    } else {
+      pageFlipRef.current.flipPrev();
+    }
   }, [currentPageIndex]);
 
   // Keyboard Navigation: Arrows, Space/Enter, Escape (B2 & B4)
@@ -441,9 +635,12 @@ export function InnovationJournalBook({
 
       if (displayState === "closed-front") {
         if (e.key === "Enter" || e.key === " ") {
-          if (document.activeElement === coverButtonRef.current) {
+          if (
+            document.activeElement === coverButtonRef.current ||
+            document.activeElement === staticCoverButtonRef.current
+          ) {
             e.preventDefault();
-            handleJumpToPage(1);
+            handleOpenBook();
           }
         }
         return;
@@ -549,15 +746,98 @@ export function InnovationJournalBook({
     };
   };
 
-  // Active blog for comments section
-  const activeCommentBlog = useMemo(() => {
-    const postSpreadStart = 1 + totalIntroPages;
-    if (currentPageIndex >= postSpreadStart && currentPageIndex < totalPages - 1) {
-      const blogIdx = Math.floor((currentPageIndex - postSpreadStart) / 2);
-      return blogs[blogIdx] || blogs[0] || null;
-    }
-    return blogs[0] || null;
-  }, [currentPageIndex, totalIntroPages, totalPages, blogs]);
+
+  // Front Cover Content Renderer (shared between static SSR cover and Page 0 flip cover)
+  const renderCoverButton = (btnRef: React.RefObject<HTMLButtonElement>) => (
+    <button
+      ref={btnRef}
+      type="button"
+      onClick={handleOpenBook}
+      aria-label="Open The Innovation Blog"
+      className="group relative w-full h-full text-left p-6 sm:p-8 flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan cursor-pointer"
+    >
+      {/* Spine crease shading on left edge */}
+      <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-black via-black/60 to-transparent pointer-events-none" />
+
+      {/* Page block layered edge on right and bottom */}
+      <div className="absolute inset-y-0 right-0 w-2.5 bg-gradient-to-l from-[#CBD5E1]/20 via-[#94A3B8]/10 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-2 bg-gradient-to-t from-[#CBD5E1]/20 via-[#94A3B8]/10 to-transparent pointer-events-none" />
+
+      {/* Narrow silk bookmark ribbon with swallowtail cut (A4.2) */}
+      <div
+        className="absolute bottom-0 left-14 w-4 h-9 bg-gradient-to-b from-[#1E3A8A] via-[#1E40AF] to-[#172554] shadow-md pointer-events-none z-20"
+        style={{
+          clipPath:
+            "polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 7px), 0 100%)",
+        }}
+      >
+        <div className="absolute inset-y-0 left-0 w-[1px] bg-amber-300/40" />
+        <div className="absolute inset-y-0 right-0 w-[1px] bg-amber-300/40" />
+      </div>
+
+      {/* Embossed Inner Cover Frame with 8% margin rule */}
+      <div
+        ref={btnRef === coverButtonRef ? innerFrameRef : undefined}
+        style={{ containerType: "inline-size" }}
+        className="relative w-full h-full border border-slate-700/70 rounded-xl p-6 sm:p-8 flex flex-col justify-between"
+      >
+        <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-brand-cyan/60 rounded-tl" />
+        <div className="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-brand-cyan/60 rounded-tr" />
+        <div className="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-brand-cyan/60 rounded-bl" />
+        <div className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-brand-cyan/60 rounded-br" />
+
+        {/* Top Emblem & Header with Official IEDC Logo (A4.3) */}
+        <div className="space-y-3 text-center">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-900/80 border border-brand-cyan/40 shadow-[0_0_15px_rgba(56,189,248,0.25)] p-1.5 mx-auto">
+            <Image
+              src="/images/iedc-logo.png"
+              alt="IEDC Logo"
+              width={36}
+              height={36}
+              className="object-contain"
+              priority
+            />
+          </div>
+          <span className="block text-[11px] font-mono tracking-[0.25em] text-slate-300 uppercase font-semibold">
+            {SITE_CONFIG.name}
+          </span>
+        </div>
+
+        {/* FIX 2: Title Area: THE INNOVATION BLOG */}
+        <div className="space-y-3 text-center my-auto py-4">
+          <span className="block text-xs font-mono tracking-[0.3em] text-brand-cyan/90 uppercase">
+            THE
+          </span>
+          <h2
+            ref={btnRef === coverButtonRef ? innovationWordRef : undefined}
+            style={{
+              fontSize: `calc(clamp(1.4rem, 7.6cqw, 2.5rem) * ${coverTitleScale})`,
+              letterSpacing: "-0.02em",
+              overflowWrap: "break-word",
+            }}
+            className="font-display font-bold uppercase text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-brand-cyan drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] leading-tight"
+          >
+            INNOVATION
+          </h2>
+          <span className="block font-display text-lg sm:text-xl font-semibold text-slate-200 tracking-wider">
+            BLOG
+          </span>
+          <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-brand-cyan to-transparent mx-auto pt-1" />
+          <span className="block text-[11px] font-sans text-slate-400 font-medium pt-1">
+            Ideas · People · Impact
+          </span>
+        </div>
+
+        {/* Open Button Affordance */}
+        <div className="text-center pt-2">
+          <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-slate-900/90 border border-brand-cyan/40 text-xs font-mono tracking-wider uppercase text-brand-cyan group-hover:text-typo-white group-hover:border-brand-cyan shadow-md transition-all">
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Open blog →</span>
+          </span>
+        </div>
+      </div>
+    </button>
+  );
 
   // Page label for controls row (Step 3.8 & Fix 1.3)
   const controlsPageLabel = useMemo(() => {
@@ -603,16 +883,29 @@ export function InnovationJournalBook({
         {announcement}
       </div>
 
-      {/* 2. Main Book Stage (Step 1.1: Relative box, centered horizontally, spans full width) */}
+      {/* Explicit CSS before JS runs for mobile book sizing (BUG 1.1) */}
+      <style>{`
+        @media (max-width: 899px) {
+          .book-outer-wrapper {
+            width: calc(100vw - 32px) !important;
+            height: calc((100vw - 32px) / 0.75) !important;
+            max-width: 420px !important;
+            max-height: calc(420px / 0.75) !important;
+          }
+        }
+      `}</style>
+
+      {/* 2. Main Book Stage (BUG 1.1: Outer wrapper explicit CSS before JS) */}
       <div
         ref={bookStageRef}
         style={
           {
             "--book-h": `${bookHeight}px`,
             "--page-w": `${pageWidth}px`,
+            minHeight: isMobile ? `calc((${pageWidth}px) / 0.75)` : "420px",
           } as React.CSSProperties
         }
-        className="relative w-full flex flex-col items-center justify-center mt-4 select-none"
+        className="book-outer-wrapper relative w-full min-w-[calc(100vw-32px)] sm:min-w-0 min-h-[calc((100vw-32px)/0.75)] sm:min-h-[420px] flex flex-col items-center justify-center mt-4 select-none max-[899px]:w-[calc(100vw-32px)] max-[899px]:h-[calc((100vw-32px)/0.75)] max-[899px]:min-w-[calc(100vw-32px)] max-[899px]:min-h-[calc((100vw-32px)/0.75)]"
       >
         {/* FIX 1: The Pen as Absolute Overlay in Free Margins Outside the Book */}
         <ThePen
@@ -626,7 +919,7 @@ export function InnovationJournalBook({
         {/* Optical Centering Wrapper */}
         <div
           ref={centerWrapperRef}
-          className="relative flex items-center justify-center select-none"
+          className="relative flex items-center justify-center select-none max-[899px]:!transform-none max-[899px]:!w-full max-[899px]:!max-w-[420px]"
           style={{
             width: isMobile ? `${pageWidth}px` : `${pageWidth * 2}px`,
             height: `${bookHeight}px`,
@@ -641,14 +934,35 @@ export function InnovationJournalBook({
             transition: "transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)",
           }}
         >
+          {/* BUG 1.4: Plain server-rendered fallback cover ALWAYS in DOM behind/underneath flip library */}
+          <div
+            aria-hidden={isLibraryReady && !hasEngineFailed}
+            style={{
+              width: `${pageWidth}px`,
+              height: `${bookHeight}px`,
+              maxWidth: "calc(100vw - 32px)",
+              maxHeight: "calc((100vw - 32px) / 0.75)",
+            }}
+            className={cn(
+              "absolute inset-0 m-auto overflow-hidden rounded-r-2xl border-y-2 border-r-2 border-slate-700/80 bg-gradient-to-br from-[#060D1E] via-[#0A1633] to-[#040814] shadow-2xl select-none transition-opacity duration-300",
+              isLibraryReady && !hasEngineFailed
+                ? "opacity-0 pointer-events-none z-0"
+                : "opacity-100 pointer-events-auto z-10"
+            )}
+          >
+            {renderCoverButton(staticCoverButtonRef)}
+          </div>
+
           {/* StPageFlip Host Container */}
           <div
             ref={flipBookRef}
             style={{
               width: isMobile ? `${pageWidth}px` : `${pageWidth * 2}px`,
               height: `${bookHeight}px`,
+              opacity: isLibraryReady ? 1 : 0,
+              pointerEvents: isLibraryReady ? "auto" : "none",
             }}
-            className="stf__parent relative overflow-visible cursor-grab active:cursor-grabbing"
+            className="stf__parent relative overflow-visible cursor-grab active:cursor-grabbing transition-opacity duration-200 max-[899px]:!w-full max-[899px]:!max-w-[420px] z-10"
           >
             {/* ------------------------------------------------------------- */}
             {/* PAGE 0: FRONT COVER (data-density="hard")                      */}
@@ -658,94 +972,7 @@ export function InnovationJournalBook({
               data-density="hard"
               style={{ width: `${pageWidth}px`, height: `${bookHeight}px` }}
             >
-              <button
-                ref={coverButtonRef}
-                type="button"
-                onClick={() => handleJumpToPage(1)}
-                aria-label="Open The Innovation Blog"
-                className="group relative w-full h-full text-left p-6 sm:p-8 flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan cursor-pointer"
-              >
-                {/* Spine crease shading on left edge */}
-                <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-black via-black/60 to-transparent pointer-events-none" />
-
-                {/* Page block layered edge on right and bottom */}
-                <div className="absolute inset-y-0 right-0 w-2.5 bg-gradient-to-l from-[#CBD5E1]/20 via-[#94A3B8]/10 to-transparent pointer-events-none" />
-                <div className="absolute inset-x-0 bottom-0 h-2 bg-gradient-to-t from-[#CBD5E1]/20 via-[#94A3B8]/10 to-transparent pointer-events-none" />
-
-                {/* Narrow silk bookmark ribbon with swallowtail cut (A4.2) */}
-                <div
-                  className="absolute -bottom-5 left-14 w-4 h-9 bg-gradient-to-b from-[#1E3A8A] via-[#1E40AF] to-[#172554] shadow-md pointer-events-none z-20"
-                  style={{
-                    clipPath:
-                      "polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 7px), 0 100%)",
-                  }}
-                >
-                  <div className="absolute inset-y-0 left-0 w-[1px] bg-amber-300/40" />
-                  <div className="absolute inset-y-0 right-0 w-[1px] bg-amber-300/40" />
-                </div>
-
-                {/* Embossed Inner Cover Frame with 8% margin rule */}
-                <div
-                  ref={innerFrameRef}
-                  style={{ containerType: "inline-size" }}
-                  className="relative w-full h-full border border-slate-700/70 rounded-xl p-6 sm:p-8 flex flex-col justify-between"
-                >
-                  <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-brand-cyan/60 rounded-tl" />
-                  <div className="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-brand-cyan/60 rounded-tr" />
-                  <div className="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-brand-cyan/60 rounded-bl" />
-                  <div className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-brand-cyan/60 rounded-br" />
-
-                  {/* Top Emblem & Header with Official IEDC Logo (A4.3) */}
-                  <div className="space-y-3 text-center">
-                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-900/80 border border-brand-cyan/40 shadow-[0_0_15px_rgba(56,189,248,0.25)] p-1.5 mx-auto">
-                      <Image
-                        src="/images/iedc-logo.png"
-                        alt="IEDC Logo"
-                        width={36}
-                        height={36}
-                        className="object-contain"
-                        priority
-                      />
-                    </div>
-                    <span className="block text-[11px] font-mono tracking-[0.25em] text-slate-300 uppercase font-semibold">
-                      {SITE_CONFIG.name}
-                    </span>
-                  </div>
-
-                  {/* FIX 2: Title Area: THE INNOVATION BLOG */}
-                  <div className="space-y-3 text-center my-auto py-4">
-                    <span className="block text-xs font-mono tracking-[0.3em] text-brand-cyan/90 uppercase">
-                      THE
-                    </span>
-                    <h2
-                      ref={innovationWordRef}
-                      style={{
-                        fontSize: `calc(clamp(1.4rem, 7.6cqw, 2.5rem) * ${coverTitleScale})`,
-                        letterSpacing: "-0.02em",
-                        overflowWrap: "break-word",
-                      }}
-                      className="font-display font-bold uppercase text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-brand-cyan drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] leading-tight"
-                    >
-                      INNOVATION
-                    </h2>
-                    <span className="block font-display text-lg sm:text-xl font-semibold text-slate-200 tracking-wider">
-                      BLOG
-                    </span>
-                    <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-brand-cyan to-transparent mx-auto pt-1" />
-                    <span className="block text-[11px] font-sans text-slate-400 font-medium pt-1">
-                      Ideas · People · Impact
-                    </span>
-                  </div>
-
-                  {/* Open Button Affordance */}
-                  <div className="text-center pt-2">
-                    <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-slate-900/90 border border-brand-cyan/40 text-xs font-mono tracking-wider uppercase text-brand-cyan group-hover:text-typo-white group-hover:border-brand-cyan shadow-md transition-all">
-                      <BookOpen className="w-3.5 h-3.5" />
-                      <span>Open blog →</span>
-                    </span>
-                  </div>
-                </div>
-              </button>
+              {renderCoverButton(coverButtonRef)}
             </div>
 
             {/* ------------------------------------------------------------- */}
@@ -1283,15 +1510,49 @@ export function InnovationJournalBook({
         </div>
       </div>
 
-      {/* 4. Readers' Remarks & Discussion Section */}
-      {activeCommentBlog && (
-        <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-12">
-          <BlogCommentsSection
-            blogSlug={activeCommentBlog.slug}
-            blogTitle={activeCommentBlog.title}
-          />
+      {/* Safeguard d: Fallback Article Index if Flip Engine Failed or Timed Out */}
+      {hasEngineFailed && (
+        <div className="w-full max-w-xl mx-auto mt-4 mb-6 p-4 sm:p-6 rounded-2xl bg-foundation-dark/95 border border-amber-500/40 text-left shadow-2xl">
+          <div className="flex items-center gap-2 text-amber-400 text-xs sm:text-sm font-mono font-semibold mb-3">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>Interactive book engine unavailable — Published Index:</span>
+          </div>
+          <ul className="space-y-2.5">
+            {blogs.map((b) => (
+              <li
+                key={b.id || b.slug}
+                className="flex items-baseline justify-between gap-4 border-b border-slate-800 pb-2"
+              >
+                <Link
+                  href={`/blog/${b.slug}`}
+                  className="text-sm sm:text-base text-brand-cyan hover:underline font-serif font-medium"
+                >
+                  {b.title}
+                </Link>
+                <span className="text-xs font-mono text-typo-gray whitespace-nowrap shrink-0">
+                  {getPubDate(b)}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
+
+      {/* 4. Readers' Remarks & Discussion Section (BUG 2.1: currentPost is null on cover/intro/contents/back cover) */}
+      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-12">
+        {currentPost ? (
+          <BlogCommentsSection
+            blogSlug={currentPost.slug}
+            blogTitle={currentPost.title}
+          />
+        ) : (
+          <div className="w-full py-8 px-6 rounded-2xl bg-foundation-dark/40 border border-slate-800/80 text-center select-none">
+            <p className="text-xs sm:text-sm font-mono text-typo-gray/70">
+              Open a story to read and join the discussion
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Lightbox Modal for Figures */}
       {lightboxImage && (
