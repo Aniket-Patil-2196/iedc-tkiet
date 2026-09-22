@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Reveal } from "@/components/animation/Reveal";
 import { User, GraduationCap, ShieldCheck, Linkedin, Github, Twitter } from "lucide-react";
 import Image from "next/image";
+import { EventHeroCanvas } from "@/components/events/EventHeroCanvas";
 
 interface TeamDirectoryProps {
   members?: ITeamMember[];
@@ -25,33 +26,35 @@ export function TeamDirectory({ members = [] }: TeamDirectoryProps) {
   return (
     <div className="w-full space-y-24 py-8">
       {/* 1. MANDATORY: Student Team FIRST */}
-      <section className="space-y-10">
-        <div className="border-b border-foundation-slate/60 pb-6">
-          <div className="inline-flex items-center gap-2 text-xs uppercase font-sans tracking-[0.2em] text-brand-cyan font-bold mb-2">
-            <GraduationCap className="w-4 h-4" />
-            Student Leadership & Cohorts
-          </div>
-          <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-typo-white tracking-tight">
-            Student Initiative Team
-          </h2>
-          <p className="font-sans text-sm sm:text-base text-typo-gray max-w-2xl mt-2 leading-relaxed">
-            Engineering innovators and student coordinators driving peer hackathons, prototyping labs, and campus enterprise activities.
-          </p>
-        </div>
-
-        {students.length === 0 ? (
-          <div className="p-12 rounded-2xl bg-foundation-dark/40 border border-foundation-slate/60 text-center space-y-3">
-            <GraduationCap className="w-8 h-8 text-brand-cyan/60 mx-auto" />
-            <h3 className="font-display text-lg font-bold text-typo-white">
-              Student Cohort In Formation
-            </h3>
-            <p className="font-sans text-sm text-typo-gray max-w-md mx-auto">
-              The student innovation and coordination committee for the academic session is currently being formalized by the cell.
+      <section className="relative rounded-3xl p-6 sm:p-10 md:p-12 border border-foundation-slate/40 bg-foundation-dark/30 backdrop-blur-sm overflow-hidden space-y-10">
+        <EventHeroCanvas variant="wash" />
+        <div className="relative z-10 space-y-10">
+          <div className="border-b border-foundation-slate/60 pb-6">
+            <div className="inline-flex items-center gap-2 text-xs uppercase font-sans tracking-[0.2em] text-brand-cyan font-bold mb-2">
+              <GraduationCap className="w-4 h-4" />
+              Student Leadership & Cohorts
+            </div>
+            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-typo-white tracking-tight">
+              Student Initiative Team
+            </h2>
+            <p className="font-sans text-sm sm:text-base text-typo-gray max-w-2xl mt-2 leading-relaxed">
+              Engineering innovators and student coordinators driving peer hackathons, prototyping labs, and campus enterprise activities.
             </p>
           </div>
-        ) : (
-          /* Dynamic Asymmetric Editorial Layout for Students */
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
+
+          {students.length === 0 ? (
+            <div className="p-12 rounded-2xl bg-foundation-dark/40 border border-foundation-slate/60 text-center space-y-3">
+              <GraduationCap className="w-8 h-8 text-brand-cyan/60 mx-auto" />
+              <h3 className="font-display text-lg font-bold text-typo-white">
+                Team roster coming soon
+              </h3>
+              <p className="font-sans text-sm text-typo-gray max-w-md mx-auto">
+                The student innovation and coordination committee for the academic session is currently being formalized by the cell.
+              </p>
+            </div>
+          ) : (
+            /* Dynamic Asymmetric Editorial Layout for Students */
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
             {students.map((student, index) => {
               // Dynamic layout balancing:
               // 1 item -> full width centered
@@ -195,36 +198,39 @@ export function TeamDirectory({ members = [] }: TeamDirectoryProps) {
                 </div>
               );
             })}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* 2. MANDATORY: Faculty Team SECOND */}
-      <section className="space-y-10 pt-8 border-t border-foundation-slate/60">
-        <div className="border-b border-foundation-slate/60 pb-6">
-          <div className="inline-flex items-center gap-2 text-xs uppercase font-sans tracking-[0.2em] text-brand-cyan font-bold mb-2">
-            <ShieldCheck className="w-4 h-4" />
-            Institutional Governance & Mentorship
-          </div>
-          <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-typo-white tracking-tight">
-            Faculty Mentors & Advisory
-          </h2>
-          <p className="font-sans text-sm sm:text-base text-typo-gray max-w-2xl mt-2 leading-relaxed">
-            Experienced academic leadership providing institutional compliance, patent evaluation, and engineering project alignment.
-          </p>
-        </div>
-
-        {faculty.length === 0 ? (
-          <div className="p-12 rounded-2xl bg-foundation-dark/40 border border-foundation-slate/60 text-center space-y-3">
-            <ShieldCheck className="w-8 h-8 text-brand-cyan/60 mx-auto" />
-            <h3 className="font-display text-lg font-bold text-typo-white">
-              Faculty Advisory In Review
-            </h3>
-            <p className="font-sans text-sm text-typo-gray max-w-md mx-auto">
-              Institutional faculty coordinators and department mentors will be listed here following academic council appointments.
+      <section className="relative rounded-3xl p-6 sm:p-10 md:p-12 border border-foundation-slate/40 bg-foundation-dark/30 backdrop-blur-sm overflow-hidden space-y-10">
+        <EventHeroCanvas variant="wash" />
+        <div className="relative z-10 space-y-10">
+          <div className="border-b border-foundation-slate/60 pb-6">
+            <div className="inline-flex items-center gap-2 text-xs uppercase font-sans tracking-[0.2em] text-brand-cyan font-bold mb-2">
+              <ShieldCheck className="w-4 h-4" />
+              Institutional Governance & Mentorship
+            </div>
+            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-typo-white tracking-tight">
+              Faculty Mentors & Advisory
+            </h2>
+            <p className="font-sans text-sm sm:text-base text-typo-gray max-w-2xl mt-2 leading-relaxed">
+              Experienced academic leadership providing institutional compliance, patent evaluation, and engineering project alignment.
             </p>
           </div>
-        ) : (
+
+          {faculty.length === 0 ? (
+            <div className="p-12 rounded-2xl bg-foundation-dark/40 border border-foundation-slate/60 text-center space-y-3">
+              <ShieldCheck className="w-8 h-8 text-brand-cyan/60 mx-auto" />
+              <h3 className="font-display text-lg font-bold text-typo-white">
+                Team roster coming soon
+              </h3>
+              <p className="font-sans text-sm text-typo-gray max-w-md mx-auto">
+                Institutional faculty coordinators and department mentors will be listed here following academic council appointments.
+              </p>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {faculty.map((member, index) => {
               const isSelected = activeFacultyId === member.id;
@@ -312,6 +318,7 @@ export function TeamDirectory({ members = [] }: TeamDirectoryProps) {
             })}
           </div>
         )}
+        </div>
       </section>
     </div>
   );

@@ -4,6 +4,7 @@ import { Section } from "@/components/ui/Section";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { TeamDirectory } from "@/components/team/TeamDirectory";
 import { getPublishedTeamMembers } from "@/lib/db/queries";
+import { EventHeroCanvas } from "@/components/events/EventHeroCanvas";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +20,10 @@ export default async function TeamPage() {
 
   return (
     <div className="flex flex-col flex-1 w-full overflow-hidden bg-foundation-darkest">
-      <Section spacing="lg" hasAsymmetricGrid className="border-b border-foundation-slate/50">
-        <Container size="lg">
+      {/* Hero Section with calm galaxy starfield */}
+      <Section spacing="lg" hasAsymmetricGrid className="relative border-b border-foundation-slate/50 overflow-hidden">
+        <EventHeroCanvas variant="calm" />
+        <Container size="lg" className="relative z-10">
           <PageHeading
             badge="Innovation Stewards"
             title="The IEDC Team"
@@ -29,7 +32,8 @@ export default async function TeamPage() {
         </Container>
       </Section>
 
-      <Section spacing="lg" className="bg-foundation-darkest">
+      {/* Directory Content Sections */}
+      <Section spacing="none" className="bg-foundation-darkest py-12 md:py-20">
         <Container size="lg">
           <TeamDirectory members={members} />
         </Container>

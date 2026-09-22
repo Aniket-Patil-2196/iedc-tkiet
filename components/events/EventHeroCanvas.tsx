@@ -14,7 +14,15 @@ interface Star {
   twinklePhase: number;
 }
 
-export function EventHeroCanvas() {
+export interface EventHeroCanvasProps {
+  variant?: "default" | "calm" | "wash";
+  className?: string;
+}
+
+export function EventHeroCanvas({
+  variant = "default",
+  className,
+}: EventHeroCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -49,7 +57,13 @@ export function EventHeroCanvas() {
 
     const initStars = () => {
       const isMobile = window.innerWidth < 768;
-      const count = isMobile ? 45 : 110;
+      let count = isMobile ? 45 : 110;
+      if (variant === "calm") {
+        count = isMobile ? 22 : 48;
+      } else if (variant === "wash") {
+        count = isMobile ? 10 : 22;
+      }
+
       stars = [];
 
       for (let i = 0; i < count; i++) {
@@ -60,14 +74,17 @@ export function EventHeroCanvas() {
             ? starColors[2] // Blue
             : starColors[0]; // White
 
-        const baseAlpha = Math.random() * 0.6 + 0.2;
+        const rawAlpha = Math.random() * 0.6 + 0.2;
+        // In "wash" variant, keep stars much subtler to prevent content distraction
+        const baseAlpha = variant === "wash" ? rawAlpha * 0.45 : rawAlpha;
+
         stars.push({
           x: Math.random() * width,
           y: Math.random() * height,
-          radius: Math.random() * 1.4 + 0.4,
+          radius: variant === "wash" ? Math.random() * 1.1 + 0.3 : Math.random() * 1.4 + 0.4,
           baseAlpha,
           alpha: baseAlpha,
-          speed: (Math.random() * 0.15 + 0.05) * (prefersReducedMotion ? 0 : 1),
+          speed: (Math.random() * 0.12 + 0.04) * (prefersReducedMotion ? 0 : 1),
           color,
           twinkleSpeed: Math.random() * 0.02 + 0.005,
           twinklePhase: Math.random() * Math.PI * 2,
@@ -146,28 +163,44 @@ export function EventHeroCanvas() {
         height * 0.5,
         width * 0.75
       );
-      bgGrad.addColorStop(0, "rgba(23, 37, 84, 0.22)"); // Deep blue glow
-      bgGrad.addColorStop(0.5, "rgba(13, 17, 26, 0.1)");
-      bgGrad.addColorStop(1, "rgba(8, 10, 15, 0)");
+      if (variant === "wash") {
+        bgGrad.addColorStop(0, "rgba(23, 37, 84, 0.06)");
+        bgGrad.addColorStop(0.5, "rgba(13, 17, 26, 0.02)");
+        bgGrad.addColorStop(1, "rgba(8, 10, 15, 0)");
+      } else if (variant === "calm") {
+        bgGrad.addColorStop(0, "rgba(23, 37, 84, 0.14)");
+        bgGrad.addColorStop(0.5, "rgba(13, 17, 26, 0.06)");
+        bgGrad.addColorStop(1, "rgba(8, 10, 15, 0)");
+      } else {
+        bgGrad.addColorStop(0, "rgba(23, 37, 84, 0.22)"); // Deep blue glow
+        bgGrad.addColorStop(0.5, "rgba(13, 17, 26, 0.1)");
+        bgGrad.addColorStop(1, "rgba(8, 10, 15, 0)");
+      }
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
-      // Draw faint geometric constellation linkage lines between select nearby stars
-      ctx.lineWidth = 0.5;
-      for (let i = 0; i < Math.min(stars.length, 30); i++) {
-        for (let j = i + 1; j < Math.min(stars.length, 30); j++) {
-          const s1 = stars[i];
-          const s2 = stars[j];
-          const dx = s1.x - s2.x;
-          const dy = s1.y - s2.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 110) {
-            const lineAlpha = (1 - dist / 110) * 0.12;
-            ctx.strokeStyle = `rgba(56, 189, 248, ${lineAlpha})`;
-            ctx.beginPath();
-            ctx.moveTo(s1.x + mouseX * (s1.radius * 0.4), s1.y + mouseY * (s1.radius * 0.4));
-            ctx.lineTo(s2.x + mouseX * (s2.radius * 0.4), s2.y + mouseY * (s2.radius * 0.4));
-            ctx.stroke();
+      // Draw faint geometric constellation linkage lines between select nearby stars (omitted in wash)
+      if (variant !== "wash") {
+        const maxLines = variant === "calm" ? 14 : 30;
+        const maxDist = variant === "calm" ? 85 : 110;
+        const alphaFactor = variant === "calm" ? 0.06 : 0.12;
+
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i < Math.min(stars.length, maxLines); i++) {
+          for (let j = i + 1; j < Math.min(stars.length, maxLines); j++) {
+            const s1 = stars[i];
+            const s2 = stars[j];
+            const dx = s1.x - s2.x;
+            const dy = s1.y - s2.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < maxDist) {
+              const lineAlpha = (1 - dist / maxDist) * alphaFactor;
+              ctx.strokeStyle = `rgba(56, 189, 248, ${lineAlpha})`;
+              ctx.beginPath();
+              ctx.moveTo(s1.x + mouseX * (s1.radius * 0.4), s1.y + mouseY * (s1.radius * 0.4));
+              ctx.lineTo(s2.x + mouseX * (s2.radius * 0.4), s2.y + mouseY * (s2.radius * 0.4));
+              ctx.stroke();
+            }
           }
         }
       }
@@ -192,11 +225,11 @@ export function EventHeroCanvas() {
 
         ctx.beginPath();
         ctx.arc(px, py, star.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `${star.color}${Math.max(0.05, star.alpha)})`;
+        ctx.fillStyle = `${star.color}${Math.max(0.04, star.alpha)})`;
         ctx.fill();
 
-        // Subtle bloom around brightest stars
-        if (star.radius > 1.3) {
+        // Subtle bloom around brightest stars (skipped in wash mode)
+        if (variant !== "wash" && star.radius > 1.3) {
           ctx.beginPath();
           ctx.arc(px, py, star.radius * 2.8, 0, Math.PI * 2);
           ctx.fillStyle = `rgba(56, 189, 248, ${star.alpha * 0.18})`;
@@ -216,13 +249,13 @@ export function EventHeroCanvas() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       observer.disconnect();
     };
-  }, []);
+  }, [variant]);
 
   return (
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className="absolute inset-0 w-full h-full pointer-events-none z-0"
+      className={`absolute inset-0 w-full h-full pointer-events-none z-0 ${className || ""}`}
     />
   );
 }

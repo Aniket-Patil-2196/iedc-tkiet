@@ -240,34 +240,14 @@ export async function getPublishedTeamMembers(): Promise<ITeamMember[]> {
           id: d._id.toString(),
         })) as ITeamMember[];
       }
-      if (isProduction) return [];
+      return [];
     }
   } catch (err) {
     console.warn("[DB QUERY WARNING - TEAM]", err);
   }
 
-  if (isProduction) return [];
-
-  // Development fallback: construct ITeamMember list from placeholders
-  const students: ITeamMember[] = PLACEHOLDER_STUDENT_TEAM.map((s, idx) => ({
-    id: s.id,
-    name: s.name,
-    role: s.position,
-    department: s.department,
-    category: "student_lead",
-    bio: s.bio,
-    order: idx + 1,
-  }));
-  const faculty: ITeamMember[] = PLACEHOLDER_FACULTY_TEAM.map((f, idx) => ({
-    id: f.id,
-    name: f.name,
-    role: f.position,
-    department: f.department,
-    category: "faculty_coordinator",
-    bio: f.bio,
-    order: idx + 10,
-  }));
-  return [...students, ...faculty];
+  // Clean failure mode: return clean empty array on DB disconnect / 0 records (no fake placeholders)
+  return [];
 }
 
 /**
