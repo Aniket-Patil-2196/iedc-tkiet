@@ -125,8 +125,8 @@ export function PostageStamp({
               const rotation = idx === 0 ? "rotate-[3deg]" : "rotate-[-4deg]";
               const positionClass =
                 idx === 0
-                  ? "-bottom-3 -right-2 w-28 sm:w-36 z-20"
-                  : "-bottom-4 left-2 w-28 sm:w-36 z-20";
+                  ? "-bottom-2 right-0 max-[360px]:w-24 w-28 sm:w-36 z-20"
+                  : "-bottom-3 left-1 max-[360px]:w-24 w-28 sm:w-36 z-20";
 
               return (
                 <div
@@ -175,10 +175,10 @@ export function PostageStamp({
             <div
               aria-hidden="true"
               style={{ mixBlendMode: "multiply" }}
-              className="absolute -top-3 -right-3 z-30 pointer-events-none rotate-[12deg] flex items-center gap-1.5 opacity-55 text-[#1B2333]"
+              className="absolute -top-2 right-0 sm:-top-3 sm:-right-2 z-30 pointer-events-none rotate-[12deg] flex items-center gap-1.5 opacity-55 text-[#1B2333]"
             >
               {/* Circular Postal Stamp */}
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-dashed border-[#1B2333] flex flex-col items-center justify-center p-1 text-center bg-transparent">
+              <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full border-2 border-dashed border-[#1B2333] flex flex-col items-center justify-center p-1 text-center bg-transparent">
                 <span className="text-[9px] sm:text-[10px] font-book-handwriting font-bold text-[#1B2333] tracking-wider leading-none">
                   IEDC TKIET
                 </span>

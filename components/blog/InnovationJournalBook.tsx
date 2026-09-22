@@ -29,6 +29,8 @@ import { ThePen, BookDisplayState } from "./ThePen";
 import { stripHtmlToPlainText } from "@/lib/utils/blog-validation";
 import { SITE_CONFIG } from "@/lib/constants/site";
 import { cn } from "@/lib/utils";
+import { MobileBookLayout } from "./MobileBookLayout";
+
 
 interface InnovationJournalBookProps {
   blogs: IBlog[];
@@ -96,6 +98,18 @@ export function InnovationJournalBook({
   const [dimensions, setDimensions] = useState({ bookHeight: 620, pageWidth: 465 });
   const { bookHeight, pageWidth } = dimensions;
 
+  // isMobileView: true below 768px — triggers the mobile card stack layout instead of PageFlip.
+  // This is separate from isMobile (< 900px) which controls portrait/landscape in the flip engine.
+  const [isMobileView, setIsMobileView] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  useEffect(() => {
+    const check = () => setIsMobileView(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check, { passive: true });
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   // Active Reference Canvas for current mode (Ratio 3:4)
   const refW = isMobile ? MOBILE_REF_W : DESKTOP_REF_W;
   const refH = isMobile ? MOBILE_REF_H : DESKTOP_REF_H;
@@ -120,7 +134,7 @@ export function InnovationJournalBook({
 
   // BUG 1.2: Sizing from measured DOM node's getBoundingClientRect() with < 50 guard and 5 retries
   const computeDimensions = useCallback(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || isMobileView) return;
 
     const stageEl = bookStageRef.current;
     if (!stageEl) {
@@ -198,7 +212,7 @@ export function InnovationJournalBook({
     const finalBookHeight = Math.round(idealPageWidth / 0.75);
 
     setDimensions({ bookHeight: finalBookHeight, pageWidth: idealPageWidth });
-  }, []);
+  }, [isMobileView]);
 
   useEffect(() => {
     computeDimensions();
@@ -286,6 +300,8 @@ export function InnovationJournalBook({
   // StPageFlip (B1 & Explicit Landscape vs Portrait + Safeguards)
   // -------------------------------------------------------------
   useEffect(() => {
+    if (isMobileView) return;
+
     let isMounted = true;
 
     // Safeguard d: 3-second initialization timeout fallback
@@ -487,6 +503,7 @@ export function InnovationJournalBook({
       }
     };
   }, [
+    isMobileView,
     isMobile,
     pageWidth,
     bookHeight,
@@ -541,21 +558,20 @@ export function InnovationJournalBook({
     }
   }, [totalPages, totalIntroPages, blogs]);
 
-  // BUG 2.4: open() function calls flip library turnToPage(1) explicitly as its LAST action, after state resets
+  // BUG B: use pf.flip(1) (animated) not turnToPage(1) (instant).
+  // Only set isAnimating(true) immediately so the pen hides during the animation.
+  // displayState, currentPageIndex are updated by the existing flip/changeState callbacks
+  // when the animation completes — do NOT pre-set them here.
   const handleOpenBook = useCallback(() => {
     setCurrentPost(null);
-    setDisplayState("open");
-    setIsAnimating(false);
-    setCurrentPageIndex(1);
+    setIsAnimating(true); // hides pen cleanly for the duration of the animation
 
     if (pageFlipRef.current) {
-      pageFlipRef.current.turnToPage(1);
+      pageFlipRef.current.flip(1); // animated cover-open; callbacks handle state on completion
     } else {
       openPendingRef.current = true;
     }
   }, []);
-
-  const open = handleOpenBook;
 
   // BUG 2.3: Read ?post= URL parameter ONLY on initial load and on popstate (skipping when isInternalUpdate is true)
   useEffect(() => {
@@ -623,6 +639,8 @@ export function InnovationJournalBook({
 
   // Keyboard Navigation: Arrows, Space/Enter, Escape (B2 & B4)
   useEffect(() => {
+    if (isMobileView) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (lightboxImage) return;
 
@@ -635,10 +653,13 @@ export function InnovationJournalBook({
 
       if (displayState === "closed-front") {
         if (e.key === "Enter" || e.key === " ") {
-          if (
-            document.activeElement === coverButtonRef.current ||
-            document.activeElement === staticCoverButtonRef.current
-          ) {
+          // Skip if the user is typing in a form field or editable element
+          const active = document.activeElement;
+          const isTyping =
+            active instanceof HTMLInputElement ||
+            active instanceof HTMLTextAreaElement ||
+            (active instanceof HTMLElement && active.isContentEditable);
+          if (!isTyping) {
             e.preventDefault();
             handleOpenBook();
           }
@@ -657,7 +678,7 @@ export function InnovationJournalBook({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [displayState, lightboxImage, handleJumpToPage, handleNextPage, handlePrevPage]);
+  }, [isMobileView, displayState, lightboxImage, handleJumpToPage, handleOpenBook, handleNextPage, handlePrevPage]);
 
   // Safe publication date formatting
   const getPubDate = (blog: IBlog) => {
@@ -753,6 +774,10 @@ export function InnovationJournalBook({
       ref={btnRef}
       type="button"
       onClick={handleOpenBook}
+      // stopPropagation on mousedown prevents PageFlip's distElement mousedown listener
+      // from seeing this event, so it never sets isUserTouch=true. Without this, clicking
+      // any inner <div> child of the button causes PageFlip's userStop → flip (second flip).
+      onMouseDown={(e) => e.stopPropagation()}
       aria-label="Open The Innovation Blog"
       className="group relative w-full h-full text-left p-6 sm:p-8 flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan cursor-pointer"
     >
@@ -855,8 +880,17 @@ export function InnovationJournalBook({
     return `Pages ${leftPage + 1}-${rightPage + 1} of ${totalPages}`;
   }, [displayState, currentPageIndex, totalPages, isMobile]);
 
+  // ── Render: CSS-based display switching between Mobile and Desktop to prevent SSR hydration mismatch ────
   return (
-    <div ref={containerRef} className="w-full flex flex-col items-center">
+    <>
+      {/* Mobile Card Stack Layout (< 768px) */}
+      <div className="w-full md:hidden">
+        <MobileBookLayout blogs={blogs} initialPostSlug={initialPostSlug} />
+      </div>
+
+      {/* Desktop Flip Book Layout (>= 768px) */}
+      <div className="w-full hidden md:block">
+        <div ref={containerRef} className="w-full flex flex-col items-center">
       {/* 1. Header Row (FIX 2: The Innovation Blog + Chip: IEDC TKIET) */}
       <header
         ref={headerRef}
@@ -1563,6 +1597,8 @@ export function InnovationJournalBook({
           onClose={() => setLightboxImage(null)}
         />
       )}
-    </div>
+        </div>
+      </div>
+    </>
   );
 }
