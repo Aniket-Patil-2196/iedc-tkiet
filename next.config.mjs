@@ -25,11 +25,11 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   env: {
-    PAYMENTS_ENABLED: process.env.PAYMENTS_ENABLED || "false",
+    PAYMENTS_ENABLED: process.env.PAYMENTS_ENABLED || "true",
     NEXT_PUBLIC_PAYMENTS_ENABLED:
-      process.env.PAYMENTS_ENABLED ||
       process.env.NEXT_PUBLIC_PAYMENTS_ENABLED ||
-      "false",
+      process.env.PAYMENTS_ENABLED ||
+      "true",
   },
   transpilePackages: ["three", "@react-three/fiber"],
   images: {

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import {
   EventStatusResult,
+  RegistrationAction,
   getRegistrationAction,
 } from "@/lib/utils/event-status";
 import { EventRegistrationModal } from "@/components/events/EventRegistrationModal";
@@ -49,6 +50,7 @@ export interface EventRegistrationPanelProps {
   formattedDate: string;
   formattedTime?: string | null;
   formattedDeadline?: string | null;
+  initialAction?: RegistrationAction;
 }
 
 export function EventRegistrationPanel({
@@ -59,11 +61,12 @@ export function EventRegistrationPanel({
   formattedDate,
   formattedTime,
   formattedDeadline,
+  initialAction,
 }: EventRegistrationPanelProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const action = getRegistrationAction(event as any, status);
+  const action = initialAction || getRegistrationAction(event as any, status);
 
   const handleShare = async () => {
     if (typeof window === "undefined") return;

@@ -68,10 +68,14 @@ export function isDevelopmentPlaceholder(event?: {
  */
 export function isPaymentsEnabled(): boolean {
   if (typeof process !== "undefined" && process.env) {
-    if (process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === "true") return true;
-    if (process.env.PAYMENTS_ENABLED === "true") return true;
+    if (process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === "false" || process.env.PAYMENTS_ENABLED === "false") {
+      return false;
+    }
+    if (process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === "true" || process.env.PAYMENTS_ENABLED === "true") {
+      return true;
+    }
   }
-  return false;
+  return true;
 }
 
 /**

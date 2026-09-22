@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/queries";
 import {
   getEventStatus,
+  getRegistrationAction,
   getEventDateUtc,
   formatEventDate,
   formatEventTimeRange,
@@ -94,6 +95,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
   const now = new Date();
   const paidCount = paidCounts[event.id] || 0;
   const status = getEventStatus(event, paidCount, now);
+  const action = getRegistrationAction(event, status);
   const startUtc = getEventDateUtc(event.startDate || event.date, event.startTime);
   const isPlaceholder = isDevelopmentPlaceholder(event);
 
@@ -344,6 +346,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
                 formattedDate={formattedDate}
                 formattedTime={formattedTime}
                 formattedDeadline={formattedDeadline}
+                initialAction={action}
               />
             </div>
           </div>
