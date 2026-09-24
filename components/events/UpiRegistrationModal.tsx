@@ -69,7 +69,6 @@ export function UpiRegistrationModal({ isOpen, onClose, event }: UpiRegistration
     year: "3rd Year",
   });
   const [paymentPlan, setPaymentPlan] = useState<"full" | "installment">("full");
-  const [upiTransactionRef, setUpiTransactionRef] = useState("");
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofPreview, setProofPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -122,7 +121,6 @@ export function UpiRegistrationModal({ isOpen, onClose, event }: UpiRegistration
         year: "3rd Year",
       });
       setPaymentPlan("full");
-      setUpiTransactionRef("");
       setProofFile(null);
       setProofPreview(null);
       setErrorMessage(null);
@@ -211,10 +209,6 @@ export function UpiRegistrationModal({ isOpen, onClose, event }: UpiRegistration
       setErrorMessage("Please upload your payment screenshot/proof.");
       return;
     }
-    if (!upiTransactionRef.trim() || upiTransactionRef.trim().length < 4) {
-      setErrorMessage("Please enter your UPI transaction reference number / UTR.");
-      return;
-    }
 
     setErrorMessage(null);
     setUploading(true);
@@ -253,7 +247,6 @@ export function UpiRegistrationModal({ isOpen, onClose, event }: UpiRegistration
           department: formData.department.trim(),
           year: formData.year,
           installmentPlan: paymentPlan,
-          upiTransactionRef: upiTransactionRef.trim(),
           upiProofUrl: proofUrl,
         }),
       });
@@ -633,24 +626,8 @@ export function UpiRegistrationModal({ isOpen, onClose, event }: UpiRegistration
                 )}
 
                 <div className="p-2.5 rounded-lg bg-foundation-darkest/40 border border-foundation-slate/40 text-[11px] text-typo-gray leading-relaxed">
-                  💡 <span className="text-typo-white font-medium">Important:</span> After completing your UPI transfer, take a clear screenshot showing the transaction amount, date, and UTR / Reference ID. Upload below.
+                  💡 <span className="text-typo-white font-medium">Important:</span> After completing your UPI transfer, take a clear screenshot showing the transaction amount, date, and reference details. Upload below.
                 </div>
-              </div>
-
-              {/* UPI Transaction Reference */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
-                  UPI UTR / Transaction Reference Number *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={upiTransactionRef}
-                  onChange={(e) => setUpiTransactionRef(e.target.value)}
-                  placeholder="e.g. 412345678901 or HDFC0001234"
-                  className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan font-mono"
-                  disabled={submitting || uploading}
-                />
               </div>
 
               {/* Proof Image Upload */}

@@ -26,7 +26,12 @@ const UpiRegisterSchema = z.object({
   department: z.string().trim().min(1, "Department is required").max(100),
   year: z.string().trim().min(1, "Year of study is required").max(50),
   installmentPlan: z.enum(["full", "installment"]).default("full"),
-  upiTransactionRef: z.string().trim().min(4, "Transaction reference or UTR is required").max(100),
+  upiTransactionRef: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
   upiProofUrl: z.string().min(1, "Payment proof screenshot is required"),
   // Client-supplied amount intentionally ignored — server recalculates from EventModel
 });
@@ -166,22 +171,26 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     // 7. Prevent duplicate UTR / transaction reference submissions
-    const existingUpiRef = await RegistrationModel.findOne({
-      eventId: event._id,
-      $or: [
-        { upiTransactionRef },
-        { part2TransactionRef: upiTransactionRef },
-      ],
-      status: { $in: ["pending", "verification_required", "paid"] },
-    });
-    if (existingUpiRef) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "This UPI transaction reference has already been submitted for this event.",
-        },
-        { status: 409 }
-      );
+    // Only when a UTR is provided — new UI no longer collects UTR, so this
+    // check is skipped for screenshot-only submissions.
+    if (upiTransactionRef && upiTransactionRef.length >= 4) {
+      const existingUpiRef = await RegistrationModel.findOne({
+        eventId: event._id,
+        $or: [
+          { upiTransactionRef },
+          { part2TransactionRef: upiTransactionRef },
+        ],
+        status: { $in: ["pending", "verification_required", "paid"] },
+      });
+      if (existingUpiRef) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "This UPI transaction reference has already been submitted for this event.",
+          },
+          { status: 409 }
+        );
+      }
     }
 
     // 8. Compute amount server-side from EventModel (never trust client amount)
@@ -219,7 +228,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       paymentMethod: "MANUAL_UPI",
       paymentMode: "manual_upi",
       upiProofUrl,
-      upiTransactionRef,
+      upiTransactionRef: upiTransactionRef || null,
       upiId: event.upiId || null,
       upiQrUrl: event.upiQrUrl || null,
       installmentPlan: chosenPlan,

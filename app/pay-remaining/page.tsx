@@ -199,7 +199,7 @@ export default function PayRemainingPage() {
                     type="text"
                     value={regId}
                     onChange={(e) => setRegId(e.target.value)}
-                    placeholder="MongoDB / Registration ID from your confirmation"
+                    placeholder="Registration ID from your confirmation"
                     className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan font-mono"
                   />
                 </div>

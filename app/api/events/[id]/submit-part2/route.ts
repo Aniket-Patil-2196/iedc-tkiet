@@ -20,8 +20,9 @@ const Part2Schema = z
     upiTransactionRef: z
       .string()
       .trim()
-      .min(4, "Transaction reference or UTR is required")
-      .max(100),
+      .max(100)
+      .optional()
+      .transform((v) => (v && v.length > 0 ? v : undefined)),
     upiProofUrl: z.string().min(1, "Payment proof screenshot is required"),
     // Client-supplied remaining/amount intentionally ignored
   })
@@ -153,27 +154,30 @@ export async function POST(request: Request, { params }: RouteParams) {
       }
     }
 
-    // Duplicate UTR detection (part1 or part2 slots)
-    const duplicateUtr = await RegistrationModel.findOne({
-      eventId: registration.eventId,
-      _id: { $ne: registration._id },
-      $or: [
-        { upiTransactionRef },
-        { part2TransactionRef: upiTransactionRef },
-      ],
-      status: { $in: ["pending", "verification_required", "paid"] },
-    });
-    if (duplicateUtr || registration.upiTransactionRef === upiTransactionRef) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "This UPI transaction reference has already been used.",
-        },
-        { status: 409 }
-      );
+    // Duplicate UTR detection (part1 or part2 slots) — only when a UTR is provided.
+    // Screenshot-only submissions skip this check (no UTR to compare).
+    if (upiTransactionRef && upiTransactionRef.length >= 4) {
+      const duplicateUtr = await RegistrationModel.findOne({
+        eventId: registration.eventId,
+        _id: { $ne: registration._id },
+        $or: [
+          { upiTransactionRef },
+          { part2TransactionRef: upiTransactionRef },
+        ],
+        status: { $in: ["pending", "verification_required", "paid"] },
+      });
+      if (duplicateUtr || registration.upiTransactionRef === upiTransactionRef) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "This UPI transaction reference has already been used.",
+          },
+          { status: 409 }
+        );
+      }
     }
 
-    registration.part2TransactionRef = upiTransactionRef;
+    registration.part2TransactionRef = upiTransactionRef || undefined;
     registration.part2ProofUrl = upiProofUrl;
     registration.installmentStatus = "part2_pending";
     registration.status = "verification_required";
