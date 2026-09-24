@@ -11,6 +11,8 @@ export interface IImageDocument extends Document {
   size: number;
   width?: number;
   height?: number;
+  /** Opaque public identifier — preferred for sensitive uploads (UPI proofs). */
+  publicId?: string;
   createdAt: Date;
 }
 
@@ -21,6 +23,12 @@ const ImageSchema = new Schema<IImageDocument>(
     size: { type: Number, required: true },
     width: { type: Number },
     height: { type: Number },
+    publicId: {
+      type: String,
+      sparse: true,
+      unique: true,
+      index: true,
+    },
   },
   { timestamps: true }
 );

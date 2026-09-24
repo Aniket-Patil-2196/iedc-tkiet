@@ -29,6 +29,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get("eventId");
     const status = searchParams.get("status");
+    const paymentMethod = searchParams.get("paymentMethod");
     const search = searchParams.get("search")?.trim();
 
     const query: any = {};
@@ -38,7 +39,29 @@ export async function GET(request: Request) {
     }
 
     if (status && status !== "all") {
-      query.status = status;
+      if (status === "upi_pending") {
+        query.status = { $in: ["verification_required", "pending"] };
+        query.$and = [
+          ...(query.$and || []),
+          {
+            $or: [
+              { paymentMethod: "MANUAL_UPI" },
+              { paymentMode: "manual_upi" },
+            ],
+          },
+          {
+            installmentStatus: { $in: ["part1_pending", "part2_pending", null] },
+          },
+        ];
+      } else if (status === "cancelled") {
+        query.status = { $in: ["cancelled", "payment_rejected"] };
+      } else {
+        query.status = status;
+      }
+    }
+
+    if (paymentMethod && paymentMethod !== "all") {
+      query.paymentMethod = paymentMethod;
     }
 
     if (search) {
@@ -48,9 +71,11 @@ export async function GET(request: Request) {
         { email: searchRegex },
         { phone: searchRegex },
         { college: searchRegex },
+        { department: searchRegex },
         { receiptNumber: searchRegex },
         { razorpayPaymentId: searchRegex },
         { razorpayOrderId: searchRegex },
+        { upiTransactionRef: searchRegex },
       ];
     }
 
@@ -68,7 +93,7 @@ export async function GET(request: Request) {
 
     const allRecords = await RegistrationModel.find(
       metricsFilter,
-      "amount status createdAt"
+      "amount status paymentMethod paymentMode installmentPlan installmentStatus createdAt"
     ).lean();
 
     const fifteenMinutesAgo = Date.now() - 15 * 60 * 1000;
@@ -78,14 +103,30 @@ export async function GET(request: Request) {
     let refundedCount = 0;
     let failedCount = 0;
     let stalePendingCount = 0;
+    let upiPendingCount = 0;
 
     for (const record of allRecords) {
       if (record.status === "paid") {
         paidCount++;
         totalRevenuePaise += record.amount || 0;
-      } else if (record.status === "pending") {
+      } else if (
+        record.status === "pending" ||
+        record.status === "verification_required"
+      ) {
         pendingCount++;
-        if (new Date(record.createdAt).getTime() < fifteenMinutesAgo) {
+        const isManualUpi =
+          record.paymentMethod === "MANUAL_UPI" || record.paymentMode === "manual_upi";
+        const awaitingReview =
+          !record.installmentStatus ||
+          record.installmentStatus === "part1_pending" ||
+          record.installmentStatus === "part2_pending";
+        if (isManualUpi && awaitingReview) {
+          upiPendingCount++;
+        } else if (
+          record.status === "pending" &&
+          !isManualUpi &&
+          new Date(record.createdAt).getTime() < fifteenMinutesAgo
+        ) {
           stalePendingCount++;
         }
       } else if (record.status === "refunded") {
@@ -111,6 +152,7 @@ export async function GET(request: Request) {
         refundedCount,
         failedCount,
         stalePendingCount,
+        upiPendingCount,
       },
       events: events.map((e: any) => ({
         id: e._id.toString(),

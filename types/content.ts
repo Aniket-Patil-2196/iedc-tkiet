@@ -48,6 +48,14 @@ export interface IEvent {
   published: boolean;
   category: string;
   highlights?: string[];
+  // Manual UPI / Payment Configuration
+  paymentMethodType?: "RAZORPAY" | "MANUAL_UPI";
+  paymentMode?: "razorpay" | "manual_upi" | "free";
+  upiId?: string | null;
+  upiQrUrl?: string | null;
+  installmentEnabled?: boolean;
+  installmentPart1Amount?: number | null;
+  installmentPart2Amount?: number | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -57,7 +65,9 @@ export type RegistrationStatus =
   | "paid"
   | "failed"
   | "refunded"
-  | "cancelled";
+  | "cancelled"
+  | "verification_required"
+  | "payment_rejected";
 
 export interface IRegistration {
   id: string;
@@ -66,14 +76,33 @@ export interface IRegistration {
   email: string;
   phone: string;
   college: string;
+  department?: string;
   year: string;
   status: RegistrationStatus;
-  amount: number; // in paise
+  amount: number; // in paise (amount due / recorded for current stage)
+  totalAmount?: number; // full event fee in paise (snapshot at registration)
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   receiptNumber?: string;
   receiptToken: string;
-  paymentMethod?: string;
+  paymentMethod?: string; // e.g. "RAZORPAY" | "MANUAL_UPI" | "card" | "upi" | "free"
+  paymentMode?: "razorpay" | "manual_upi" | "free" | null;
+  // Manual UPI payment proof and installment fields
+  upiProofUrl?: string;
+  upiTransactionRef?: string;
+  // Snapshot of UPI config active at submission time (not live event reference)
+  upiId?: string | null;
+  upiQrUrl?: string | null;
+  installmentPlan?: "full" | "installment" | null;
+  installmentStatus?: "part1_pending" | "part1_paid" | "part2_pending" | "complete" | null;
+  part1PaidAt?: string | Date;
+  part2ProofUrl?: string;
+  part2TransactionRef?: string;
+  part2PaidAt?: string | Date;
+  adminNote?: string;
+  rejectionReason?: string;
+  verifiedAt?: string | Date;
+  verifiedBy?: string;
   paidAt?: string | Date;
   refundId?: string;
   refundedAt?: string | Date;

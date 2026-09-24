@@ -48,6 +48,13 @@ export default function AdminEventsPage() {
     coverImageWidth: undefined as number | undefined,
     coverImageHeight: undefined as number | undefined,
     published: true,
+    // UPI & Installment Configuration
+    paymentMode: "razorpay" as "razorpay" | "manual_upi" | "free",
+    upiId: "",
+    upiQrUrl: "",
+    installmentEnabled: false,
+    installmentPart1Amount: "",
+    installmentPart2Amount: "",
   });
 
   const fetchEvents = async () => {
@@ -96,6 +103,12 @@ export default function AdminEventsPage() {
       coverImageWidth: undefined,
       coverImageHeight: undefined,
       published: true,
+      paymentMode: "razorpay",
+      upiId: "",
+      upiQrUrl: "",
+      installmentEnabled: false,
+      installmentPart1Amount: "",
+      installmentPart2Amount: "",
     });
     setModalOpen(true);
   };
@@ -127,6 +140,18 @@ export default function AdminEventsPage() {
       coverImageWidth: event.coverImageWidth,
       coverImageHeight: event.coverImageHeight,
       published: Boolean(event.published),
+      paymentMode: (event as any).paymentMode || "razorpay",
+      upiId: (event as any).upiId || "",
+      upiQrUrl: (event as any).upiQrUrl || "",
+      installmentEnabled: Boolean((event as any).installmentEnabled),
+      installmentPart1Amount:
+        (event as any).installmentPart1Amount !== null && (event as any).installmentPart1Amount !== undefined
+          ? String((event as any).installmentPart1Amount)
+          : "",
+      installmentPart2Amount:
+        (event as any).installmentPart2Amount !== null && (event as any).installmentPart2Amount !== undefined
+          ? String((event as any).installmentPart2Amount)
+          : "",
     });
     setModalOpen(true);
   };
@@ -149,6 +174,18 @@ export default function AdminEventsPage() {
         registrationDeadline: formData.registrationDeadline ? istInputToUtcDate(formData.registrationDeadline) : null,
         registrationOpen: Boolean(formData.registrationOpen),
         statusOverride: formData.statusOverride || null,
+        paymentMode: formData.paymentMode,
+        upiId: formData.upiId ? formData.upiId.trim() : null,
+        upiQrUrl: formData.upiQrUrl ? formData.upiQrUrl.trim() : null,
+        installmentEnabled: Boolean(formData.installmentEnabled),
+        installmentPart1Amount:
+          formData.installmentPart1Amount !== "" && formData.installmentPart1Amount !== null
+            ? Math.max(0, parseInt(String(formData.installmentPart1Amount), 10) || 0)
+            : null,
+        installmentPart2Amount:
+          formData.installmentPart2Amount !== "" && formData.installmentPart2Amount !== null
+            ? Math.max(0, parseInt(String(formData.installmentPart2Amount), 10) || 0)
+            : null,
       };
 
       const res = await fetch(url, {
@@ -346,11 +383,23 @@ export default function AdminEventsPage() {
                                 {isRegOpen ? "OPEN" : "CLOSED"}
                               </span>
                             </div>
-                            {event.capacity && (
-                              <span className="text-[10px] text-typo-gray font-mono">
-                                Cap: {event.capacity} seats
-                              </span>
-                            )}
+                            <div className="flex flex-wrap items-center gap-1">
+                              {(event as any).paymentMode === "manual_upi" && (
+                                <span className="text-[9px] px-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">
+                                  UPI
+                                </span>
+                              )}
+                              {(event as any).installmentEnabled && (
+                                <span className="text-[9px] px-1 rounded bg-brand-blue/30 text-brand-cyan border border-brand-cyan/40 font-mono">
+                                  Split
+                                </span>
+                              )}
+                              {event.capacity && (
+                                <span className="text-[10px] text-typo-gray font-mono">
+                                  Cap: {event.capacity} seats
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
 
@@ -681,6 +730,161 @@ export default function AdminEventsPage() {
                   </span>
                 </div>
               </div>
+
+              {/* Payment Gateway / Method Selector (Only when fee > 0) */}
+              {formData.fee > 0 && (
+                <div className="pt-3 border-t border-foundation-slate/60 space-y-3">
+                  <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider block">
+                    Payment Collection Method *
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, paymentMode: "razorpay" })}
+                      className={cn(
+                        "p-3 rounded-xl border text-left transition-all",
+                        formData.paymentMode === "razorpay"
+                          ? "bg-brand-blue/20 border-brand-cyan text-typo-white shadow-[0_0_15px_rgba(56,189,248,0.15)]"
+                          : "bg-foundation-slate/30 border-foundation-slate/80 text-typo-gray hover:text-typo-white"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-typo-white">Razorpay Gateway</span>
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-brand-blue/30 text-brand-cyan">
+                          Automated
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-typo-gray block mt-1">
+                        Instant cards, UPI, netbanking via Razorpay checkout.
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, paymentMode: "manual_upi" })}
+                      className={cn(
+                        "p-3 rounded-xl border text-left transition-all",
+                        formData.paymentMode === "manual_upi"
+                          ? "bg-brand-blue/20 border-brand-cyan text-typo-white shadow-[0_0_15px_rgba(56,189,248,0.15)]"
+                          : "bg-foundation-slate/30 border-foundation-slate/80 text-typo-gray hover:text-typo-white"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-typo-white">Manual UPI &amp; Verification</span>
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">
+                          Manual Review
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-typo-gray block mt-1">
+                        Student pays external UPI, uploads proof, admin manually approves.
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Manual UPI Detailed Settings */}
+                  {formData.paymentMode === "manual_upi" && (
+                    <div className="p-4 rounded-xl bg-foundation-darkest/70 border border-brand-cyan/30 space-y-4 animate-fade-in">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                            College / Event UPI ID *
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.upiId}
+                            onChange={(e) => setFormData({ ...formData, upiId: e.target.value })}
+                            placeholder="e.g. iedc@okaxis or tkiet@sbi"
+                            className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan font-mono"
+                          />
+                          <span className="text-[10px] text-typo-gray block">
+                            Displayed to participants during checkout.
+                          </span>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                            UPI QR Code Image URL (Optional)
+                          </label>
+                          <input
+                            type="url"
+                            value={formData.upiQrUrl}
+                            onChange={(e) => setFormData({ ...formData, upiQrUrl: e.target.value })}
+                            placeholder="https://... or /api/images/..."
+                            className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                          />
+                          <span className="text-[10px] text-typo-gray block">
+                            Direct image link or upload using Image tab.
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 2-Part Installment Configuration */}
+                      <div className="pt-3 border-t border-foundation-slate/50 space-y-3">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.installmentEnabled}
+                            onChange={(e) => setFormData({ ...formData, installmentEnabled: e.target.checked })}
+                            className="w-4 h-4 rounded text-brand-blue focus:ring-brand-cyan bg-foundation-slate border-foundation-slate"
+                          />
+                          <span className="text-xs font-semibold text-typo-white">
+                            Enable 2-Part Installment Payment
+                          </span>
+                        </label>
+
+                        {formData.installmentEnabled && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                                Part 1 Amount (INR ₹) *
+                              </label>
+                              <input
+                                type="number"
+                                min={1}
+                                step={1}
+                                value={formData.installmentPart1Amount}
+                                onChange={(e) =>
+                                  setFormData({ ...formData, installmentPart1Amount: e.target.value })
+                                }
+                                placeholder={String(Math.ceil(formData.fee * 0.5))}
+                                className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                              />
+                              <span className="text-[10px] text-typo-gray block">
+                                Due immediately at registration.
+                              </span>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                                Part 2 Amount (INR ₹) *
+                              </label>
+                              <input
+                                type="number"
+                                min={1}
+                                step={1}
+                                value={formData.installmentPart2Amount}
+                                onChange={(e) =>
+                                  setFormData({ ...formData, installmentPart2Amount: e.target.value })
+                                }
+                                placeholder={String(
+                                  Math.max(
+                                    0,
+                                    formData.fee - (parseInt(formData.installmentPart1Amount, 10) || 0)
+                                  )
+                                )}
+                                className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                              />
+                              <span className="text-[10px] text-typo-gray block">
+                                Remaining balance due before event start.
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

@@ -339,6 +339,12 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
                   registrationUrl: event.registrationUrl || event.registrationLink,
                   isPlaceholder,
                   registrationOpen: event.registrationOpen,
+                  paymentMode: (event as any).paymentMode || "razorpay",
+                  upiId: (event as any).upiId || null,
+                  upiQrUrl: (event as any).upiQrUrl || null,
+                  installmentEnabled: Boolean((event as any).installmentEnabled),
+                  installmentPart1Amount: (event as any).installmentPart1Amount || null,
+                  installmentPart2Amount: (event as any).installmentPart2Amount || null,
                 }}
                 status={status}
                 paidCount={paidCount}

@@ -13,8 +13,7 @@ interface Params {
 export async function GET(_request: Request, { params }: Params) {
   const { id } = params;
 
-  // Validate ObjectId format
-  if (!mongoose.isValidObjectId(id)) {
+  if (!id || id.length < 8) {
     return NextResponse.json(
       { success: false, error: "Invalid image ID." },
       { status: 404 }
@@ -30,9 +29,16 @@ export async function GET(_request: Request, { params }: Params) {
       );
     }
 
-    const image = await ImageModel.findById(id)
-      .select("data contentType")
-      .lean();
+    // Prefer opaque publicId (UPI proofs); fall back to MongoDB ObjectId for legacy/admin uploads
+    let image: { data: any; contentType?: string } | null = null;
+    if (/^[a-f0-9]{32,64}$/i.test(id)) {
+      image = await ImageModel.findOne({ publicId: id })
+        .select("data contentType")
+        .lean();
+    }
+    if (!image && mongoose.isValidObjectId(id)) {
+      image = await ImageModel.findById(id).select("data contentType").lean();
+    }
 
     if (!image || !image.data) {
       console.warn(`[IMAGE SERVE 404] Document ${id} not found in Image collection`);
@@ -58,7 +64,7 @@ export async function GET(_request: Request, { params }: Params) {
 
     console.log(`[IMAGE SERVE 200] ${id}: ${buffer.length} bytes, contentType: ${image.contentType}`);
 
-    // ETag based on immutable document _id
+    // ETag based on immutable document id/publicId
     const etag = `"${id}"`;
 
     // Check If-None-Match for 304

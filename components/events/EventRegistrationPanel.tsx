@@ -22,6 +22,7 @@ import {
   getRegistrationAction,
 } from "@/lib/utils/event-status";
 import { EventRegistrationModal } from "@/components/events/EventRegistrationModal";
+import { UpiRegistrationModal } from "@/components/events/UpiRegistrationModal";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +44,12 @@ export interface EventRegistrationPanelProps {
     registrationUrl?: string;
     isPlaceholder?: boolean;
     registrationOpen?: boolean;
+    paymentMode?: "razorpay" | "manual_upi" | "free";
+    upiId?: string | null;
+    upiQrUrl?: string | null;
+    installmentEnabled?: boolean;
+    installmentPart1Amount?: number | null;
+    installmentPart2Amount?: number | null;
   };
   status: EventStatusResult;
   paidCount: number;
@@ -185,6 +192,18 @@ export function EventRegistrationPanel({
               {feeRupees > 0 ? "per attendee / team" : "open registration"}
             </span>
           </div>
+          {event.paymentMode === "manual_upi" && feeRupees > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-brand-blue/30 text-brand-cyan border border-brand-cyan/40 font-semibold">
+                UPI Payment
+              </span>
+              {event.installmentEnabled && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">
+                  2-Part Installment
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Capacity / Remaining Seats Status */}
@@ -306,25 +325,50 @@ export function EventRegistrationPanel({
       {action.type === "onsite" && (
         <div className="pt-3 border-t border-foundation-slate/50 flex items-center gap-2 text-[11px] font-sans text-typo-gray/70">
           <ShieldCheck className="w-3.5 h-3.5 text-brand-cyan shrink-0" />
-          <span>A digital receipt can be downloaded after payment confirmation.</span>
+          <span>
+            {event.paymentMode === "manual_upi"
+              ? "Submit payment proof via UPI. Verified manually by admin with digital receipt."
+              : "A digital receipt can be downloaded after payment confirmation."}
+          </span>
         </div>
       )}
 
-      {/* Onsite Checkout Modal */}
+      {/* Onsite Checkout Modal - Razorpay or Manual UPI */}
       {action.type === "onsite" && (
-        <EventRegistrationModal
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
-          event={{
-            id: event.id,
-            title: event.title,
-            startDate: event.startDate || event.date || "",
-            venue: event.venue,
-            fee: event.fee,
-            capacity: event.capacity || undefined,
-            registrationDeadline: event.registrationDeadline || undefined,
-          }}
-        />
+        event.paymentMode === "manual_upi" ? (
+          <UpiRegistrationModal
+            isOpen={modalOpen}
+            onClose={() => setModalOpen(false)}
+            event={{
+              id: event.id,
+              title: event.title,
+              startDate: event.startDate || event.date || "",
+              venue: event.venue,
+              fee: event.fee,
+              upiId: event.upiId,
+              upiQrUrl: event.upiQrUrl,
+              installmentEnabled: event.installmentEnabled,
+              installmentPart1Amount: event.installmentPart1Amount,
+              installmentPart2Amount: event.installmentPart2Amount,
+              capacity: event.capacity || undefined,
+              registrationDeadline: event.registrationDeadline || undefined,
+            }}
+          />
+        ) : (
+          <EventRegistrationModal
+            isOpen={modalOpen}
+            onClose={() => setModalOpen(false)}
+            event={{
+              id: event.id,
+              title: event.title,
+              startDate: event.startDate || event.date || "",
+              venue: event.venue,
+              fee: event.fee,
+              capacity: event.capacity || undefined,
+              registrationDeadline: event.registrationDeadline || undefined,
+            }}
+          />
+        )
       )}
     </aside>
   );

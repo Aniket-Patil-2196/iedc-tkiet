@@ -32,14 +32,30 @@ interface ReceiptViewerProps {
     id: string;
     receiptToken: string;
     receiptNumber?: string;
-    status: "pending" | "paid" | "failed" | "refunded" | "cancelled";
+    status:
+      | "pending"
+      | "paid"
+      | "failed"
+      | "refunded"
+      | "cancelled"
+      | "verification_required"
+      | "payment_rejected";
     name: string;
     email: string;
     phone: string;
     college: string;
     year: string;
     amount: number; // in paise
+    totalAmount?: number;
     paymentMethod?: string;
+    paymentMode?: string;
+    department?: string;
+    upiTransactionRef?: string;
+    upiId?: string | null;
+    upiQrUrl?: string | null;
+    installmentPlan?: "full" | "installment" | null;
+    installmentStatus?: "part1_pending" | "part1_paid" | "part2_pending" | "complete" | null;
+    rejectionReason?: string;
     razorpayPaymentId?: string;
     razorpayOrderId?: string;
     paidAt?: string | Date;
@@ -66,23 +82,37 @@ export function ReceiptViewer({
   const [currentStatus, setCurrentStatus] = useState(initialReg.status);
   const [receiptNumber, setReceiptNumber] = useState(initialReg.receiptNumber);
   const [paidAt, setPaidAt] = useState(initialReg.paidAt);
+  const [installmentStatus, setInstallmentStatus] = useState(initialReg.installmentStatus);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isExportingPng, setIsExportingPng] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Poll status every 3 seconds if status is pending (e.g. waiting for webhook confirmation)
+  // Part 2 submission state
+  const [part2Utr, setPart2Utr] = useState("");
+  const [part2File, setPart2File] = useState<File | null>(null);
+  const [part2Submitting, setPart2Submitting] = useState(false);
+  const [part2Error, setPart2Error] = useState<string | null>(null);
+  const [part2Success, setPart2Success] = useState(false);
+
+  // Poll status if awaiting verification
   useEffect(() => {
-    if (currentStatus !== "pending") return;
+    if (
+      currentStatus !== "pending" &&
+      currentStatus !== "verification_required"
+    ) {
+      return;
+    }
 
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/registrations/status?token=${initialReg.receiptToken}`);
         if (res.ok) {
           const data = await res.json();
-          if (data.status && data.status !== "pending") {
+          if (data.status && data.status !== currentStatus) {
             setCurrentStatus(data.status);
             if (data.receiptNumber) setReceiptNumber(data.receiptNumber);
             if (data.paidAt) setPaidAt(data.paidAt);
+            if (data.installmentStatus) setInstallmentStatus(data.installmentStatus);
             router.refresh();
           }
         }
@@ -93,6 +123,58 @@ export function ReceiptViewer({
 
     return () => clearInterval(interval);
   }, [currentStatus, initialReg.receiptToken, router]);
+
+  const handlePart2Submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!part2File) {
+      setPart2Error("Please upload your Part 2 payment screenshot.");
+      return;
+    }
+    if (!part2Utr.trim() || part2Utr.trim().length < 4) {
+      setPart2Error("Please enter your UPI transaction reference / UTR.");
+      return;
+    }
+
+    setPart2Error(null);
+    setPart2Submitting(true);
+    try {
+      const uploadData = new FormData();
+      uploadData.append("file", part2File);
+      const uploadRes = await fetch("/api/upi-proof-upload", {
+        method: "POST",
+        body: uploadData,
+      });
+      const uploadJson = await uploadRes.json().catch(() => ({}));
+      if (!uploadRes.ok || !uploadJson.success) {
+        throw new Error(uploadJson.error || "Failed to upload payment proof.");
+      }
+
+      const res = await fetch(`/api/events/${event.id}/submit-part2`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          regId: initialReg.id,
+          email: initialReg.email,
+          phone: initialReg.phone,
+          upiTransactionRef: part2Utr.trim(),
+          upiProofUrl: uploadJson.url,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Part 2 submission failed.");
+      }
+
+      setPart2Success(true);
+      setInstallmentStatus("part2_pending");
+      setCurrentStatus("verification_required");
+      router.refresh();
+    } catch (err: any) {
+      setPart2Error(err.message || "Submission failed.");
+    } finally {
+      setPart2Submitting(false);
+    }
+  };
 
   // Download as PNG
   const handleDownloadPng = async () => {
@@ -174,34 +256,154 @@ export function ReceiptViewer({
     }
   };
 
-  // Render: Pending State
-  if (currentStatus === "pending") {
+  // Render: Pending / Verification Required State
+  if (currentStatus === "pending" || currentStatus === "verification_required") {
+    const isManualUpi =
+      initialReg.paymentMethod === "MANUAL_UPI" || initialReg.paymentMode === "manual_upi";
+    const isPart1Paid = installmentStatus === "part1_paid";
+    const isPart2Pending = installmentStatus === "part2_pending";
+    const snapshottedUpiId = initialReg.upiId;
+
     return (
       <div className="max-w-2xl mx-auto py-12 px-4 space-y-6">
         <div className="p-8 rounded-2xl bg-foundation-dark border border-brand-blue/40 text-center space-y-6 shadow-2xl">
           <div className="w-16 h-16 rounded-2xl bg-brand-blue/20 border border-brand-cyan/40 flex items-center justify-center mx-auto text-brand-cyan">
-            <Loader2 className="w-8 h-8 animate-spin" />
+            {isPart1Paid && !isPart2Pending ? (
+              <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+            ) : (
+              <Loader2 className="w-8 h-8 animate-spin" />
+            )}
           </div>
           <div className="space-y-2">
             <h2 className="font-display text-2xl font-bold text-typo-white">
-              Confirming Your Payment...
+              {isPart2Pending
+                ? "Part 2 Proof Awaiting Review"
+                : isPart1Paid
+                ? "Part 1 Verified! Awaiting Part 2"
+                : isManualUpi
+                ? "Payment Proof Awaiting Review"
+                : "Confirming Your Payment..."}
             </h2>
             <p className="text-sm font-sans text-typo-gray max-w-md mx-auto">
-              We are finalizing verification with the banking network and Razorpay webhook. This
-              page will automatically update as soon as confirmation is recorded.
+              {isPart2Pending
+                ? "Your Part 2 payment proof has been submitted and is awaiting administrator verification."
+                : isPart1Paid
+                ? "Your initial installment (Part 1) has been approved. Submit your Part 2 payment proof below to finalize your official receipt."
+                : isManualUpi
+                ? "Your UPI payment proof has been submitted. The administration team will verify your transaction within 24 hours. This page will update once approved."
+                : "We are finalizing verification with the banking network and Razorpay webhook. This page will automatically update as soon as confirmation is recorded."}
             </p>
           </div>
 
-          <div className="p-4 rounded-xl bg-foundation-slate/40 border border-foundation-slate text-xs font-mono text-brand-cyan max-w-sm mx-auto">
-            Order Reference: {initialReg.razorpayOrderId || initialReg.id}
+          <div className="p-4 rounded-xl bg-foundation-slate/40 border border-foundation-slate text-xs font-mono text-brand-cyan max-w-sm mx-auto space-y-1">
+            {isManualUpi ? (
+              <>
+                <div>UTR Ref: {initialReg.upiTransactionRef || initialReg.id}</div>
+                {snapshottedUpiId && (
+                  <div className="text-typo-gray">Paid to UPI ID: {snapshottedUpiId}</div>
+                )}
+              </>
+            ) : (
+              <div>Order Reference: {initialReg.razorpayOrderId || initialReg.id}</div>
+            )}
           </div>
 
+          {/* Part 2 submission form */}
+          {isManualUpi && isPart1Paid && !isPart2Pending && !part2Success && (
+            <form
+              onSubmit={handlePart2Submit}
+              className="text-left space-y-3 p-4 rounded-xl bg-foundation-slate/30 border border-foundation-slate max-w-md mx-auto"
+            >
+              <h3 className="text-sm font-semibold text-typo-white">Submit Part 2 Payment Proof</h3>
+              {snapshottedUpiId && (
+                <p className="text-[11px] text-typo-gray">
+                  Pay the remaining balance to the same UPI ID used for Part 1:{" "}
+                  <span className="font-mono text-brand-cyan">{snapshottedUpiId}</span>
+                </p>
+              )}
+              {part2Error && (
+                <p className="text-xs text-rose-300 flex items-start gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  {part2Error}
+                </p>
+              )}
+              <input
+                type="text"
+                value={part2Utr}
+                onChange={(e) => setPart2Utr(e.target.value)}
+                placeholder="Part 2 UTR / Transaction Reference"
+                className="w-full px-3 py-2 rounded-lg bg-foundation-dark border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+              />
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                onChange={(e) => setPart2File(e.target.files?.[0] || null)}
+                className="w-full text-xs text-typo-gray file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-brand-blue/30 file:text-brand-cyan"
+              />
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={part2Submitting}
+                className="w-full text-xs flex items-center justify-center gap-2"
+              >
+                {part2Submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit Part 2 Proof"
+                )}
+              </Button>
+            </form>
+          )}
+
+          {part2Success && (
+            <p className="text-xs text-emerald-300">
+              Part 2 proof submitted. Waiting for administrator verification.
+            </p>
+          )}
+
           <div className="pt-4 border-t border-foundation-slate/60 text-xs text-typo-gray">
-            If you closed your tab, you can always look up your receipt later at{" "}
+            You can always look up your receipt anytime at{" "}
             <Link href="/receipt/find" className="text-brand-cyan underline">
               Find My Receipt
             </Link>
             .
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render: Payment Rejected
+  if (currentStatus === "payment_rejected") {
+    return (
+      <div className="max-w-2xl mx-auto py-12 px-4 space-y-6">
+        <div className="p-8 rounded-2xl bg-foundation-dark border border-rose-500/40 text-center space-y-6 shadow-2xl">
+          <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center mx-auto text-rose-400">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <span className="px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-mono font-semibold uppercase">
+              Payment Rejected
+            </span>
+            <h2 className="font-display text-2xl font-bold text-typo-white">
+              UPI Payment Proof Rejected
+            </h2>
+            <p className="text-sm font-sans text-typo-gray max-w-md mx-auto">
+              {initialReg.rejectionReason ||
+                "Your payment proof could not be verified by the administration team."}
+            </p>
+          </div>
+          <div className="pt-4 border-t border-foundation-slate/60 flex items-center justify-center gap-4 text-xs">
+            <Link href={`/events/${event.slug}`} className="text-brand-cyan underline">
+              Try Registering Again
+            </Link>
+            <span className="text-typo-gray/40">•</span>
+            <Link href="/contact" className="text-typo-gray hover:text-typo-white">
+              Contact Support
+            </Link>
           </div>
         </div>
       </div>
@@ -477,6 +679,12 @@ export function ReceiptViewer({
                 <span className="text-slate-500 text-[11px] block">College / Institution</span>
                 <span className="font-medium text-slate-800">{initialReg.college}</span>
               </div>
+              {initialReg.department && (
+                <div>
+                  <span className="text-slate-500 text-[11px] block">Department / Branch</span>
+                  <span className="font-medium text-slate-800">{initialReg.department}</span>
+                </div>
+              )}
               <div>
                 <span className="text-slate-500 text-[11px] block">Year of Study / Category</span>
                 <span className="font-medium text-slate-800">{initialReg.year}</span>
@@ -524,17 +732,46 @@ export function ReceiptViewer({
 
         {/* Transaction Reference Table */}
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs font-mono">
-          <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-600">
-            <span>Razorpay Payment ID:</span>
-            <span className="font-bold text-slate-900">
-              {initialReg.razorpayPaymentId || (isFree ? "N/A (Institutional Waiver)" : "Confirmed")}
-            </span>
-          </div>
-          {initialReg.razorpayOrderId && (
-            <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-600">
-              <span>Razorpay Order ID:</span>
-              <span className="text-slate-900">{initialReg.razorpayOrderId}</span>
-            </div>
+          {initialReg.paymentMethod === "MANUAL_UPI" ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-600">
+                <span>Payment Mode:</span>
+                <span className="font-bold text-slate-900">Manual UPI (Verified by Admin)</span>
+              </div>
+              {initialReg.upiTransactionRef && (
+                <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-600">
+                  <span>UPI Transaction Ref / UTR:</span>
+                  <span className="font-bold text-blue-700">{initialReg.upiTransactionRef}</span>
+                </div>
+              )}
+              {initialReg.upiId && (
+                <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-600">
+                  <span>UPI ID (at time of payment):</span>
+                  <span className="font-bold text-slate-900">{initialReg.upiId}</span>
+                </div>
+              )}
+              {initialReg.installmentPlan === "installment" && (
+                <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-600">
+                  <span>Installment Plan:</span>
+                  <span className="text-emerald-700 font-semibold">2-Part Split (Complete)</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-600">
+                <span>Razorpay Payment ID:</span>
+                <span className="font-bold text-slate-900">
+                  {initialReg.razorpayPaymentId || (isFree ? "N/A (Institutional Waiver)" : "Confirmed")}
+                </span>
+              </div>
+              {initialReg.razorpayOrderId && (
+                <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-600">
+                  <span>Razorpay Order ID:</span>
+                  <span className="text-slate-900">{initialReg.razorpayOrderId}</span>
+                </div>
+              )}
+            </>
           )}
         </div>
 

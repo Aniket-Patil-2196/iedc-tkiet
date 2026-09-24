@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 
     const registration = await RegistrationModel.findOne(
       { receiptToken: token },
-      "status receiptToken receiptNumber paidAt amount"
+      "status receiptToken receiptNumber paidAt amount installmentStatus"
     );
 
     if (!registration) {
@@ -45,6 +45,7 @@ export async function GET(request: Request) {
       receiptToken: registration.receiptToken,
       receiptNumber: registration.receiptNumber,
       paidAt: registration.paidAt,
+      installmentStatus: registration.installmentStatus,
     });
   } catch (error: any) {
     console.error("[REGISTRATION STATUS GET ERROR]", error);

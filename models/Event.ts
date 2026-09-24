@@ -58,6 +58,17 @@ const EventSchema = new Schema<IEventDocument>(
     registrationDeadline: { type: Date, default: null },
     capacity: { type: Number, default: null, min: 1 },
     registrationOpen: { type: Boolean, default: true, index: true },
+    // Payment mode & Manual UPI Configuration
+    paymentMode: {
+      type: String,
+      enum: ["razorpay", "manual_upi", "free"],
+      default: "razorpay",
+    },
+    upiId: { type: String, default: null },
+    upiQrUrl: { type: String, default: null },
+    installmentEnabled: { type: Boolean, default: false },
+    installmentPart1Amount: { type: Number, default: null, min: 0 },
+    installmentPart2Amount: { type: Number, default: null, min: 0 },
   },
   { timestamps: true }
 );
