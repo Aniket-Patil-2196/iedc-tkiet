@@ -157,6 +157,10 @@ export async function getPublishedBlogs(): Promise<IBlog[]> {
           ...d,
           id: d._id.toString(),
           author: d.author || "IEDC TKIET",
+          tags: Array.isArray(d.tags) ? d.tags : [],
+          category: d.category ?? null,
+          location: d.location ?? null,
+          seo: d.seo || undefined,
         })) as IBlog[];
       }
       if (isProduction) return [];
@@ -185,6 +189,10 @@ export async function getPublishedBlogBySlug(
           ...(doc as any),
           id: (doc as any)._id.toString(),
           author: (doc as any).author || "IEDC TKIET",
+          tags: Array.isArray((doc as any).tags) ? (doc as any).tags : [],
+          category: (doc as any).category ?? null,
+          location: (doc as any).location ?? null,
+          seo: (doc as any).seo || undefined,
         } as IBlog;
       }
       if (isProduction) return null;

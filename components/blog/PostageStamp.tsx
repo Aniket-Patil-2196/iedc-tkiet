@@ -6,6 +6,7 @@ import { Maximize2, ExternalLink } from "lucide-react";
 import { IBlog, IBlogImage } from "@/types/content";
 import { ImageLightbox } from "./ImageLightbox";
 import { cn } from "@/lib/utils";
+import { sortBlogImages, sortBlogReferences } from "@/lib/utils/blog-validation";
 
 interface PostageStampProps {
   blog: IBlog;
@@ -63,15 +64,17 @@ export function PostageStamp({
     }
   };
 
-  // Collect images from images array or fallback to coverImage
-  const images: IBlogImage[] =
+  // Collect images from images array or fallback to coverImage (order-aware)
+  const images: IBlogImage[] = sortBlogImages(
     blog.images && blog.images.length > 0
       ? blog.images
       : blog.coverImage
-      ? [{ url: blog.coverImage, alt: blog.title }]
-      : [];
+      ? [{ url: blog.coverImage, alt: blog.title, order: 0 }]
+      : []
+  );
 
   const displayImages = isManuscriptFullPage ? images : images.slice(0, 3);
+  const orderedReferences = sortBlogReferences(blog.references);
   const primaryImage = displayImages[0];
   const secondaryImages = displayImages.slice(1);
   const postmarkDate = formatPostmarkDate(blog.publishedAt || blog.publicationDate || blog.createdAt);
@@ -256,14 +259,14 @@ export function PostageStamp({
       )}
 
       {/* 3. SOURCES BLOCK (Museum cardstock label style) */}
-      {blog.references && blog.references.length > 0 && (
+      {orderedReferences.length > 0 && (
         <div className="pt-2">
           <div className="p-3 rounded-lg border border-[#DACBB5] bg-[#FAF5EA] shadow-[0_1px_3px_rgba(74,52,24,0.06)] space-y-2">
             <span className="block text-[10px] font-mono tracking-widest text-[#0F1B44] uppercase font-bold">
               SOURCES &amp; REFERENCES
             </span>
             <ul className="space-y-1 text-xs">
-              {blog.references.map((ref, idx) => (
+              {orderedReferences.map((ref, idx) => (
                 <li key={idx} className="flex items-baseline gap-1.5 leading-tight">
                   <span className="text-[10px] font-mono text-[#4B5468] select-none font-medium">
                     [{idx + 1}]

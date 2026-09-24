@@ -156,6 +156,15 @@ body {
   font-family: var(--font-book-handwriting);
 }
 
+/* Mobile blog book: one-screen shell (site header is --header-height / 4rem).
+   svh first, then dvh so browsers that support dynamic viewport prefer it. */
+.mobile-blog-book-shell {
+  height: calc(100svh - var(--header-height, 4rem));
+  max-height: calc(100svh - var(--header-height, 4rem));
+  height: calc(100dvh - var(--header-height, 4rem));
+  max-height: calc(100dvh - var(--header-height, 4rem));
+}
+
 /* Warm Parchment Paper Background with static grain tile and soft mottling */
 .book-paper-sheet {
   background-color: var(--paper);

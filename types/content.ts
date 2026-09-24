@@ -114,6 +114,7 @@ export interface IBlogImage {
   url: string;
   alt: string;
   caption?: string;
+  order?: number;
   width?: number;
   height?: number;
 }
@@ -121,6 +122,12 @@ export interface IBlogImage {
 export interface IBlogReference {
   label: string;
   url: string;
+  order?: number;
+}
+
+export interface IBlogSeo {
+  title?: string;
+  description?: string;
 }
 
 export interface IBlog {
@@ -138,7 +145,10 @@ export interface IBlog {
   author: string; // Author name (e.g., "IEDC TKIET", "Dr. A. B. Patil", etc.)
   published: boolean;
   isFeatured?: boolean;
+  category?: string | null;
   tags?: string[];
+  location?: string | null;
+  seo?: IBlogSeo;
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }

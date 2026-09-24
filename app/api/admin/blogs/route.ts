@@ -7,6 +7,11 @@ import {
   computeReadTime,
   validateReferences,
   validateImages,
+  slugifyBlogSlug,
+  isValidBlogSlug,
+  normalizeBlogTags,
+  normalizeOptionalText,
+  normalizeBlogSeo,
 } from "@/lib/utils/blog-validation";
 
 export const runtime = "nodejs";
@@ -50,43 +55,70 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!body.title || (!body.excerpt && !body.content)) {
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    const author = typeof body.author === "string" ? body.author.trim() : "";
+    const excerpt = typeof body.excerpt === "string" ? body.excerpt.trim() : "";
+    const rawContent = typeof body.content === "string" ? body.content : "";
+    const publishedAtRaw = body.publishedAt || body.publicationDate;
+
+    if (!title || !author || !excerpt || !rawContent.trim() || !publishedAtRaw) {
       return NextResponse.json(
-        { success: false, error: "Title and content are required." },
+        {
+          success: false,
+          error: "Title, author, date, excerpt, and content are required.",
+        },
         { status: 400 }
       );
     }
 
-    const rawSlug = body.slug || body.title;
-    const slug = rawSlug
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
+    const slug = slugifyBlogSlug(body.slug || title);
+    if (!isValidBlogSlug(slug)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "A valid URL-safe slug is required (lowercase letters, numbers, hyphens).",
+        },
+        { status: 400 }
+      );
+    }
 
-    const sanitizedContent = sanitizeBlogContent(body.content || "");
-    const excerpt = body.excerpt?.trim() || stripHtmlToPlainText(sanitizedContent).slice(0, 180) + "...";
-    const readTimeMinutes = Number(body.readTimeMinutes) || computeReadTime(sanitizedContent);
+    const sanitizedContent = sanitizeBlogContent(rawContent);
+    if (!sanitizedContent) {
+      return NextResponse.json(
+        { success: false, error: "Content is required." },
+        { status: 400 }
+      );
+    }
 
-    // Validate images and references
+    const finalExcerpt =
+      excerpt || stripHtmlToPlainText(sanitizedContent).slice(0, 180) + "...";
+    const readTimeMinutes =
+      Number(body.readTimeMinutes) || computeReadTime(sanitizedContent);
+
     const images = validateImages(body.images || []);
-    // Fallback: if body.coverImage provided and images is empty, add it as first image
     if (images.length === 0 && body.coverImage) {
       images.push({
         url: body.coverImage,
-        alt: body.title,
+        alt: title,
+        order: 0,
       });
     }
     const references = validateReferences(body.references || []);
 
-    const publishedAt = body.publishedAt ? new Date(body.publishedAt) : new Date();
+    const publishedAt = new Date(publishedAtRaw);
+    if (Number.isNaN(publishedAt.getTime())) {
+      return NextResponse.json(
+        { success: false, error: "A valid publication date is required." },
+        { status: 400 }
+      );
+    }
 
     const newBlog = await BlogModel.create({
       slug,
-      title: body.title.trim(),
-      excerpt,
+      title,
+      excerpt: finalExcerpt,
       content: sanitizedContent,
-      author: body.author?.trim() || "IEDC TKIET",
+      author,
       coverImage: images[0]?.url || body.coverImage || "",
       images,
       references,
@@ -96,7 +128,10 @@ export async function POST(request: Request) {
       readTimeMinutes,
       published: Boolean(body.published),
       isFeatured: Boolean(body.isFeatured),
-      tags: Array.isArray(body.tags) ? body.tags : [],
+      category: normalizeOptionalText(body.category),
+      tags: normalizeBlogTags(body.tags),
+      location: normalizeOptionalText(body.location),
+      seo: normalizeBlogSeo(body.seo),
     });
 
     return NextResponse.json({ success: true, data: newBlog });

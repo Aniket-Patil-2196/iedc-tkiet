@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, FileText, Eye, EyeOff, BookOpen, Link as LinkIcon, Image as ImageIcon, X } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Plus, Edit2, Trash2, FileText, Eye, EyeOff, Link as LinkIcon, Image as ImageIcon, X } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminModal } from "@/components/admin/AdminModal";
 import { DeleteConfirmModal } from "@/components/admin/DeleteConfirmModal";
 import { ImageInput } from "@/components/admin/ImageInput";
 import { Button } from "@/components/ui/Button";
 import { IBlog, IBlogImage, IBlogReference } from "@/types/content";
+import { slugifyBlogSlug } from "@/lib/utils/blog-validation";
 
 export default function AdminBlogsPage() {
   const [blogs, setBlogs] = useState<IBlog[]>([]);
@@ -17,6 +18,8 @@ export default function AdminBlogsPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [blogToDelete, setBlogToDelete] = useState<IBlog | null>(null);
   const [saving, setSaving] = useState(false);
+  const [tagInput, setTagInput] = useState("");
+  const slugTouchedRef = useRef(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -31,6 +34,10 @@ export default function AdminBlogsPage() {
     publishedAt: "",
     readTimeMinutes: 4,
     published: true,
+    category: "",
+    tags: [] as string[],
+    location: "",
+    seo: { title: "", description: "" },
   });
 
   const fetchBlogs = async () => {
@@ -54,6 +61,8 @@ export default function AdminBlogsPage() {
 
   const openCreateModal = () => {
     setEditingBlog(null);
+    slugTouchedRef.current = false;
+    setTagInput("");
     const now = new Date();
     setFormData({
       title: "",
@@ -63,27 +72,33 @@ export default function AdminBlogsPage() {
       content: "",
       coverImage: "/images/placeholders/gallery-2.svg",
       images: [
-        { url: "/images/placeholders/gallery-2.svg", alt: "Article cover", caption: "" },
+        { url: "/images/placeholders/gallery-2.svg", alt: "Article cover", caption: "", order: 0 },
       ],
       references: [],
       publicationDate: now.toISOString().split("T")[0],
       publishedAt: now.toISOString().slice(0, 16),
       readTimeMinutes: 4,
       published: true,
+      category: "",
+      tags: [],
+      location: "",
+      seo: { title: "", description: "" },
     });
     setModalOpen(true);
   };
 
   const openEditModal = (blog: IBlog) => {
     setEditingBlog(blog);
+    slugTouchedRef.current = true; // never auto-regen existing slug from title
+    setTagInput("");
     const pubAtStr = blog.publishedAt
       ? new Date(blog.publishedAt).toISOString().slice(0, 16)
       : new Date().toISOString().slice(0, 16);
 
     const images = blog.images && blog.images.length > 0
-      ? blog.images
+      ? blog.images.map((img, i) => ({ ...img, order: img.order ?? i }))
       : blog.coverImage
-      ? [{ url: blog.coverImage, alt: blog.title, caption: "" }]
+      ? [{ url: blog.coverImage, alt: blog.title, caption: "", order: 0 }]
       : [];
 
     setFormData({
@@ -94,15 +109,38 @@ export default function AdminBlogsPage() {
       content: blog.content,
       coverImage: blog.coverImage || "/images/placeholders/gallery-2.svg",
       images,
-      references: blog.references || [],
+      references: (blog.references || []).map((ref, i) => ({
+        ...ref,
+        order: ref.order ?? i,
+      })),
       publicationDate: blog.publicationDate
         ? blog.publicationDate.split("T")[0]
         : pubAtStr.split("T")[0],
       publishedAt: pubAtStr,
       readTimeMinutes: blog.readTimeMinutes || 4,
       published: Boolean(blog.published),
+      category: blog.category || "",
+      tags: Array.isArray(blog.tags) ? blog.tags : [],
+      location: blog.location || "",
+      seo: {
+        title: blog.seo?.title || "",
+        description: blog.seo?.description || "",
+      },
     });
     setModalOpen(true);
+  };
+
+  const handleTitleChange = (title: string) => {
+    // Auto-slug from title only for new posts, and only until the slug is manually edited
+    if (!editingBlog && !slugTouchedRef.current) {
+      setFormData((prev) => ({
+        ...prev,
+        title,
+        slug: slugifyBlogSlug(title),
+      }));
+      return;
+    }
+    setFormData((prev) => ({ ...prev, title }));
   };
 
   const handleAddImage = () => {
@@ -111,13 +149,20 @@ export default function AdminBlogsPage() {
       ...formData,
       images: [
         ...formData.images,
-        { url: "", alt: `Figure ${formData.images.length + 1}`, caption: "" },
+        {
+          url: "",
+          alt: `Figure ${formData.images.length + 1}`,
+          caption: "",
+          order: formData.images.length,
+        },
       ],
     });
   };
 
   const handleRemoveImage = (index: number) => {
-    const updated = formData.images.filter((_, i) => i !== index);
+    const updated = formData.images
+      .filter((_, i) => i !== index)
+      .map((img, i) => ({ ...img, order: i }));
     setFormData({ ...formData, images: updated });
   };
 
@@ -125,13 +170,37 @@ export default function AdminBlogsPage() {
     if (formData.references.length >= 8) return;
     setFormData({
       ...formData,
-      references: [...formData.references, { label: "", url: "" }],
+      references: [
+        ...formData.references,
+        { label: "", url: "", order: formData.references.length },
+      ],
     });
   };
 
   const handleRemoveReference = (index: number) => {
-    const updated = formData.references.filter((_, i) => i !== index);
+    const updated = formData.references
+      .filter((_, i) => i !== index)
+      .map((ref, i) => ({ ...ref, order: i }));
     setFormData({ ...formData, references: updated });
+  };
+
+  const handleAddTag = () => {
+    const tag = tagInput.trim();
+    if (!tag) return;
+    const exists = formData.tags.some((t) => t.toLowerCase() === tag.toLowerCase());
+    if (exists) {
+      setTagInput("");
+      return;
+    }
+    setFormData({ ...formData, tags: [...formData.tags, tag] });
+    setTagInput("");
+  };
+
+  const handleRemoveTag = (index: number) => {
+    setFormData({
+      ...formData,
+      tags: formData.tags.filter((_, i) => i !== index),
+    });
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -145,10 +214,26 @@ export default function AdminBlogsPage() {
         : "/api/admin/blogs";
       const method = isEdit ? "PUT" : "POST";
 
+      const payload = {
+        ...formData,
+        images: formData.images.map((img, i) => ({ ...img, order: img.order ?? i })),
+        references: formData.references.map((ref, i) => ({
+          ...ref,
+          order: ref.order ?? i,
+        })),
+        category: formData.category.trim() || null,
+        location: formData.location.trim() || null,
+        tags: formData.tags,
+        seo: {
+          title: formData.seo.title.trim(),
+          description: formData.seo.description.trim(),
+        },
+      };
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
@@ -369,19 +454,43 @@ export default function AdminBlogsPage() {
               type="text"
               required
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) => handleTitleChange(e.target.value)}
               placeholder="e.g. Fostering an Engineering Innovation Culture"
               className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
             />
           </div>
 
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+              Slug *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.slug}
+              onChange={(e) => {
+                slugTouchedRef.current = true;
+                setFormData({ ...formData, slug: slugifyBlogSlug(e.target.value) });
+              }}
+              placeholder="url-safe-slug"
+              pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+              title="Lowercase letters, numbers, and hyphens only"
+              className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs font-mono focus:outline-none focus:border-brand-cyan"
+            />
+            <p className="text-[10px] text-typo-gray">
+              /blog/{formData.slug || "…"}
+              {editingBlog ? " · Editing does not auto-regenerate the slug from the title." : ""}
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
-                Author Name
+                Author Name *
               </label>
               <input
                 type="text"
+                required
                 value={formData.author}
                 onChange={(e) => setFormData({ ...formData, author: e.target.value })}
                 placeholder="IEDC TKIET"
@@ -395,6 +504,7 @@ export default function AdminBlogsPage() {
               </label>
               <input
                 type="datetime-local"
+                required
                 value={formData.publishedAt}
                 onChange={(e) =>
                   setFormData({
@@ -403,6 +513,120 @@ export default function AdminBlogsPage() {
                     publicationDate: e.target.value.split("T")[0],
                   })
                 }
+                className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                Category
+              </label>
+              <input
+                type="text"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                placeholder="e.g. Entrepreneurship, Patents"
+                className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                Location
+              </label>
+              <input
+                type="text"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="Optional place name"
+                className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+              Tags
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddTag();
+                  }
+                }}
+                placeholder="Add a tag and press Enter"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+              />
+              <button
+                type="button"
+                onClick={handleAddTag}
+                className="px-3 py-2 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-brand-cyan text-xs font-mono hover:border-brand-cyan transition-colors"
+              >
+                Add
+              </button>
+            </div>
+            {formData.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {formData.tags.map((tag, idx) => (
+                  <span
+                    key={`${tag}-${idx}`}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-foundation-slate text-[11px] text-typo-white"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(idx)}
+                      className="text-typo-gray hover:text-red-300"
+                      title="Remove tag"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                SEO Title
+              </label>
+              <input
+                type="text"
+                value={formData.seo.title}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    seo: { ...formData.seo, title: e.target.value },
+                  })
+                }
+                placeholder="Falls back to article title"
+                className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                SEO Description
+              </label>
+              <input
+                type="text"
+                value={formData.seo.description}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    seo: { ...formData.seo, description: e.target.value },
+                  })
+                }
+                placeholder="Falls back to excerpt"
                 className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
               />
             </div>
@@ -450,7 +674,7 @@ export default function AdminBlogsPage() {
                   value={img.url}
                   onChange={(url) => {
                     const copy = [...formData.images];
-                    copy[idx] = { ...copy[idx], url };
+                    copy[idx] = { ...copy[idx], url, order: idx };
                     setFormData({ ...formData, images: copy, coverImage: copy[0]?.url || formData.coverImage });
                   }}
                 />
@@ -461,7 +685,7 @@ export default function AdminBlogsPage() {
                     value={img.alt}
                     onChange={(e) => {
                       const copy = [...formData.images];
-                      copy[idx] = { ...copy[idx], alt: e.target.value };
+                      copy[idx] = { ...copy[idx], alt: e.target.value, order: idx };
                       setFormData({ ...formData, images: copy });
                     }}
                     placeholder="Alt description for accessibility"
@@ -472,7 +696,7 @@ export default function AdminBlogsPage() {
                     value={img.caption || ""}
                     onChange={(e) => {
                       const copy = [...formData.images];
-                      copy[idx] = { ...copy[idx], caption: e.target.value };
+                      copy[idx] = { ...copy[idx], caption: e.target.value, order: idx };
                       setFormData({ ...formData, images: copy });
                     }}
                     placeholder="Optional figure caption"
@@ -512,7 +736,7 @@ export default function AdminBlogsPage() {
                   value={ref.label}
                   onChange={(e) => {
                     const copy = [...formData.references];
-                    copy[idx] = { ...copy[idx], label: e.target.value };
+                    copy[idx] = { ...copy[idx], label: e.target.value, order: idx };
                     setFormData({ ...formData, references: copy });
                   }}
                   placeholder="Label (e.g. Patent Gazette Publication)"
@@ -524,7 +748,7 @@ export default function AdminBlogsPage() {
                   value={ref.url}
                   onChange={(e) => {
                     const copy = [...formData.references];
-                    copy[idx] = { ...copy[idx], url: e.target.value };
+                    copy[idx] = { ...copy[idx], url: e.target.value, order: idx };
                     setFormData({ ...formData, references: copy });
                   }}
                   placeholder="https://example.org/source"
@@ -565,7 +789,7 @@ export default function AdminBlogsPage() {
               rows={8}
               value={formData.content}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              placeholder="Write or paste your article paragraphs here..."
+              placeholder={"Write or paste article text. Supports ## / ### headings, lists, **bold**, *italic*, [links](url), and > blockquotes."}
               className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan font-serif"
             />
           </div>

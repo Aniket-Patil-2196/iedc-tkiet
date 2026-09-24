@@ -6,6 +6,7 @@ import { getPublishedBlogBySlug, getPublishedBlogs } from "@/lib/db/queries";
 import { formatEventDate } from "@/lib/utils/event-status";
 import { PostageStamp } from "@/components/blog/PostageStamp";
 import { BlogCommentsSection } from "@/components/blog/BlogCommentsSection";
+import { BlogManuscriptBody } from "@/components/blog/BlogManuscriptBody";
 import { ArrowLeft, ArrowRight, BookOpen, Sparkles, Calendar, Clock, User } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -29,29 +30,15 @@ export async function generateMetadata({
     });
   }
 
+  const seoTitle = article.seo?.title?.trim() || article.title;
+  const seoDescription =
+    article.seo?.description?.trim() || article.excerpt;
+
   return constructMetadata({
-    title: `${article.title} — The Innovation Blog`,
-    description: article.excerpt,
+    title: `${seoTitle} — The Innovation Blog`,
+    description: seoDescription,
     path: `/blog/${article.slug}`,
   });
-}
-
-function extractManuscriptDropCap(text: string): { dropCap: string; remainder: string } {
-  if (!text) return { dropCap: "", remainder: "" };
-  if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
-    try {
-      const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
-      const it = segmenter.segment(text)[Symbol.iterator]();
-      const first = it.next().value;
-      if (first) {
-        return { dropCap: first.segment, remainder: text.slice(first.segment.length) };
-      }
-    } catch {
-      // fallback
-    }
-  }
-  const first = Array.from(text)[0] || "";
-  return { dropCap: first, remainder: text.slice(first.length) };
 }
 
 export default async function BlogArticlePage({ params }: BlogArticlePageProps) {
@@ -71,12 +58,6 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
     currentIndex !== -1 && currentIndex < publishedArticles.length - 1
       ? publishedArticles[currentIndex + 1]
       : null;
-
-  // Split content by double newlines for paragraph rendering
-  const paragraphs = article.content.split("\n\n").filter(Boolean);
-  const firstParagraph = paragraphs[0] || "";
-  const remainingParagraphs = paragraphs.slice(1);
-  const { dropCap, remainder: firstParaRemainder } = extractManuscriptDropCap(firstParagraph);
 
   return (
     <div className="flex flex-col flex-1 w-full min-h-screen bg-foundation-darkest py-6 sm:py-10 px-4 sm:px-6">
@@ -152,27 +133,7 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
         </section>
 
         {/* 3. Manuscript Body Text with Literary Serif & Kalam Drop Cap */}
-        <section className="space-y-6 pt-4 pb-12 relative z-10">
-          {firstParagraph && (
-            <p className="font-book-body text-base sm:text-lg md:text-[19px] text-[var(--ink)] leading-[1.8] text-left [hyphens:manual]">
-              {dropCap && (
-                <span className="float-left text-5xl sm:text-6xl font-book-handwriting font-bold text-[var(--ink-accent)] mr-3.5 sm:mr-4 leading-[0.75] select-none">
-                  {dropCap}
-                </span>
-              )}
-              {firstParaRemainder}
-            </p>
-          )}
-
-          {remainingParagraphs.map((para, idx) => (
-            <p
-              key={idx}
-              className="font-book-body text-base sm:text-lg md:text-[19px] text-[var(--ink)] leading-[1.8] text-left [hyphens:manual]"
-            >
-              {para}
-            </p>
-          ))}
-        </section>
+        <BlogManuscriptBody content={article.content} />
 
         {/* 4. Archival End Seal & Navigation */}
         <footer className="pt-8 border-t border-amber-950/15 relative z-10 space-y-8">

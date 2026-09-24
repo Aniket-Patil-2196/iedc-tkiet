@@ -8,6 +8,7 @@ const BlogImageSchema = new Schema(
     url: { type: String, required: true },
     alt: { type: String, required: true },
     caption: { type: String },
+    order: { type: Number },
     width: { type: Number },
     height: { type: Number },
   },
@@ -18,6 +19,15 @@ const BlogReferenceSchema = new Schema(
   {
     label: { type: String, required: true },
     url: { type: String, required: true },
+    order: { type: Number },
+  },
+  { _id: false }
+);
+
+const BlogSeoSchema = new Schema(
+  {
+    title: { type: String },
+    description: { type: String },
   },
   { _id: false }
 );
@@ -47,7 +57,10 @@ const BlogSchema = new Schema<IBlogDocument>(
     readTimeMinutes: { type: Number, default: 4 },
     published: { type: Boolean, default: false, index: true },
     isFeatured: { type: Boolean, default: false },
-    tags: [{ type: String }],
+    category: { type: String, default: null },
+    tags: { type: [String], default: [] },
+    location: { type: String, default: null },
+    seo: { type: BlogSeoSchema, default: undefined },
   },
   { timestamps: true }
 );
