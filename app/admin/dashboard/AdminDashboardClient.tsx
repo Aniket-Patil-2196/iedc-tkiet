@@ -42,7 +42,6 @@ export default function AdminDashboardClient() {
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -128,7 +127,6 @@ export default function AdminDashboardClient() {
       <AdminHeader
         title="Executive Overview"
         subtitle="Institutional content metrics and cell administrative status"
-        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
       />
 
       <main className="p-6 sm:p-8 space-y-8 max-w-7xl mx-auto w-full">

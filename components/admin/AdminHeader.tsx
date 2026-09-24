@@ -3,10 +3,12 @@
 import React from "react";
 import Link from "next/link";
 import { Menu, Shield, ExternalLink } from "lucide-react";
+import { useAdminSidebar } from "@/components/admin/AdminDashboardLayoutShell";
 
 interface AdminHeaderProps {
   title: string;
   subtitle?: string;
+  /** @deprecated Prefer layout context; kept for call-site compatibility. */
   onToggleSidebar?: () => void;
 }
 
@@ -15,12 +17,18 @@ export function AdminHeader({
   subtitle,
   onToggleSidebar,
 }: AdminHeaderProps) {
+  const { toggle } = useAdminSidebar();
+
+  const handleToggle = () => {
+    toggle();
+  };
+
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 bg-foundation-space/90 backdrop-blur-md border-b border-foundation-slate/70">
       <div className="flex items-center gap-4">
         <button
           type="button"
-          onClick={onToggleSidebar}
+          onClick={handleToggle}
           className="lg:hidden p-2 rounded-xl bg-foundation-dark border border-foundation-slate text-typo-gray hover:text-typo-white hover:border-brand-blue transition-colors"
           aria-label="Open menu"
         >
