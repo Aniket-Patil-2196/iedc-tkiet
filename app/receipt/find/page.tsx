@@ -57,7 +57,7 @@ export default function FindReceiptPage() {
       if (!res.ok || !data.success) {
         setErrorMessage(
           data.error ||
-            "No matching paid registration found for the provided details. Please check your information or contact support."
+            "No matching registration found for the provided details. Please check your information or contact support."
         );
         setLoading(false);
         return;
@@ -216,14 +216,22 @@ export default function FindReceiptPage() {
               </Button>
             </form>
 
-            <div className="pt-4 border-t border-foundation-slate/60 text-[11px] font-sans text-typo-gray flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-brand-cyan" />
-                <span>Encrypted • No Public Indexing</span>
+            <div className="pt-4 border-t border-foundation-slate/60 text-[11px] font-sans text-typo-gray space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-brand-cyan" />
+                  <span>Encrypted • No Public Indexing</span>
+                </div>
+                <Link href="/contact" className="hover:text-typo-white transition-colors">
+                  Need Help?
+                </Link>
               </div>
-              <Link href="/contact" className="hover:text-typo-white transition-colors">
-                Need Help?
-              </Link>
+              <p className="text-center">
+                Owe Part 2 of an installment?{" "}
+                <Link href="/pay-remaining" className="text-brand-cyan underline">
+                  Pay Remaining Balance
+                </Link>
+              </p>
             </div>
           </div>
         </Container>

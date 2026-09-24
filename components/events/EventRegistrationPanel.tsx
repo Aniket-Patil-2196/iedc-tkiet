@@ -321,15 +321,32 @@ export function EventRegistrationPanel({
         </button>
       </div>
 
-      {/* On-site mode receipt note */}
+      {/* On-site mode receipt note + download entry */}
       {action.type === "onsite" && (
-        <div className="pt-3 border-t border-foundation-slate/50 flex items-center gap-2 text-[11px] font-sans text-typo-gray/70">
-          <ShieldCheck className="w-3.5 h-3.5 text-brand-cyan shrink-0" />
-          <span>
-            {event.paymentMode === "manual_upi"
-              ? "Submit payment proof via UPI. Verified manually by admin with digital receipt."
-              : "A digital receipt can be downloaded after payment confirmation."}
-          </span>
+        <div className="pt-3 border-t border-foundation-slate/50 space-y-2">
+          <div className="flex items-center gap-2 text-[11px] font-sans text-typo-gray/70">
+            <ShieldCheck className="w-3.5 h-3.5 text-brand-cyan shrink-0" />
+            <span>
+              {event.paymentMode === "manual_upi"
+                ? "Submit payment proof via UPI. Verified manually by admin with digital receipt."
+                : "A digital receipt can be downloaded after payment confirmation."}
+            </span>
+          </div>
+          <Link
+            href="/receipt/find"
+            className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-foundation-dark border border-brand-cyan/40 hover:border-brand-cyan text-brand-cyan hover:text-typo-white font-sans text-xs font-medium transition-all"
+          >
+            <Ticket className="w-3.5 h-3.5" />
+            <span>Download Your Receipt</span>
+          </Link>
+          {event.paymentMode === "manual_upi" && event.installmentEnabled && (
+            <Link
+              href="/pay-remaining"
+              className="w-full inline-flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-[11px] font-sans text-typo-gray hover:text-brand-cyan transition-colors"
+            >
+              Already paid Part 1? Pay remaining installment →
+            </Link>
+          )}
         </div>
       )}
 

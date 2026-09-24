@@ -97,6 +97,7 @@ interface Metrics {
   failedCount: number;
   stalePendingCount: number;
   upiPendingCount?: number;
+  installmentDueCount?: number;
 }
 
 export default function AdminRegistrationsPage() {
@@ -111,6 +112,7 @@ export default function AdminRegistrationsPage() {
     failedCount: 0,
     stalePendingCount: 0,
     upiPendingCount: 0,
+    installmentDueCount: 0,
   });
   const [loading, setLoading] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState("all");
@@ -386,12 +388,23 @@ export default function AdminRegistrationsPage() {
       id: "upi_pending",
       label: `UPI Review${metrics.upiPendingCount ? ` (${metrics.upiPendingCount})` : ""}`,
     },
+    {
+      id: "installment_due",
+      label: `Installment Due${metrics.installmentDueCount ? ` (${metrics.installmentDueCount})` : ""}`,
+    },
+    { id: "installment", label: "Installment" },
     { id: "paid", label: "Paid" },
     { id: "pending", label: "Pending" },
     { id: "refunded", label: "Refunded" },
     { id: "cancelled", label: "Cancelled / Rejected" },
     { id: "payment_rejected", label: "UPI Rejected" },
   ];
+
+  const daysSince = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const ms = Date.now() - new Date(dateStr).getTime();
+    return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
+  };
 
   return (
     <div className="flex-1 overflow-y-auto bg-foundation-darkest min-h-screen">
@@ -539,8 +552,10 @@ export default function AdminRegistrationsPage() {
                   onClick={() => setSelectedStatus(tab.id)}
                   className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
                     selectedStatus === tab.id
-                      ? tab.id === "upi_pending"
+                      ? tab.id === "upi_pending" || tab.id === "installment_due"
                         ? "bg-amber-500 text-foundation-darkest font-bold shadow-sm"
+                        : tab.id === "installment"
+                        ? "bg-violet-600 text-typo-white font-bold shadow-sm"
                         : "bg-brand-blue text-typo-white shadow-sm"
                       : "text-typo-gray hover:text-typo-white"
                   }`}
@@ -650,14 +665,20 @@ export default function AdminRegistrationsPage() {
                               )}
 
                               {reg.installmentPlan === "installment" && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-500/25 text-violet-200 border border-violet-400/40 font-mono font-semibold uppercase tracking-wide">
+                                  Installment
+                                </span>
+                              )}
+
+                              {reg.installmentPlan === "installment" && reg.installmentStatus && (
                                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono">
                                   {reg.installmentStatus === "part1_pending"
                                     ? "Part 1 Review"
                                     : reg.installmentStatus === "part1_paid"
-                                    ? "Part 1 Paid"
+                                    ? "Part 2 Due"
                                     : reg.installmentStatus === "part2_pending"
                                     ? "Part 2 Review"
-                                    : "Installment Complete"}
+                                    : "Complete"}
                                 </span>
                               )}
                             </div>
@@ -692,10 +713,30 @@ export default function AdminRegistrationsPage() {
                         <td className="p-4 whitespace-nowrap">
                           <span className="font-mono font-bold text-typo-white block">
                             {reg.amount === 0 ? "Free" : `₹${reg.amount / 100}`}
+                            {reg.installmentPlan === "installment" &&
+                              reg.installmentStatus === "part1_paid" &&
+                              reg.totalAmount != null && (
+                                <span className="text-typo-gray font-normal">
+                                  {" "}
+                                  / ₹{reg.totalAmount / 100}
+                                </span>
+                              )}
                           </span>
                           <span className="text-[10px] text-typo-gray uppercase block font-mono">
                             {reg.installmentPlan === "installment" ? "Split Plan" : "Full Payment"}
                           </span>
+                          {reg.installmentStatus === "part1_paid" && (
+                            <span className="text-[10px] text-amber-300 block font-mono mt-0.5">
+                              Remaining: ₹
+                              {Math.max(
+                                0,
+                                ((reg.totalAmount ?? reg.amount) || 0) - (reg.amount || 0)
+                              ) / 100}
+                              {reg.part1PaidAt && daysSince(reg.part1PaidAt) !== null
+                                ? ` · ${daysSince(reg.part1PaidAt)}d since Part 1`
+                                : ""}
+                            </span>
+                          )}
                         </td>
 
                         {/* Gateway / UPI Proof */}

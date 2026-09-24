@@ -295,12 +295,43 @@ export function ReceiptViewer({
             </p>
           </div>
 
+          {/* Installment amount breakdown */}
+          {isManualUpi && initialReg.installmentPlan === "installment" && (
+            <div className="grid grid-cols-3 gap-2 max-w-md mx-auto text-center text-[11px]">
+              <div className="p-2.5 rounded-xl bg-foundation-slate/40 border border-foundation-slate">
+                <span className="text-typo-gray block">Paid so far</span>
+                <span className="font-mono font-bold text-emerald-400">
+                  ₹{(initialReg.amount || 0) / 100}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-foundation-slate/40 border border-foundation-slate">
+                <span className="text-typo-gray block">Remaining</span>
+                <span className="font-mono font-bold text-amber-300">
+                  ₹
+                  {Math.max(
+                    0,
+                    ((initialReg.totalAmount ?? initialReg.amount) || 0) - (initialReg.amount || 0)
+                  ) / 100}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-foundation-slate/40 border border-foundation-slate">
+                <span className="text-typo-gray block">Total fee</span>
+                <span className="font-mono font-bold text-typo-white">
+                  ₹{((initialReg.totalAmount ?? initialReg.amount) || 0) / 100}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="p-4 rounded-xl bg-foundation-slate/40 border border-foundation-slate text-xs font-mono text-brand-cyan max-w-sm mx-auto space-y-1">
             {isManualUpi ? (
               <>
                 <div>UTR Ref: {initialReg.upiTransactionRef || initialReg.id}</div>
                 {snapshottedUpiId && (
                   <div className="text-typo-gray">Paid to UPI ID: {snapshottedUpiId}</div>
+                )}
+                {initialReg.id && (
+                  <div className="text-typo-gray break-all">Reg ID: {initialReg.id}</div>
                 )}
               </>
             ) : (
@@ -317,10 +348,22 @@ export function ReceiptViewer({
               <h3 className="text-sm font-semibold text-typo-white">Submit Part 2 Payment Proof</h3>
               {snapshottedUpiId && (
                 <p className="text-[11px] text-typo-gray">
-                  Pay the remaining balance to the same UPI ID used for Part 1:{" "}
+                  Pay the remaining ₹
+                  {Math.max(
+                    0,
+                    ((initialReg.totalAmount ?? initialReg.amount) || 0) - (initialReg.amount || 0)
+                  ) / 100}{" "}
+                  to the same UPI ID used for Part 1:{" "}
                   <span className="font-mono text-brand-cyan">{snapshottedUpiId}</span>
                 </p>
               )}
+              <p className="text-[10px] text-typo-gray/80">
+                Or use the{" "}
+                <Link href="/pay-remaining" className="text-brand-cyan underline">
+                  Pay Remaining
+                </Link>{" "}
+                page if you reopen this later without the receipt link.
+              </p>
               {part2Error && (
                 <p className="text-xs text-rose-300 flex items-start gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
@@ -486,7 +529,16 @@ export function ReceiptViewer({
 
   // Render: Paid Official Receipt (Light Theme for pristine PDF/PNG export)
   const feeRupees = initialReg.amount > 0 ? initialReg.amount / 100 : 0;
-  const isFree = initialReg.amount === 0;
+  const totalFeeRupees =
+    initialReg.totalAmount != null && initialReg.totalAmount > 0
+      ? initialReg.totalAmount / 100
+      : feeRupees;
+  const isFree = initialReg.amount === 0 && totalFeeRupees === 0;
+  const isInstallmentComplete =
+    initialReg.installmentPlan === "installment" &&
+    (installmentStatus === "complete" || currentStatus === "paid");
+  const isPartialInstallment =
+    initialReg.installmentPlan === "installment" && !isInstallmentComplete;
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 space-y-6 animate-fade-in">
@@ -645,11 +697,19 @@ export function ReceiptViewer({
 
           <div>
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">
-              Total Amount
+              {isPartialInstallment ? "Amount Paid (Part 1)" : "Total Amount"}
             </span>
             <span className="font-mono font-bold text-emerald-700 text-base">
               {isFree ? "₹0 (Free)" : `₹${feeRupees}`}
             </span>
+            {initialReg.installmentPlan === "installment" && (
+              <span className="block text-[10px] text-slate-500 mt-0.5">
+                Full fee: ₹{totalFeeRupees}
+                {isPartialInstallment
+                  ? ` · Remaining: ₹${Math.max(0, totalFeeRupees - feeRupees)}`
+                  : " · Installment complete"}
+              </span>
+            )}
           </div>
         </div>
 
@@ -753,7 +813,15 @@ export function ReceiptViewer({
               {initialReg.installmentPlan === "installment" && (
                 <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-600">
                   <span>Installment Plan:</span>
-                  <span className="text-emerald-700 font-semibold">2-Part Split (Complete)</span>
+                  <span className="text-emerald-700 font-semibold">
+                    {isInstallmentComplete
+                      ? "2-Part Split (Complete)"
+                      : installmentStatus === "part1_paid"
+                      ? "Part 1 Verified — Part 2 Due"
+                      : installmentStatus === "part2_pending"
+                      ? "Part 2 Submitted — Awaiting Review"
+                      : "2-Part Split"}
+                  </span>
                 </div>
               )}
             </>

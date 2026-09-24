@@ -56,16 +56,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Query ONLY registrations with status: "paid"
+    // 4. Match fully-paid OR in-progress UPI / installment registrations
+    //    (part1_paid lives under status verification_required — must be findable)
     const query: any = {
       email,
-      status: "paid",
+      $or: [
+        { status: "paid" },
+        { status: "verification_required" },
+        { status: "pending", paymentMethod: "MANUAL_UPI" },
+        { status: "pending", paymentMode: "manual_upi" },
+      ],
     };
 
     if (receiptNumber) {
       query.receiptNumber = receiptNumber.toUpperCase();
     } else if (phone) {
-      // Allow flexible phone matching (e.g. ignoring leading +91 or dashes)
       const digitsOnly = phone.replace(/\D/g, "");
       const phoneRegex = new RegExp(digitsOnly.slice(-10) + "$");
       query.phone = { $regex: phoneRegex };
@@ -73,16 +78,15 @@ export async function POST(request: Request) {
 
     const registration = await RegistrationModel.findOne(
       query,
-      "receiptToken receiptNumber createdAt"
+      "receiptToken receiptNumber createdAt status installmentStatus"
     ).sort({ createdAt: -1 });
 
     if (!registration) {
-      // Standard generic message to prevent user enumeration
       return NextResponse.json(
         {
           success: false,
           error:
-            "No matching paid registration found for the provided details. Please verify your information or contact support.",
+            "No matching registration found for the provided details. Please verify your information or contact support.",
         },
         { status: 404 }
       );
@@ -91,6 +95,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       redirectUrl: `/receipt/${registration.receiptToken}`,
+      status: registration.status,
+      installmentStatus: registration.installmentStatus,
     });
   } catch (error: any) {
     console.error("[FIND RECEIPT ERROR]", error);

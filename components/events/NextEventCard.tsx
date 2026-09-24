@@ -20,6 +20,7 @@ import { EventStatusResult, getRegistrationAction } from "@/lib/utils/event-stat
 import { formatEventDate, formatEventTimeRange } from "@/lib/utils/event-status";
 import { EventPoster } from "./EventPoster";
 import { EventRegistrationModal } from "./EventRegistrationModal";
+import { UpiRegistrationModal } from "./UpiRegistrationModal";
 import { SpotlightBorder } from "./SpotlightBorder";
 import { useCardSpotlight } from "@/lib/hooks/useCardSpotlight";
 import { Button } from "@/components/ui/Button";
@@ -435,14 +436,35 @@ export function UpcomingEventCard({
         </div>
       )}
 
-      {/* Registration Modal */}
-      {action.type === "onsite" && modalOpen && (
-        <EventRegistrationModal
-          event={event}
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
-        />
-      )}
+      {/* Registration Modal — match detail page: UPI vs Razorpay by paymentMode */}
+      {action.type === "onsite" &&
+        modalOpen &&
+        (event.paymentMode === "manual_upi" ? (
+          <UpiRegistrationModal
+            isOpen={modalOpen}
+            onClose={() => setModalOpen(false)}
+            event={{
+              id: event.id,
+              title: event.title,
+              startDate: event.startDate || event.date || "",
+              venue: event.venue,
+              fee: event.fee,
+              upiId: event.upiId,
+              upiQrUrl: event.upiQrUrl,
+              installmentEnabled: event.installmentEnabled,
+              installmentPart1Amount: event.installmentPart1Amount,
+              installmentPart2Amount: event.installmentPart2Amount,
+              capacity: event.capacity || undefined,
+              registrationDeadline: event.registrationDeadline || undefined,
+            }}
+          />
+        ) : (
+          <EventRegistrationModal
+            event={event}
+            isOpen={modalOpen}
+            onClose={() => setModalOpen(false)}
+          />
+        ))}
     </>
   );
 }

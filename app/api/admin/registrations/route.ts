@@ -53,6 +53,13 @@ export async function GET(request: Request) {
             installmentStatus: { $in: ["part1_pending", "part2_pending", null] },
           },
         ];
+      } else if (status === "installment_due") {
+        // Part 1 approved, Part 2 not yet submitted
+        query.installmentPlan = "installment";
+        query.installmentStatus = "part1_paid";
+        query.status = { $in: ["verification_required", "pending"] };
+      } else if (status === "installment") {
+        query.installmentPlan = "installment";
       } else if (status === "cancelled") {
         query.status = { $in: ["cancelled", "payment_rejected"] };
       } else {
@@ -93,7 +100,7 @@ export async function GET(request: Request) {
 
     const allRecords = await RegistrationModel.find(
       metricsFilter,
-      "amount status paymentMethod paymentMode installmentPlan installmentStatus createdAt"
+      "amount totalAmount status paymentMethod paymentMode installmentPlan installmentStatus part1PaidAt createdAt"
     ).lean();
 
     const fifteenMinutesAgo = Date.now() - 15 * 60 * 1000;
@@ -104,6 +111,7 @@ export async function GET(request: Request) {
     let failedCount = 0;
     let stalePendingCount = 0;
     let upiPendingCount = 0;
+    let installmentDueCount = 0;
 
     for (const record of allRecords) {
       if (record.status === "paid") {
@@ -129,6 +137,12 @@ export async function GET(request: Request) {
         ) {
           stalePendingCount++;
         }
+        if (
+          record.installmentPlan === "installment" &&
+          record.installmentStatus === "part1_paid"
+        ) {
+          installmentDueCount++;
+        }
       } else if (record.status === "refunded") {
         refundedCount++;
       } else if (record.status === "failed") {
@@ -153,6 +167,7 @@ export async function GET(request: Request) {
         failedCount,
         stalePendingCount,
         upiPendingCount,
+        installmentDueCount,
       },
       events: events.map((e: any) => ({
         id: e._id.toString(),

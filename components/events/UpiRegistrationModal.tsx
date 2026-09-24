@@ -76,6 +76,7 @@ export function UpiRegistrationModal({ isOpen, onClose, event }: UpiRegistration
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [receiptToken, setReceiptToken] = useState<string | null>(null);
+  const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [copiedUpi, setCopiedUpi] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -126,6 +127,7 @@ export function UpiRegistrationModal({ isOpen, onClose, event }: UpiRegistration
       setProofPreview(null);
       setErrorMessage(null);
       setReceiptToken(null);
+      setRegistrationId(null);
     }, 300);
   };
 
@@ -262,6 +264,7 @@ export function UpiRegistrationModal({ isOpen, onClose, event }: UpiRegistration
       }
 
       setReceiptToken(data.receiptToken);
+      if (data.registrationId) setRegistrationId(data.registrationId);
       setStep("success");
     } catch (err: any) {
       setErrorMessage(err.message || "Submission failed. Please check your network.");
@@ -769,11 +772,30 @@ export function UpiRegistrationModal({ isOpen, onClose, event }: UpiRegistration
                   <code className="font-mono text-xs text-brand-cyan break-all block select-all">
                     {receiptToken}
                   </code>
+                  {registrationId && (
+                    <>
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-typo-gray block pt-1">
+                        Registration ID (for Part 2 / Pay Remaining)
+                      </span>
+                      <code className="font-mono text-xs text-amber-300 break-all block select-all">
+                        {registrationId}
+                      </code>
+                    </>
+                  )}
                   <p className="text-[11px] text-typo-gray">
-                    Keep this token safe. You can check your registration status or download your official receipt anytime at{" "}
+                    Keep these safe. Check status via{" "}
                     <Link href="/receipt/find" className="text-brand-cyan underline">
-                      /receipt/find
+                      Find My Receipt
                     </Link>
+                    {paymentPlan === "installment" && (
+                      <>
+                        {" "}
+                        or pay Part 2 later at{" "}
+                        <Link href="/pay-remaining" className="text-brand-cyan underline">
+                          /pay-remaining
+                        </Link>
+                      </>
+                    )}
                     .
                   </p>
                 </div>

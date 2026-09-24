@@ -801,19 +801,15 @@ export default function AdminEventsPage() {
                           </span>
                         </div>
 
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
-                            UPI QR Code Image URL (Optional)
-                          </label>
-                          <input
-                            type="url"
+                        <div className="space-y-1.5 sm:col-span-2">
+                          <ImageInput
+                            label="UPI QR Code Image (Optional)"
                             value={formData.upiQrUrl}
-                            onChange={(e) => setFormData({ ...formData, upiQrUrl: e.target.value })}
-                            placeholder="https://... or /api/images/..."
-                            className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                            onChange={(url) => setFormData({ ...formData, upiQrUrl: url })}
+                            placeholder="Upload QR screenshot or paste image URL"
                           />
                           <span className="text-[10px] text-typo-gray block">
-                            Direct image link or upload using Image tab.
+                            Shown to participants during UPI checkout. Upload a clear QR image or paste a URL.
                           </span>
                         </div>
                       </div>
