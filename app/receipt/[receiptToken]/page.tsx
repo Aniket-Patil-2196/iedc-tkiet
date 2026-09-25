@@ -90,6 +90,8 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
     startDate: event ? event.startDate || (event as any).date || "" : "",
     venue: event ? event.venue : "TKIET Campus, Warananagar",
     fee: event ? event.fee : 0,
+    whatsappGroupLink: event ? (event as any).whatsappGroupLink || null : null,
+    whatsappQrUrl: event ? (event as any).whatsappQrUrl || null : null,
   };
 
   const regData = {

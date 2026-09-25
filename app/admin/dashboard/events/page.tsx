@@ -52,6 +52,8 @@ export default function AdminEventsPage() {
     paymentMode: "razorpay" as "razorpay" | "manual_upi" | "free",
     upiId: "",
     upiQrUrl: "",
+    whatsappGroupLink: "",
+    whatsappQrUrl: "",
     installmentEnabled: false,
     installmentPart1Amount: "",
     installmentPart2Amount: "",
@@ -106,6 +108,8 @@ export default function AdminEventsPage() {
       paymentMode: "razorpay",
       upiId: "",
       upiQrUrl: "",
+      whatsappGroupLink: "",
+      whatsappQrUrl: "",
       installmentEnabled: false,
       installmentPart1Amount: "",
       installmentPart2Amount: "",
@@ -143,6 +147,8 @@ export default function AdminEventsPage() {
       paymentMode: (event as any).paymentMode || "razorpay",
       upiId: (event as any).upiId || "",
       upiQrUrl: (event as any).upiQrUrl || "",
+      whatsappGroupLink: (event as any).whatsappGroupLink || "",
+      whatsappQrUrl: (event as any).whatsappQrUrl || "",
       installmentEnabled: Boolean((event as any).installmentEnabled),
       installmentPart1Amount:
         (event as any).installmentPart1Amount !== null && (event as any).installmentPart1Amount !== undefined
@@ -177,6 +183,8 @@ export default function AdminEventsPage() {
         paymentMode: formData.paymentMode,
         upiId: formData.upiId ? formData.upiId.trim() : null,
         upiQrUrl: formData.upiQrUrl ? formData.upiQrUrl.trim() : null,
+        whatsappGroupLink: formData.whatsappGroupLink ? formData.whatsappGroupLink.trim() : null,
+        whatsappQrUrl: formData.whatsappQrUrl ? formData.whatsappQrUrl.trim() : null,
         installmentEnabled: Boolean(formData.installmentEnabled),
         installmentPart1Amount:
           formData.installmentPart1Amount !== "" && formData.installmentPart1Amount !== null
@@ -881,6 +889,44 @@ export default function AdminEventsPage() {
                   )}
                 </div>
               )}
+
+              {/* WhatsApp Group — near payment/UPI settings; available for all events */}
+              <div className="pt-3 border-t border-foundation-slate/60 space-y-3">
+                <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider block">
+                  WhatsApp Group (Optional)
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                      Group Invite Link
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.whatsappGroupLink}
+                      onChange={(e) =>
+                        setFormData({ ...formData, whatsappGroupLink: e.target.value })
+                      }
+                      placeholder="https://chat.whatsapp.com/..."
+                      className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan font-mono"
+                    />
+                    <span className="text-[10px] text-typo-gray block">
+                      Shown after registration and on the event page so students can join for updates.
+                      Leave blank to hide the join card.
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <ImageInput
+                      label="WhatsApp Group QR Code (Optional)"
+                      value={formData.whatsappQrUrl}
+                      onChange={(url) => setFormData({ ...formData, whatsappQrUrl: url })}
+                      placeholder="Upload WhatsApp group QR or paste image URL"
+                    />
+                    <span className="text-[10px] text-typo-gray block">
+                      Optional QR image shown alongside the join link (same upload pattern as UPI QR).
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

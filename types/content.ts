@@ -53,6 +53,8 @@ export interface IEvent {
   paymentMode?: "razorpay" | "manual_upi" | "free";
   upiId?: string | null;
   upiQrUrl?: string | null;
+  whatsappGroupLink?: string | null;
+  whatsappQrUrl?: string | null;
   installmentEnabled?: boolean;
   installmentPart1Amount?: number | null;
   installmentPart2Amount?: number | null;

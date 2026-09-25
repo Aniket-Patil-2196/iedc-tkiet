@@ -66,6 +66,9 @@ const EventSchema = new Schema<IEventDocument>(
     },
     upiId: { type: String, default: null },
     upiQrUrl: { type: String, default: null },
+    // WhatsApp group for event updates (optional)
+    whatsappGroupLink: { type: String, default: null },
+    whatsappQrUrl: { type: String, default: null },
     installmentEnabled: { type: Boolean, default: false },
     installmentPart1Amount: { type: Number, default: null, min: 0 },
     installmentPart2Amount: { type: Number, default: null, min: 0 },

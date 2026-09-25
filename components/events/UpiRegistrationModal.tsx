@@ -24,6 +24,7 @@ import {
   Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { WhatsAppGroupJoinCard } from "@/components/events/WhatsAppGroupJoinCard";
 
 const YEAR_OPTIONS = [
   "1st Year",
@@ -42,6 +43,8 @@ interface EventInfo {
   fee?: number;
   upiId?: string | null;
   upiQrUrl?: string | null;
+  whatsappGroupLink?: string | null;
+  whatsappQrUrl?: string | null;
   installmentEnabled?: boolean;
   installmentPart1Amount?: number | null;
   installmentPart2Amount?: number | null;
@@ -777,6 +780,12 @@ export function UpiRegistrationModal({ isOpen, onClose, event }: UpiRegistration
                   </p>
                 </div>
               )}
+
+              <WhatsAppGroupJoinCard
+                groupLink={event.whatsappGroupLink}
+                qrUrl={event.whatsappQrUrl}
+                compact
+              />
 
               <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
                 {receiptToken && (

@@ -23,6 +23,7 @@ import {
 } from "@/lib/utils/event-status";
 import { EventRegistrationModal } from "@/components/events/EventRegistrationModal";
 import { UpiRegistrationModal } from "@/components/events/UpiRegistrationModal";
+import { WhatsAppGroupJoinCard } from "@/components/events/WhatsAppGroupJoinCard";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,8 @@ export interface EventRegistrationPanelProps {
     paymentMode?: "razorpay" | "manual_upi" | "free";
     upiId?: string | null;
     upiQrUrl?: string | null;
+    whatsappGroupLink?: string | null;
+    whatsappQrUrl?: string | null;
     installmentEnabled?: boolean;
     installmentPart1Amount?: number | null;
     installmentPart2Amount?: number | null;
@@ -319,6 +322,12 @@ export function EventRegistrationPanel({
             </>
           )}
         </button>
+
+        <WhatsAppGroupJoinCard
+          groupLink={event.whatsappGroupLink}
+          qrUrl={event.whatsappQrUrl}
+          compact
+        />
       </div>
 
       {/* On-site mode receipt note + download entry */}
@@ -364,6 +373,8 @@ export function EventRegistrationPanel({
               fee: event.fee,
               upiId: event.upiId,
               upiQrUrl: event.upiQrUrl,
+              whatsappGroupLink: event.whatsappGroupLink,
+              whatsappQrUrl: event.whatsappQrUrl,
               installmentEnabled: event.installmentEnabled,
               installmentPart1Amount: event.installmentPart1Amount,
               installmentPart2Amount: event.installmentPart2Amount,

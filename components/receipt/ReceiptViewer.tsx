@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { formatDateIST } from "@/lib/utils/date-ist";
+import { WhatsAppGroupJoinCard } from "@/components/events/WhatsAppGroupJoinCard";
 
 interface ReceiptViewerProps {
   registration: {
@@ -70,6 +71,8 @@ interface ReceiptViewerProps {
     startDate: string;
     venue: string;
     fee?: number;
+    whatsappGroupLink?: string | null;
+    whatsappQrUrl?: string | null;
   };
 }
 
@@ -407,6 +410,11 @@ export function ReceiptViewer({
             </p>
           )}
 
+          <WhatsAppGroupJoinCard
+            groupLink={event.whatsappGroupLink}
+            qrUrl={event.whatsappQrUrl}
+          />
+
           <div className="pt-4 border-t border-foundation-slate/60 text-xs text-typo-gray">
             You can always look up your receipt anytime at{" "}
             <Link href="/receipt/find" className="text-brand-cyan underline">
@@ -617,6 +625,12 @@ export function ReceiptViewer({
           </Button>
         </div>
       </div>
+
+      {/* WhatsApp join CTA — outside light-theme receipt so it does not affect PDF/PNG export */}
+      <WhatsAppGroupJoinCard
+        groupLink={event.whatsappGroupLink}
+        qrUrl={event.whatsappQrUrl}
+      />
 
       {/* Official Receipt Container (ALWAYS LIGHT THEME FOR FORMAL PRINT & EXPORT) */}
       <div
