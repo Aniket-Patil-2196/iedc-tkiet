@@ -90,6 +90,7 @@ interface EventOption {
 
 interface Metrics {
   totalRegistrations: number;
+  totalEnrolled: number;
   paidCount: number;
   totalRevenueRupees: number;
   pendingCount: number;
@@ -98,6 +99,7 @@ interface Metrics {
   stalePendingCount: number;
   upiPendingCount?: number;
   installmentDueCount?: number;
+  partialPaymentCount?: number;
 }
 
 export default function AdminRegistrationsPage() {
@@ -105,6 +107,7 @@ export default function AdminRegistrationsPage() {
   const [events, setEvents] = useState<EventOption[]>([]);
   const [metrics, setMetrics] = useState<Metrics>({
     totalRegistrations: 0,
+    totalEnrolled: 0,
     paidCount: 0,
     totalRevenueRupees: 0,
     pendingCount: 0,
@@ -113,6 +116,7 @@ export default function AdminRegistrationsPage() {
     stalePendingCount: 0,
     upiPendingCount: 0,
     installmentDueCount: 0,
+    partialPaymentCount: 0,
   });
   const [loading, setLoading] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState("all");
@@ -474,7 +478,7 @@ export default function AdminRegistrationsPage() {
         )}
 
         {/* Summary Metric Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <div className="p-5 rounded-2xl bg-foundation-dark border border-foundation-slate/80 space-y-1 shadow-md">
             <div className="flex items-center justify-between text-typo-gray text-xs font-semibold uppercase tracking-wider">
               <span>Total Revenue</span>
@@ -488,6 +492,19 @@ export default function AdminRegistrationsPage() {
 
           <div className="p-5 rounded-2xl bg-foundation-dark border border-foundation-slate/80 space-y-1 shadow-md">
             <div className="flex items-center justify-between text-typo-gray text-xs font-semibold uppercase tracking-wider">
+              <span>Total Enrolled</span>
+              <Users className="w-4 h-4 text-brand-cyan" />
+            </div>
+            <p className="font-mono text-2xl font-bold text-typo-white">
+              {metrics.totalEnrolled}
+            </p>
+            <span className="text-[11px] text-typo-gray block">
+              Active registrations
+            </span>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-foundation-dark border border-foundation-slate/80 space-y-1 shadow-md">
+            <div className="flex items-center justify-between text-typo-gray text-xs font-semibold uppercase tracking-wider">
               <span>Paid Attendees</span>
               <CheckCircle2 className="w-4 h-4 text-brand-cyan" />
             </div>
@@ -496,6 +513,19 @@ export default function AdminRegistrationsPage() {
             </p>
             <span className="text-[11px] text-typo-gray block">
               {metrics.totalRegistrations} total submissions
+            </span>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-foundation-dark border border-foundation-slate/80 space-y-1 shadow-md">
+            <div className="flex items-center justify-between text-typo-gray text-xs font-semibold uppercase tracking-wider">
+              <span>Partial Payment</span>
+              <Clock className="w-4 h-4 text-amber-400" />
+            </div>
+            <p className="font-mono text-2xl font-bold text-amber-400">
+              {metrics.partialPaymentCount ?? metrics.installmentDueCount ?? 0}
+            </p>
+            <span className="text-[11px] text-typo-gray block">
+              Part 1 paid, part 2 due
             </span>
           </div>
 

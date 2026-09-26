@@ -112,16 +112,19 @@ export async function GET(request: Request) {
     let stalePendingCount = 0;
     let upiPendingCount = 0;
     let installmentDueCount = 0;
+    let totalEnrolled = 0;
 
     for (const record of allRecords) {
       if (record.status === "paid") {
         paidCount++;
+        totalEnrolled++;
         totalRevenuePaise += record.amount || 0;
       } else if (
         record.status === "pending" ||
         record.status === "verification_required"
       ) {
         pendingCount++;
+        totalEnrolled++;
         const isManualUpi =
           record.paymentMethod === "MANUAL_UPI" || record.paymentMode === "manual_upi";
         const awaitingReview =
@@ -160,6 +163,7 @@ export async function GET(request: Request) {
       data: registrations,
       metrics: {
         totalRegistrations: allRecords.length,
+        totalEnrolled,
         paidCount,
         totalRevenueRupees: Math.round(totalRevenuePaise / 100),
         pendingCount,
@@ -168,6 +172,7 @@ export async function GET(request: Request) {
         stalePendingCount,
         upiPendingCount,
         installmentDueCount,
+        partialPaymentCount: installmentDueCount,
       },
       events: events.map((e: any) => ({
         id: e._id.toString(),
