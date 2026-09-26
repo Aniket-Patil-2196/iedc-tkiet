@@ -43,6 +43,24 @@ import {
 
 const isProduction = process.env.NODE_ENV === "production";
 
+/** RSC-safe plain object: ObjectIds/Dates become strings (no toJSON props). */
+function toClientPlain<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function mapBlogDoc(d: any): IBlog {
+  const { _id, __v, ...rest } = d;
+  return toClientPlain({
+    ...rest,
+    id: _id.toString(),
+    author: rest.author || "IEDC TKIET",
+    tags: Array.isArray(rest.tags) ? rest.tags : [],
+    category: rest.category ?? null,
+    location: rest.location ?? null,
+    seo: rest.seo || undefined,
+  }) as IBlog;
+}
+
 /**
  * Baseline official institutional About text for TKIET.
  */
@@ -153,15 +171,7 @@ export async function getPublishedBlogs(): Promise<IBlog[]> {
         .sort({ publicationDate: -1 })
         .lean();
       if (docs && docs.length > 0) {
-        return docs.map((d: any) => ({
-          ...d,
-          id: d._id.toString(),
-          author: d.author || "IEDC TKIET",
-          tags: Array.isArray(d.tags) ? d.tags : [],
-          category: d.category ?? null,
-          location: d.location ?? null,
-          seo: d.seo || undefined,
-        })) as IBlog[];
+        return docs.map((d: any) => mapBlogDoc(d));
       }
       if (isProduction) return [];
     }
@@ -185,15 +195,7 @@ export async function getPublishedBlogBySlug(
     if (conn) {
       const doc = await BlogModel.findOne({ slug, published: true }).lean();
       if (doc) {
-        return {
-          ...(doc as any),
-          id: (doc as any)._id.toString(),
-          author: (doc as any).author || "IEDC TKIET",
-          tags: Array.isArray((doc as any).tags) ? (doc as any).tags : [],
-          category: (doc as any).category ?? null,
-          location: (doc as any).location ?? null,
-          seo: (doc as any).seo || undefined,
-        } as IBlog;
+        return mapBlogDoc(doc);
       }
       if (isProduction) return null;
     }

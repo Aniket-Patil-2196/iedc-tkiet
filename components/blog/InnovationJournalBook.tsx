@@ -16,7 +16,6 @@ import {
   BookOpen,
   X,
   Sparkles,
-  ArrowRight,
   AlertTriangle,
   RotateCcw,
 } from "lucide-react";
@@ -29,7 +28,6 @@ import { ThePen, BookDisplayState } from "./ThePen";
 import { stripHtmlToPlainText } from "@/lib/utils/blog-validation";
 import { SITE_CONFIG } from "@/lib/constants/site";
 import { cn } from "@/lib/utils";
-import { fontBookBody, fontBookTitle } from "@/lib/fonts/book";
 import { MobileBookLayout } from "./MobileBookLayout";
 
 
@@ -881,6 +879,18 @@ export function InnovationJournalBook({
     return `Pages ${leftPage + 1}-${rightPage + 1} of ${totalPages}`;
   }, [displayState, currentPageIndex, totalPages, isMobile]);
 
+  // Continue-reading overlay: only on an open post spread that includes that
+  // article's manuscript (last) page — never over cover/TOC/back.
+  const showContinueReadingCta = useMemo(() => {
+    if (!currentPost || displayState !== "open") return false;
+    const blogIdx = blogs.findIndex((b) => b.slug === currentPost.slug);
+    if (blogIdx < 0) return false;
+    const postStart = 1 + totalIntroPages;
+    const articleFirst = postStart + blogIdx * 2;
+    const articleLast = articleFirst + 1;
+    return currentPageIndex >= articleFirst && currentPageIndex <= articleLast;
+  }, [currentPost, displayState, blogs, totalIntroPages, currentPageIndex]);
+
   // ── Render: CSS-based display switching between Mobile and Desktop to prevent SSR hydration mismatch ────
   return (
     <>
@@ -1298,12 +1308,7 @@ export function InnovationJournalBook({
                         </div>
 
                         <div className="space-y-0.5 shrink-0">
-                          <h3
-                            className={cn(
-                              fontBookTitle.className,
-                              "text-xl sm:text-2xl font-bold text-[#0F1B44] tracking-tight leading-snug [overflow-wrap:anywhere]"
-                            )}
-                          >
+                          <h3 className="font-book-title text-xl sm:text-2xl font-bold text-[#0F1B44] tracking-tight leading-snug [overflow-wrap:anywhere]">
                             {blog.title}
                           </h3>
                           <div className="text-[11px] font-mono text-[#1E40AF] font-semibold">
@@ -1314,10 +1319,7 @@ export function InnovationJournalBook({
                         <div className="relative flex-1 overflow-hidden pt-1">
                           <p
                             style={{ fontSize: bodyFontSize, lineHeight: bodyLineHeight }}
-                            className={cn(
-                              fontBookBody.className,
-                              "text-[#1B2333] tracking-normal text-left [hyphens:manual] [overflow-wrap:anywhere]"
-                            )}
+                            className="font-book-body text-[#1B2333] tracking-normal text-left [hyphens:manual] [overflow-wrap:anywhere]"
                           >
                             {dropCap && (
                               <span className="float-left text-4xl sm:text-5xl font-book-handwriting font-bold ink-drop-cap mr-2.5 leading-[0.8] select-none">
@@ -1428,30 +1430,32 @@ export function InnovationJournalBook({
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Continue-reading CTA lives OUTSIDE the PageFlip host so gesture
-            hit-testing cannot swallow the click (Prev/Next/Close pattern). */}
-        {currentPost && displayState === "open" && (
-          <div
-            style={{
-              width: isMobile ? `${pageWidth}px` : `${pageWidth * 2}px`,
-              maxWidth: "100%",
-            }}
-            className="relative flex justify-center mt-3 sm:mt-4 px-2"
-          >
-            <Link
-              href={`/blog/${currentPost.slug}`}
-              className="group inline-flex items-center gap-2 min-h-[44px] px-5 py-2.5 rounded-xl bg-gradient-to-b from-[#1E3A8A] via-[#1E40AF] to-[#172554] text-[#FBF6E9] font-book-handwriting font-bold text-sm tracking-wide shadow-[0_4px_14px_rgba(74,52,24,0.35)] border border-[#1E3A8A]/80 hover:brightness-110 active:scale-[0.98] transition-all"
-              title={`Continue reading: ${currentPost.title}`}
+          {/* Continue reading: DOM sibling of PageFlip (not page content), so
+              gesture hit-testing never owns the click — absolutely overlaid on
+              the right-hand page corner to match the original ribbon placement. */}
+          {showContinueReadingCta && currentPost && (
+            <div
+              aria-hidden={false}
+              className="absolute inset-y-0 right-0 z-40 pointer-events-none"
+              style={{ width: `${pageWidth}px` }}
             >
-              <span className="max-w-[min(420px,70vw)] truncate">
-                Continue reading this post
-              </span>
-              <ArrowRight className="w-4 h-4 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-          </div>
-        )}
+              <div className="absolute -bottom-3 right-6 sm:right-8 pointer-events-auto group">
+                <Link
+                  href={`/blog/${currentPost.slug}`}
+                  className="relative flex items-center justify-center px-4 pt-1.5 pb-3 bg-gradient-to-b from-[#1E3A8A] via-[#1E40AF] to-[#172554] text-[#FBF6E9] font-book-handwriting font-bold text-xs sm:text-sm tracking-wide shadow-[0_4px_14px_rgba(74,52,24,0.35)] transition-all duration-300 group-hover:translate-y-1 hover:brightness-110"
+                  style={{
+                    clipPath:
+                      "polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 7px), 0 100%)",
+                  }}
+                  title="Continue reading this post"
+                >
+                  <span>Continue reading ➔</span>
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* 3. Controls Row (FIX 1.3: Conditioned by displayState) */}
         <div
