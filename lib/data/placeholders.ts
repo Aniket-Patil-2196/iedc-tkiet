@@ -289,7 +289,7 @@ export const PLACEHOLDER_BLOGS: IBlog[] = [
       {
         url: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80",
         alt: "Student team fabricating circuit boards in prototyping laboratory",
-        caption: "TKIET fabrication lab: testing embedded sensor array.",
+        caption: "From everyday challenges to innovative opportunities—every great idea begins with a question.",
       },
       {
         url: "https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800&auto=format&fit=crop&q=80",

@@ -6,6 +6,7 @@ import { Maximize2, ExternalLink } from "lucide-react";
 import { IBlog, IBlogImage } from "@/types/content";
 import { ImageLightbox } from "./ImageLightbox";
 import { cn } from "@/lib/utils";
+import { fontHandwriting } from "@/lib/fonts/book";
 import { sortBlogImages, sortBlogReferences } from "@/lib/utils/blog-validation";
 
 interface PostageStampProps {
@@ -69,7 +70,14 @@ export function PostageStamp({
     blog.images && blog.images.length > 0
       ? blog.images
       : blog.coverImage
-      ? [{ url: blog.coverImage, alt: blog.title, order: 0 }]
+      ? [
+          {
+            url: blog.coverImage,
+            alt: blog.title,
+            caption: (blog as any).caption || undefined,
+            order: 0,
+          },
+        ]
       : []
   );
 
@@ -78,6 +86,11 @@ export function PostageStamp({
   const primaryImage = displayImages[0];
   const secondaryImages = displayImages.slice(1);
   const postmarkDate = formatPostmarkDate(blog.publishedAt || blog.publicationDate || blog.createdAt);
+  const figureCaption =
+    (primaryImage?.caption && String(primaryImage.caption).trim()) ||
+    ((blog as any).caption && String((blog as any).caption).trim()) ||
+    "";
+
 
   return (
     <div className={cn("space-y-4 w-full select-none", className)}>
@@ -252,11 +265,16 @@ export function PostageStamp({
       </div>
 
       {/* 2. CAPTION (in handwriting font) */}
-      {primaryImage?.caption && (
-        <p className="font-book-handwriting text-xs sm:text-sm text-[#4B5468] italic leading-relaxed pt-0.5">
-          {primaryImage.caption}
+      {figureCaption ? (
+        <p
+          className={cn(
+            fontHandwriting.className,
+            "font-book-handwriting text-xs sm:text-sm text-[#4B5468] italic leading-relaxed pt-0.5 shrink-0"
+          )}
+        >
+          {figureCaption}
         </p>
-      )}
+      ) : null}
 
       {/* 3. SOURCES BLOCK (Museum cardstock label style) */}
       {orderedReferences.length > 0 && (
