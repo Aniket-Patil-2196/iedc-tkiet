@@ -588,7 +588,7 @@ export function MobileBookLayout({ blogs, initialPostSlug }: MobileBookLayoutPro
                 <PostageStamp blog={blog} onOpenLightbox={(img) => setLightboxImage(img)} />
 
                 <div className="space-y-0.5">
-                  <h3 className="font-display text-base font-bold text-[#0F1B44] tracking-tight leading-snug">
+                  <h3 className="font-book-title text-base font-bold text-[#0F1B44] tracking-tight leading-snug">
                     {blog.title}
                   </h3>
                   <div className="text-[11px] font-mono text-[#1E40AF] font-semibold">
@@ -597,7 +597,7 @@ export function MobileBookLayout({ blogs, initialPostSlug }: MobileBookLayoutPro
                 </div>
 
                 <div className="relative">
-                  <p className="font-book-body text-[#1B2333] tracking-normal text-left text-[15px] leading-[1.65] [hyphens:manual] [overflow-wrap:anywhere]">
+                  <p className="font-book-body text-[#1B2333] tracking-normal text-left text-[15px] leading-[1.7] [hyphens:manual] [overflow-wrap:anywhere]">
                     {dropCap && (
                       <span className="float-left text-4xl font-book-handwriting font-bold ink-drop-cap mr-2 leading-[0.8] select-none">
                         {dropCap}

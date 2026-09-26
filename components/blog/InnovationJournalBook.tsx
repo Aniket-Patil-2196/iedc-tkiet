@@ -1222,7 +1222,7 @@ export function InnovationJournalBook({
                 isMobile
               );
               const bodyFontSize = isMobile ? "16px" : "17.5px";
-              const bodyLineHeight = isMobile ? "1.6" : "1.65";
+              const bodyLineHeight = isMobile ? "1.65" : "1.7";
               const leftPageNum = 1 + totalIntroPages + blogIdx * 2 + 1;
               const rightPageNum = leftPageNum + 1;
 
@@ -1307,7 +1307,7 @@ export function InnovationJournalBook({
                         </div>
 
                         <div className="space-y-0.5 shrink-0">
-                          <h3 className="font-display text-xl sm:text-2xl font-bold text-[#0F1B44] tracking-tight leading-snug [overflow-wrap:anywhere]">
+                          <h3 className="font-book-title text-xl sm:text-2xl font-bold text-[#0F1B44] tracking-tight leading-snug [overflow-wrap:anywhere]">
                             {blog.title}
                           </h3>
                           <div className="text-[11px] font-mono text-[#1E40AF] font-semibold">

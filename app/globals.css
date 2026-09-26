@@ -7,6 +7,7 @@
   --foreground: #F5F7FA;
   --header-height: 4rem;
   --font-book-body: var(--font-literary), var(--font-devanagari), serif;
+  --font-book-title: var(--font-book-display), var(--font-devanagari), serif;
   --font-book-handwriting: var(--font-handwriting), cursive;
 
   /* Warm Cream Book Paper Design System */
@@ -150,6 +151,10 @@ body {
 /* Literary & Handwriting Book Fonts */
 .font-book-body {
   font-family: var(--font-book-body);
+}
+
+.font-book-title {
+  font-family: var(--font-book-title);
 }
 
 .font-book-handwriting {

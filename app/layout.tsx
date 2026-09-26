@@ -1,5 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Syne, Manrope, Lora, Noto_Serif_Devanagari, Kalam } from "next/font/google";
+import {
+  Syne,
+  Manrope,
+  EB_Garamond,
+  Fraunces,
+  Noto_Serif_Devanagari,
+  Kalam,
+} from "next/font/google";
 import "./globals.css";
 import dynamic from "next/dynamic";
 import { Header } from "@/components/navigation/Header";
@@ -34,11 +41,20 @@ const manrope = Manrope({
   weight: ["400", "500", "600", "700"],
 });
 
-const lora = Lora({
+/** Classic book face for manuscript body (book preview + full article). */
+const ebGaramond = EB_Garamond({
   subsets: ["latin"],
   variable: "--font-literary",
   display: "swap",
   weight: ["400", "500", "600", "700"],
+});
+
+/** Soft editorial display serif for manuscript article titles in the book. */
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-book-display",
+  display: "swap",
+  weight: ["500", "600", "700"],
 });
 
 const notoSerifDevanagari = Noto_Serif_Devanagari({
@@ -90,7 +106,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${syne.variable} ${manrope.variable} ${lora.variable} ${notoSerifDevanagari.variable} ${kalam.variable}`}
+      className={`${syne.variable} ${manrope.variable} ${ebGaramond.variable} ${fraunces.variable} ${notoSerifDevanagari.variable} ${kalam.variable}`}
     >
       <body className="flex min-h-screen flex-col bg-foundation-darkest text-typo-white antialiased selection:bg-brand-blue selection:text-typo-white">
         <BrandedLoader />
