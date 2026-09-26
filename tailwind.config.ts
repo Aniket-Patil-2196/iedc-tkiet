@@ -42,6 +42,19 @@ const config: Config = {
       fontFamily: {
         display: ["var(--font-syne)", "sans-serif"],
         sans: ["var(--font-manrope)", "sans-serif"],
+        "book-title": [
+          "var(--font-book-display)",
+          "var(--font-devanagari)",
+          "Georgia",
+          "serif",
+        ],
+        "book-body": [
+          "var(--font-literary)",
+          "var(--font-devanagari)",
+          "Times New Roman",
+          "serif",
+        ],
+        "book-handwriting": ["var(--font-handwriting)", "cursive"],
       },
       backgroundImage: {
         "brand-gradient": "linear-gradient(135deg, #2563EB 0%, #38BDF8 100%)",

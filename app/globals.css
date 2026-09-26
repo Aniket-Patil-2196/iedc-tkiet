@@ -6,8 +6,11 @@
   --background: #080A0F;
   --foreground: #F5F7FA;
   --header-height: 4rem;
-  --font-book-body: var(--font-literary), var(--font-devanagari), serif;
-  --font-book-title: var(--font-book-display), var(--font-devanagari), serif;
+  /* next/font populates --font-literary / --font-book-display / --font-devanagari /
+     --font-handwriting on <html>. Reference those vars directly (no intermediate
+     custom-property list) so a missing link cannot invalidate the whole stack. */
+  --font-book-body: var(--font-literary), var(--font-devanagari), "Times New Roman", serif;
+  --font-book-title: var(--font-book-display), var(--font-devanagari), Georgia, serif;
   --font-book-handwriting: var(--font-handwriting), cursive;
 
   /* Warm Cream Book Paper Design System */
@@ -148,17 +151,19 @@ body {
   animation: star-twinkle 1.8s ease-in-out infinite alternate;
 }
 
-/* Literary & Handwriting Book Fonts */
+/* Literary & Handwriting Book Fonts
+   Prefer next/font .className on manuscript title/body for a hard font-family.
+   These utilities remain for BlogManuscriptBody and any CSS-only consumers. */
 .font-book-body {
-  font-family: var(--font-book-body);
+  font-family: var(--font-literary), var(--font-devanagari), "Times New Roman", serif;
 }
 
 .font-book-title {
-  font-family: var(--font-book-title);
+  font-family: var(--font-book-display), var(--font-devanagari), Georgia, serif;
 }
 
 .font-book-handwriting {
-  font-family: var(--font-book-handwriting);
+  font-family: var(--font-handwriting), cursive;
 }
 
 /* Mobile blog book: one-screen shell (site header is --header-height / 4rem).

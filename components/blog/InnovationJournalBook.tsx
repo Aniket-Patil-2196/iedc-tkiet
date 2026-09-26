@@ -29,6 +29,7 @@ import { ThePen, BookDisplayState } from "./ThePen";
 import { stripHtmlToPlainText } from "@/lib/utils/blog-validation";
 import { SITE_CONFIG } from "@/lib/constants/site";
 import { cn } from "@/lib/utils";
+import { fontBookBody, fontBookTitle } from "@/lib/fonts/book";
 import { MobileBookLayout } from "./MobileBookLayout";
 
 
@@ -1267,17 +1268,7 @@ export function InnovationJournalBook({
 
                       <div className="pt-3 flex items-center justify-between border-t border-[#D8C7A7] text-[11px] font-mono text-[#4B5468] mt-auto">
                         <span>{SITE_CONFIG.institutionShort} ARCHIVE</span>
-                        <Link
-                          href={`/blog/${blog.slug}`}
-                          // Keep PageFlip from treating this as a flip gesture start
-                          // (library listens on mousedown/pointerdown of the book host).
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          className="text-[#1E40AF] hover:text-[#2563EB] hover:underline inline-flex items-center gap-1 group font-medium"
-                        >
-                          <span>Read full manuscript</span>
-                          <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                        </Link>
+                        <span>PAGE {leftPageNum.toString().padStart(2, "0")}</span>
                       </div>
                     </div>
                   </div>
@@ -1307,7 +1298,12 @@ export function InnovationJournalBook({
                         </div>
 
                         <div className="space-y-0.5 shrink-0">
-                          <h3 className="font-book-title text-xl sm:text-2xl font-bold text-[#0F1B44] tracking-tight leading-snug [overflow-wrap:anywhere]">
+                          <h3
+                            className={cn(
+                              fontBookTitle.className,
+                              "text-xl sm:text-2xl font-bold text-[#0F1B44] tracking-tight leading-snug [overflow-wrap:anywhere]"
+                            )}
+                          >
                             {blog.title}
                           </h3>
                           <div className="text-[11px] font-mono text-[#1E40AF] font-semibold">
@@ -1318,7 +1314,10 @@ export function InnovationJournalBook({
                         <div className="relative flex-1 overflow-hidden pt-1">
                           <p
                             style={{ fontSize: bodyFontSize, lineHeight: bodyLineHeight }}
-                            className="font-book-body text-[#1B2333] tracking-normal text-left [hyphens:manual] [overflow-wrap:anywhere]"
+                            className={cn(
+                              fontBookBody.className,
+                              "text-[#1B2333] tracking-normal text-left [hyphens:manual] [overflow-wrap:anywhere]"
+                            )}
                           >
                             {dropCap && (
                               <span className="float-left text-4xl sm:text-5xl font-book-handwriting font-bold ink-drop-cap mr-2.5 leading-[0.8] select-none">
@@ -1341,27 +1340,6 @@ export function InnovationJournalBook({
                         <span>{SITE_CONFIG.name}</span>
                         <span>PAGE {rightPageNum.toString().padStart(2, "0")}</span>
                       </div>
-
-                      {/* Hanging Bookmark Ribbon with swallowtail cut (A3 & A4) */}
-                      {isTruncated && (
-                        <div className="absolute -bottom-3 right-6 sm:right-8 z-30 group">
-                          <Link
-                            href={`/blog/${blog.slug}`}
-                            // Keep PageFlip from treating this as a flip gesture start
-                            // (library listens on mousedown/pointerdown of the book host).
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            className="relative flex items-center justify-center px-4 pt-1.5 pb-3 bg-gradient-to-b from-[#1E3A8A] via-[#1E40AF] to-[#172554] text-[#FBF6E9] font-book-handwriting font-bold text-xs sm:text-sm tracking-wide shadow-[0_4px_14px_rgba(74,52,24,0.35)] transition-all duration-300 group-hover:translate-y-1 hover:brightness-110"
-                            style={{
-                              clipPath:
-                                "polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 7px), 0 100%)",
-                            }}
-                            title="Continue reading this post"
-                          >
-                            <span>Continue reading ➔</span>
-                          </Link>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </React.Fragment>
@@ -1451,6 +1429,29 @@ export function InnovationJournalBook({
             </div>
           </div>
         </div>
+
+        {/* Continue-reading CTA lives OUTSIDE the PageFlip host so gesture
+            hit-testing cannot swallow the click (Prev/Next/Close pattern). */}
+        {currentPost && displayState === "open" && (
+          <div
+            style={{
+              width: isMobile ? `${pageWidth}px` : `${pageWidth * 2}px`,
+              maxWidth: "100%",
+            }}
+            className="relative flex justify-center mt-3 sm:mt-4 px-2"
+          >
+            <Link
+              href={`/blog/${currentPost.slug}`}
+              className="group inline-flex items-center gap-2 min-h-[44px] px-5 py-2.5 rounded-xl bg-gradient-to-b from-[#1E3A8A] via-[#1E40AF] to-[#172554] text-[#FBF6E9] font-book-handwriting font-bold text-sm tracking-wide shadow-[0_4px_14px_rgba(74,52,24,0.35)] border border-[#1E3A8A]/80 hover:brightness-110 active:scale-[0.98] transition-all"
+              title={`Continue reading: ${currentPost.title}`}
+            >
+              <span className="max-w-[min(420px,70vw)] truncate">
+                Continue reading this post
+              </span>
+              <ArrowRight className="w-4 h-4 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+        )}
 
         {/* 3. Controls Row (FIX 1.3: Conditioned by displayState) */}
         <div
