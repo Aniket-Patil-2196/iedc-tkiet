@@ -1269,6 +1269,10 @@ export function InnovationJournalBook({
                         <span>{SITE_CONFIG.institutionShort} ARCHIVE</span>
                         <Link
                           href={`/blog/${blog.slug}`}
+                          // Keep PageFlip from treating this as a flip gesture start
+                          // (library listens on mousedown/pointerdown of the book host).
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => e.stopPropagation()}
                           className="text-[#1E40AF] hover:text-[#2563EB] hover:underline inline-flex items-center gap-1 group font-medium"
                         >
                           <span>Read full manuscript</span>
@@ -1302,8 +1306,8 @@ export function InnovationJournalBook({
                           <span>{blog.readTimeMinutes || 4} MIN READ</span>
                         </div>
 
-                        <div className="space-y-0.5">
-                          <h3 className="font-display text-base sm:text-lg font-bold text-[#0F1B44] tracking-tight leading-snug truncate">
+                        <div className="space-y-0.5 shrink-0">
+                          <h3 className="font-display text-xl sm:text-2xl font-bold text-[#0F1B44] tracking-tight leading-snug [overflow-wrap:anywhere]">
                             {blog.title}
                           </h3>
                           <div className="text-[11px] font-mono text-[#1E40AF] font-semibold">
@@ -1343,6 +1347,10 @@ export function InnovationJournalBook({
                         <div className="absolute -bottom-3 right-6 sm:right-8 z-30 group">
                           <Link
                             href={`/blog/${blog.slug}`}
+                            // Keep PageFlip from treating this as a flip gesture start
+                            // (library listens on mousedown/pointerdown of the book host).
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
                             className="relative flex items-center justify-center px-4 pt-1.5 pb-3 bg-gradient-to-b from-[#1E3A8A] via-[#1E40AF] to-[#172554] text-[#FBF6E9] font-book-handwriting font-bold text-xs sm:text-sm tracking-wide shadow-[0_4px_14px_rgba(74,52,24,0.35)] transition-all duration-300 group-hover:translate-y-1 hover:brightness-110"
                             style={{
                               clipPath:
