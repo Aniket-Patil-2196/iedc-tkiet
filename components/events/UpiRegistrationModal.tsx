@@ -755,7 +755,7 @@ export function UpiRegistrationModal({ isOpen, onClose, event }: UpiRegistration
                   {registrationId && (
                     <>
                       <span className="text-[10px] font-mono uppercase tracking-wider text-typo-gray block pt-1">
-                        Registration ID (for Part 2 / Pay Remaining)
+                        Registration ID (reference)
                       </span>
                       <code className="font-mono text-xs text-amber-300 break-all block select-all">
                         {registrationId}
@@ -770,7 +770,7 @@ export function UpiRegistrationModal({ isOpen, onClose, event }: UpiRegistration
                     {paymentPlan === "installment" && (
                       <>
                         {" "}
-                        or pay Part 2 later at{" "}
+                        or pay your remaining balance later with your email/phone at{" "}
                         <Link href="/pay-remaining" className="text-brand-cyan underline">
                           /pay-remaining
                         </Link>

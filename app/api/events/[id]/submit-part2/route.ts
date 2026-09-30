@@ -10,13 +10,12 @@ export const dynamic = "force-dynamic";
 
 const Part2Schema = z
   .object({
-    regId: z.string().min(1, "Registration ID is required"),
-    email: z.string().trim().toLowerCase().email().optional(),
-    phone: z
+    regId: z
       .string()
-      .trim()
-      .regex(/^[6-9]\d{9}$/)
-      .optional(),
+      .min(1, "Registration ID is required")
+      .regex(/^[0-9a-fA-F]{24}$/, "Invalid registration reference"),
+    email: z.string().trim().toLowerCase().email().optional().or(z.literal("")),
+    phone: z.string().trim().optional().or(z.literal("")),
     upiTransactionRef: z
       .string()
       .trim()
@@ -26,8 +25,26 @@ const Part2Schema = z
     upiProofUrl: z.string().min(1, "Payment proof screenshot is required"),
     // Client-supplied remaining/amount intentionally ignored
   })
-  .refine((d) => Boolean(d.email || d.phone), {
-    message: "Email or phone is required to verify ownership of this registration.",
+  .transform((d) => {
+    const email = d.email && d.email.length > 0 ? d.email : undefined;
+    const phoneDigits = d.phone ? d.phone.replace(/\D/g, "") : "";
+    const phone =
+      phoneDigits.length >= 10 ? phoneDigits.slice(-10) : phoneDigits || undefined;
+    return { ...d, email, phone };
+  })
+  .superRefine((d, ctx) => {
+    if (!d.email && !d.phone) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Email or phone is required to verify ownership of this registration.",
+      });
+    }
+    if (d.phone && !/^[6-9]\d{9}$/.test(d.phone)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter a valid 10-digit Indian mobile number.",
+      });
+    }
   });
 
 interface RouteParams {
@@ -63,14 +80,16 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Lookup via regId + email/phone — never regId alone
+    // Lookup via regId + email/phone — never regId alone.
+    // When both email and phone are provided they must match the SAME registration (AND).
     const ownershipFilter: Record<string, unknown> = { _id: regId };
     if (email && phone) {
-      ownershipFilter.$or = [{ email }, { phone }];
+      ownershipFilter.email = email;
+      ownershipFilter.phone = { $regex: new RegExp(`${phone}$`) };
     } else if (email) {
       ownershipFilter.email = email;
-    } else {
-      ownershipFilter.phone = phone;
+    } else if (phone) {
+      ownershipFilter.phone = { $regex: new RegExp(`${phone}$`) };
     }
 
     const registration = await RegistrationModel.findOne(ownershipFilter);

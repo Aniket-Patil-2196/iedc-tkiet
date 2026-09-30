@@ -31,10 +31,16 @@ interface LookupResult {
   upiQrUrl: string | null;
   receiptToken: string;
   installmentStatus: string;
+  installmentPlan?: string;
+  installmentCount?: number;
+  installmentPart?: number;
+}
+
+function normalizePhone(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 10);
 }
 
 export default function PayRemainingPage() {
-  const [regId, setRegId] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -52,12 +58,11 @@ export default function PayRemainingPage() {
     setLookup(null);
     setSuccess(false);
 
-    if (!regId.trim()) {
-      setErrorMessage("Registration ID is required.");
-      return;
-    }
-    if (!email.trim() && !phone.trim()) {
-      setErrorMessage("Provide the email or phone used during registration.");
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = normalizePhone(phone);
+
+    if (!normalizedEmail && !normalizedPhone) {
+      setErrorMessage("Provide the email or phone number used during registration.");
       return;
     }
 
@@ -67,9 +72,8 @@ export default function PayRemainingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          regId: regId.trim(),
-          email: email.trim() || undefined,
-          phone: phone.trim() || undefined,
+          email: normalizedEmail || undefined,
+          phone: normalizedPhone || undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -154,15 +158,12 @@ export default function PayRemainingPage() {
               <div className="w-14 h-14 rounded-2xl bg-brand-blue/20 border border-brand-cyan/40 flex items-center justify-center mx-auto text-brand-cyan mb-4">
                 <Coins className="w-7 h-7" />
               </div>
-              <span className="text-xs uppercase font-sans tracking-widest text-brand-cyan font-bold block">
-                Installment Part 2
-              </span>
               <h1 className="font-display text-2xl font-bold text-typo-white">
-                Pay Remaining Balance
+                Pay Your Remaining Balance
               </h1>
               <p className="text-sm text-typo-gray max-w-md mx-auto">
-                Enter your Registration ID and the email or phone used at registration. Remaining
-                amount is calculated on the server.
+                Enter the email address or phone number you used during registration to check your
+                pending payment.
               </p>
             </div>
 
@@ -191,18 +192,6 @@ export default function PayRemainingPage() {
               </div>
             ) : !lookup ? (
               <form onSubmit={handleLookup} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
-                    Registration ID *
-                  </label>
-                  <input
-                    type="text"
-                    value={regId}
-                    onChange={(e) => setRegId(e.target.value)}
-                    placeholder="Registration ID from your confirmation"
-                    className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan font-mono"
-                  />
-                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
@@ -223,13 +212,18 @@ export default function PayRemainingPage() {
                     <input
                       type="tel"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => setPhone(normalizePhone(e.target.value))}
                       placeholder="9876543210"
+                      inputMode="numeric"
+                      maxLength={10}
                       className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
                     />
                   </div>
                 </div>
-                <p className="text-[10px] text-typo-gray">Provide at least one of email or phone.</p>
+                <p className="text-[10px] text-typo-gray">
+                  Provide at least one. If both are entered, they must belong to the same
+                  registration.
+                </p>
                 <Button
                   type="submit"
                   variant="primary"
@@ -242,39 +236,26 @@ export default function PayRemainingPage() {
                       Looking up...
                     </>
                   ) : (
-                    "Find Remaining Balance"
+                    "Find My Balance"
                   )}
                 </Button>
                 <p className="text-[11px] text-center text-typo-gray">
-                  Don&apos;t have your Reg ID?{" "}
+                  Looking for your receipt instead?{" "}
                   <Link href="/receipt/find" className="text-brand-cyan underline">
                     Find My Receipt
-                  </Link>{" "}
-                  instead.
+                  </Link>
                 </p>
               </form>
             ) : (
               <div className="space-y-5">
                 <div className="p-4 rounded-xl bg-foundation-slate/40 border border-foundation-slate text-xs space-y-2">
                   <div className="flex justify-between gap-2">
+                    <span className="text-typo-gray">Participant</span>
+                    <span className="text-typo-white font-semibold text-right">{lookup.name}</span>
+                  </div>
+                  <div className="flex justify-between gap-2">
                     <span className="text-typo-gray">Event</span>
                     <span className="font-semibold text-typo-white text-right">{lookup.eventTitle}</span>
-                  </div>
-                  <div className="flex justify-between gap-2">
-                    <span className="text-typo-gray">Participant</span>
-                    <span className="text-typo-white">{lookup.name}</span>
-                  </div>
-                  <div className="flex justify-between gap-2">
-                    <span className="text-typo-gray">Paid so far</span>
-                    <span className="font-mono text-emerald-400">
-                      ₹{lookup.amountPaidPaise / 100}
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-2">
-                    <span className="text-typo-gray">Remaining (due now)</span>
-                    <span className="font-mono font-bold text-amber-300">
-                      ₹{lookup.remainingAmountPaise / 100}
-                    </span>
                   </div>
                   <div className="flex justify-between gap-2">
                     <span className="text-typo-gray">Total fee</span>
@@ -282,6 +263,26 @@ export default function PayRemainingPage() {
                       ₹{lookup.totalAmountPaise / 100}
                     </span>
                   </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-typo-gray">Amount paid</span>
+                    <span className="font-mono text-emerald-400">
+                      ₹{lookup.amountPaidPaise / 100}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-typo-gray">Remaining balance</span>
+                    <span className="font-mono font-bold text-amber-300">
+                      ₹{lookup.remainingAmountPaise / 100}
+                    </span>
+                  </div>
+                  {(lookup.installmentCount || lookup.installmentPlan === "installment") && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-typo-gray">Installment</span>
+                      <span className="text-typo-white">
+                        Part {lookup.installmentPart || 2} of {lookup.installmentCount || 2}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {lookup.upiId && (

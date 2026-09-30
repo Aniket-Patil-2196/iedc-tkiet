@@ -15,6 +15,7 @@ import {
   Users,
   AlertCircle,
   Sparkles,
+  Coins,
 } from "lucide-react";
 import {
   EventStatusResult,
@@ -328,6 +329,24 @@ export function EventRegistrationPanel({
           qrUrl={event.whatsappQrUrl}
           compact
         />
+
+        {/* Closed registration must not block remaining-balance payment for installment students */}
+        {status.registration === "closed" &&
+          event.paymentMode === "manual_upi" &&
+          event.installmentEnabled && (
+            <div className="space-y-2 pt-1">
+              <p className="font-sans text-[11px] text-typo-gray text-center leading-relaxed">
+                Already registered with an installment plan? Pay your remaining balance here.
+              </p>
+              <Link
+                href="/pay-remaining"
+                className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-foundation-dark border border-amber-500/40 hover:border-amber-400 text-amber-300 hover:text-amber-200 font-sans text-xs font-medium transition-all"
+              >
+                <Coins className="w-3.5 h-3.5" />
+                <span>Pay Remaining Balance</span>
+              </Link>
+            </div>
+          )}
       </div>
 
       {/* On-site mode receipt note + download entry */}
