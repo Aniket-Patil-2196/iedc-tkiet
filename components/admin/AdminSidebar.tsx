@@ -55,7 +55,7 @@ export function AdminSidebar({ isOpen = false, onClose }: AdminSidebarProps) {
   }
   const router = useRouter();
 
-  const [pendingComments, setPendingComments] = React.useState(0);
+  const [reportedComments, setReportedComments] = React.useState(0);
 
   React.useEffect(() => {
     let mounted = true;
@@ -63,7 +63,7 @@ export function AdminSidebar({ isOpen = false, onClose }: AdminSidebarProps) {
       .then((res) => res.json())
       .then((data) => {
         if (mounted && data.success && data.stats) {
-          setPendingComments(data.stats.pendingCount || 0);
+          setReportedComments(data.stats.reportedCount || 0);
         }
       })
       .catch(() => {});
@@ -146,9 +146,9 @@ export function AdminSidebar({ isOpen = false, onClose }: AdminSidebarProps) {
                 />
                 <span>{item.label}</span>
               </div>
-              {item.href === "/admin/dashboard/comments" && pendingComments > 0 && (
-                <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                  {pendingComments}
+              {item.href === "/admin/dashboard/comments" && reportedComments > 0 && (
+                <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                  {reportedComments}
                 </span>
               )}
             </Link>

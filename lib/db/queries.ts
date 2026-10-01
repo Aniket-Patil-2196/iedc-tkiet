@@ -57,6 +57,7 @@ function mapBlogDoc(d: any): IBlog {
     tags: Array.isArray(rest.tags) ? rest.tags : [],
     category: rest.category ?? null,
     location: rest.location ?? null,
+    views: typeof rest.views === "number" ? rest.views : 0,
     seo: rest.seo || undefined,
   }) as IBlog;
 }

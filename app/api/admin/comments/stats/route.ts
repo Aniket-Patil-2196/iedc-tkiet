@@ -1,11 +1,20 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import CommentModel from "@/models/Comment";
+import { verifyAdminSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    const session = await verifyAdminSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized access." },
+        { status: 401 }
+      );
+    }
+
     const conn = await connectToDatabase();
     if (!conn) {
       return NextResponse.json(
@@ -14,21 +23,23 @@ export async function GET() {
       );
     }
 
-    const [pendingCount, approvedCount, rejectedCount, totalCount] =
+    const [totalCount, rootCount, replyCount, reportedCount] =
       await Promise.all([
-        CommentModel.countDocuments({ status: "pending" }),
-        CommentModel.countDocuments({ status: "approved" }),
-        CommentModel.countDocuments({ status: "rejected" }),
         CommentModel.countDocuments(),
+        CommentModel.countDocuments({ parentId: null }),
+        CommentModel.countDocuments({ parentId: { $ne: null } }),
+        CommentModel.countDocuments({ reportsCount: { $gt: 0 } }),
       ]);
 
     return NextResponse.json({
       success: true,
       stats: {
-        pendingCount,
-        approvedCount,
-        rejectedCount,
         totalCount,
+        rootCount,
+        replyCount,
+        reportedCount,
+        pendingCount: 0,
+        approvedCount: totalCount,
       },
     });
   } catch (error) {

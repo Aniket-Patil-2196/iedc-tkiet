@@ -7,6 +7,7 @@ import { formatEventDate } from "@/lib/utils/event-status";
 import { PostageStamp } from "@/components/blog/PostageStamp";
 import { BlogCommentsSection } from "@/components/blog/BlogCommentsSection";
 import { BlogManuscriptBody } from "@/components/blog/BlogManuscriptBody";
+import { BlogViewCounter } from "@/components/blog/BlogViewCounter";
 import { ArrowLeft, ArrowRight, BookOpen, Sparkles, Calendar, Clock, User } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -105,6 +106,8 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
                 <Clock className="w-3 h-3 text-[var(--ink-accent)]" />
                 {article.readTimeMinutes} min read
               </span>
+              <span>·</span>
+              <BlogViewCounter slug={article.slug} initialViews={article.views} />
             </div>
           </div>
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import CommentModel from "@/models/Comment";
+import { verifyAdminSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,14 @@ interface Params {
 
 export async function PATCH(request: Request, { params }: Params) {
   try {
+    const session = await verifyAdminSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized access." },
+        { status: 401 }
+      );
+    }
+
     const conn = await connectToDatabase();
     if (!conn) {
       return NextResponse.json(
@@ -22,7 +31,7 @@ export async function PATCH(request: Request, { params }: Params) {
     const updateData: any = {};
 
     if (body.status !== undefined) {
-      if (!["pending", "approved", "rejected"].includes(body.status)) {
+      if (!["pending", "approved", "rejected", "flagged"].includes(body.status)) {
         return NextResponse.json(
           { success: false, error: "Invalid status value." },
           { status: 400 }
@@ -64,6 +73,14 @@ export async function PATCH(request: Request, { params }: Params) {
 
 export async function DELETE(_request: Request, { params }: Params) {
   try {
+    const session = await verifyAdminSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized access." },
+        { status: 401 }
+      );
+    }
+
     const conn = await connectToDatabase();
     if (!conn) {
       return NextResponse.json(
@@ -72,17 +89,28 @@ export async function DELETE(_request: Request, { params }: Params) {
       );
     }
 
-    const deleted = await CommentModel.findByIdAndDelete(params.id);
-    if (!deleted) {
+    const target = await CommentModel.findById(params.id);
+    if (!target) {
       return NextResponse.json(
         { success: false, error: "Comment not found." },
         { status: 404 }
       );
     }
 
+    // Delete child replies if this was a parent comment
+    const repliesDeleteResult = await CommentModel.deleteMany({ parentId: params.id });
+    const deletedRepliesCount = repliesDeleteResult.deletedCount || 0;
+
+    // Delete the target comment itself
+    await CommentModel.findByIdAndDelete(params.id);
+
     return NextResponse.json({
       success: true,
-      message: "Comment permanently deleted.",
+      message:
+        deletedRepliesCount > 0
+          ? `Comment and ${deletedRepliesCount} associated reply thread(s) permanently deleted.`
+          : "Comment permanently deleted.",
+      deletedRepliesCount,
     });
   } catch (error) {
     console.error("[ADMIN COMMENT DELETE ERROR]", error);

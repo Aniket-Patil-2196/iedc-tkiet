@@ -92,31 +92,17 @@ export async function checkCommentRateLimits({
 
   // 3. Per-blog limits (Anti-brigading / Spam wave protections)
   if (blogSlug) {
-    // Max 20 new comments per blog per hour
+    // Max 60 new comments per blog per hour to prevent spam waves
     const recentByBlog = await CommentModel.countDocuments({
       blogSlug,
       createdAt: { $gte: oneHourAgo },
     });
 
-    if (recentByBlog >= 20) {
+    if (recentByBlog >= 60) {
       return {
         allowed: false,
         message:
           "This article has reached its hourly discussion limit. Please try again later.",
-      };
-    }
-
-    // Max 100 pending comments per blog
-    const pendingByBlog = await CommentModel.countDocuments({
-      blogSlug,
-      status: "pending",
-    });
-
-    if (pendingByBlog >= 100) {
-      return {
-        allowed: false,
-        message:
-          "This article currently has a backlog of remarks awaiting moderation. Please try again later.",
       };
     }
   }

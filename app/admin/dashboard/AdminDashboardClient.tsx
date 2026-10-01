@@ -85,12 +85,12 @@ export default function AdminDashboardClient() {
       subtext: "IEDC TKIET Institutional Articles",
     },
     {
-      title: "Pending Comments",
-      count: data?.stats.pendingCommentsCount ?? "—",
+      title: "Reader Remarks",
+      count: data?.stats.totalCommentsCount ?? "—",
       icon: MessageSquare,
       href: "/admin/dashboard/comments",
-      subtext: "Comments awaiting moderation",
-      highlight: (data?.stats.pendingCommentsCount ?? 0) > 0,
+      subtext: "Public discussion & commentary",
+      highlight: false,
     },
     {
       title: "Team Members",

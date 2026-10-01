@@ -60,6 +60,7 @@ const BlogSchema = new Schema<IBlogDocument>(
     category: { type: String, default: null },
     tags: { type: [String], default: [] },
     location: { type: String, default: null },
+    views: { type: Number, default: 0, index: true },
     seo: { type: BlogSeoSchema, default: undefined },
   },
   { timestamps: true }

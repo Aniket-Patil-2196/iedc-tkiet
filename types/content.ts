@@ -150,6 +150,7 @@ export interface IBlog {
   category?: string | null;
   tags?: string[];
   location?: string | null;
+  views?: number;
   seo?: IBlogSeo;
   createdAt?: string | Date;
   updatedAt?: string | Date;
