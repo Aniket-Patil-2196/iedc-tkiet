@@ -46,11 +46,20 @@ export function InnovationJournalBook({
   blogs,
   initialPostSlug,
 }: InnovationJournalBookProps) {
+  // Canonical sort order (newest first) for TOC, pages, and navigation
+  const sortedBlogs = useMemo(() => {
+    return [...blogs].sort((a, b) => {
+      const dateA = new Date(a.publishedAt || a.publicationDate || a.createdAt || 0).getTime();
+      const dateB = new Date(b.publishedAt || b.publicationDate || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+  }, [blogs]);
+
   // 1. Initial State Resolution
   const initialPostIndex = useMemo(() => {
     if (!initialPostSlug) return -1;
-    return blogs.findIndex((b) => b.slug === initialPostSlug);
-  }, [blogs, initialPostSlug]);
+    return sortedBlogs.findIndex((b) => b.slug === initialPostSlug);
+  }, [sortedBlogs, initialPostSlug]);
 
   // FIX 1.1: Single Source of Truth for display state and animation
   const [displayState, setDisplayState] = useState<BookDisplayState>(
@@ -121,15 +130,15 @@ export function InnovationJournalBook({
 
   // Multi-page Table of Contents chunking (A3)
   const itemsPerContentsPage = isMobile ? 4 : 6;
-  const contentsPagesCount = Math.max(1, Math.ceil(blogs.length / itemsPerContentsPage));
+  const contentsPagesCount = Math.max(1, Math.ceil(sortedBlogs.length / itemsPerContentsPage));
 
   // Introductory pages: Intro (1) + Contents (contentsPagesCount)
   const hasIntroTransition = (1 + contentsPagesCount) % 2 !== 0;
   const totalIntroPages = 1 + contentsPagesCount + (hasIntroTransition ? 1 : 0);
 
-  // Pages before back cover: Front Cover (1) + totalIntroPages + 2 * blogs.length
+  // Pages before back cover: Front Cover (1) + totalIntroPages + 2 * sortedBlogs.length
   // Total page count must be strictly EVEN so the back cover stands alone on the left
-  const totalPages = 1 + totalIntroPages + blogs.length * 2 + 1;
+  const totalPages = 1 + totalIntroPages + sortedBlogs.length * 2 + 1;
 
   // BUG 1.2: Sizing from measured DOM node's getBoundingClientRect() with < 50 guard and 5 retries
   const computeDimensions = useCallback(() => {
@@ -263,7 +272,7 @@ export function InnovationJournalBook({
   // BUG 2.1: currentPost state variable (null on cover, intro, contents, back cover; never default to first post)
   const [currentPost, setCurrentPost] = useState<IBlog | null>(() => {
     if (!initialPostSlug) return null;
-    return blogs.find((b) => b.slug === initialPostSlug) || null;
+    return sortedBlogs.find((b) => b.slug === initialPostSlug) || null;
   });
 
   // BUG 2.3: isInternalUpdate ref set to true right before app calls replaceState
@@ -407,7 +416,7 @@ export function InnovationJournalBook({
           const postStart = 1 + totalIntroPages;
           if (pageIdx >= postStart && pageIdx < totalPages - 1) {
             const blogIdx = Math.floor((pageIdx - postStart) / 2);
-            const activeBlog = blogs[blogIdx] || null;
+            const activeBlog = sortedBlogs[blogIdx] || null;
             setCurrentPost(activeBlog);
             if (activeBlog) {
               setAnnouncement(
@@ -464,7 +473,7 @@ export function InnovationJournalBook({
           const postStart = 1 + totalIntroPages;
           if (startPageIndex >= postStart && startPageIndex < totalPages - 1) {
             const blogIdx = Math.floor((startPageIndex - postStart) / 2);
-            setCurrentPost(blogs[blogIdx] || null);
+            setCurrentPost(sortedBlogs[blogIdx] || null);
           } else {
             setCurrentPost(null);
           }
@@ -509,7 +518,7 @@ export function InnovationJournalBook({
     totalPages,
     totalIntroPages,
     startPageIndex,
-    blogs,
+    sortedBlogs,
   ]);
 
   // FIX 1.1: Trigger turn with immediate state update at start of turn
@@ -526,7 +535,7 @@ export function InnovationJournalBook({
     const postStart = 1 + totalIntroPages;
     if (targetIdx >= postStart && targetIdx < totalPages - 1) {
       const blogIdx = Math.floor((targetIdx - postStart) / 2);
-      setCurrentPost(blogs[blogIdx] || null);
+      setCurrentPost(sortedBlogs[blogIdx] || null);
     } else {
       setCurrentPost(null);
     }
@@ -555,7 +564,7 @@ export function InnovationJournalBook({
     } else {
       pageFlipRef.current.flip(targetIdx);
     }
-  }, [totalPages, totalIntroPages, blogs]);
+  }, [totalPages, totalIntroPages, sortedBlogs]);
 
   // BUG B: use pf.flip(1) (animated) not turnToPage(1) (instant).
   // Only set isAnimating(true) immediately so the pen hides during the animation.
@@ -593,10 +602,10 @@ export function InnovationJournalBook({
         return;
       }
 
-      const targetPostIndex = blogs.findIndex((b) => b.slug === urlSlug);
+      const targetPostIndex = sortedBlogs.findIndex((b) => b.slug === urlSlug);
       if (targetPostIndex !== -1 && pageFlipRef.current) {
         const targetPage = 1 + totalIntroPages + targetPostIndex * 2;
-        setCurrentPost(blogs[targetPostIndex]);
+        setCurrentPost(sortedBlogs[targetPostIndex]);
         pageFlipRef.current.turnToPage(targetPage);
       } else if (pageFlipRef.current) {
         setCurrentPost(null);
@@ -606,7 +615,7 @@ export function InnovationJournalBook({
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [blogs, totalIntroPages]);
+  }, [sortedBlogs, totalIntroPages]);
 
   const handleNextPage = useCallback(() => {
     if (!pageFlipRef.current || currentPageIndex >= totalPages - 1) return;
@@ -883,20 +892,20 @@ export function InnovationJournalBook({
   // article's manuscript (last) page — never over cover/TOC/back.
   const showContinueReadingCta = useMemo(() => {
     if (!currentPost || displayState !== "open") return false;
-    const blogIdx = blogs.findIndex((b) => b.slug === currentPost.slug);
+    const blogIdx = sortedBlogs.findIndex((b) => b.slug === currentPost.slug);
     if (blogIdx < 0) return false;
     const postStart = 1 + totalIntroPages;
     const articleFirst = postStart + blogIdx * 2;
     const articleLast = articleFirst + 1;
     return currentPageIndex >= articleFirst && currentPageIndex <= articleLast;
-  }, [currentPost, displayState, blogs, totalIntroPages, currentPageIndex]);
+  }, [currentPost, displayState, sortedBlogs, totalIntroPages, currentPageIndex]);
 
   // ── Render: CSS-based display switching between Mobile and Desktop to prevent SSR hydration mismatch ────
   return (
     <>
       {/* Mobile Card Stack Layout (< 768px) */}
       <div className="w-full md:hidden">
-        <MobileBookLayout blogs={blogs} initialPostSlug={initialPostSlug} />
+        <MobileBookLayout blogs={sortedBlogs} initialPostSlug={initialPostSlug} />
       </div>
 
       {/* Desktop Flip Book Layout (>= 768px) */}
@@ -1110,14 +1119,14 @@ export function InnovationJournalBook({
                       <span>
                         TABLE OF CONTENTS {contentsPagesCount > 1 ? `(${cIdx + 1}/${contentsPagesCount})` : ""}
                       </span>
-                      <span>{blogs.length} ARTICLES</span>
+                      <span>{sortedBlogs.length} ARTICLES</span>
                     </div>
 
                     <h3 className="font-display text-xl sm:text-2xl font-bold text-[#0F1B44] tracking-tight">
                       Published Articles
                     </h3>
 
-                    {blogs.length === 0 ? (
+                    {sortedBlogs.length === 0 ? (
                       <div className="py-12 text-center space-y-2">
                         <BookOpen className="w-8 h-8 text-[#1E40AF]/60 mx-auto" />
                         <p className="font-sans text-xs text-[#4B5468]">
@@ -1126,7 +1135,7 @@ export function InnovationJournalBook({
                       </div>
                     ) : (
                       <div className="space-y-1.5 flex-1 min-h-0 overflow-hidden pt-1">
-                        {blogs
+                        {sortedBlogs
                           .slice(
                             cIdx * itemsPerContentsPage,
                             (cIdx + 1) * itemsPerContentsPage
@@ -1227,7 +1236,7 @@ export function InnovationJournalBook({
             {/* ------------------------------------------------------------- */}
             {/* POST SPREADS: Left Page (Plate) & Right Page (Manuscript)     */}
             {/* ------------------------------------------------------------- */}
-            {blogs.map((blog, blogIdx) => {
+            {sortedBlogs.map((blog, blogIdx) => {
               const { dropCap, remainder, isTruncated } = computeArticleTextFitting(
                 blog.content || blog.excerpt,
                 isMobile
@@ -1565,7 +1574,7 @@ export function InnovationJournalBook({
             <span>Interactive book engine unavailable — Published Index:</span>
           </div>
           <ul className="space-y-2.5">
-            {blogs.map((b) => (
+            {sortedBlogs.map((b) => (
               <li
                 key={b.id || b.slug}
                 className="flex items-baseline justify-between gap-4 border-b border-slate-800 pb-2"

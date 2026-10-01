@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -131,17 +131,26 @@ const ruledPaperStyle: React.CSSProperties = {
 // ---------------------------------------------------------------------------
 
 export function MobileBookLayout({ blogs, initialPostSlug }: MobileBookLayoutProps) {
+  // Canonical sort order (newest first) for TOC, pages, and navigation
+  const sortedBlogs = useMemo(() => {
+    return [...blogs].sort((a, b) => {
+      const dateA = new Date(a.publishedAt || a.publicationDate || a.createdAt || 0).getTime();
+      const dateB = new Date(b.publishedAt || b.publicationDate || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+  }, [blogs]);
+
   const initialPostIndex = initialPostSlug
-    ? blogs.findIndex((b) => b.slug === initialPostSlug)
+    ? sortedBlogs.findIndex((b) => b.slug === initialPostSlug)
     : -1;
 
-  const totalPages = 1 + 1 + 1 + blogs.length + 1;
+  const totalPages = 1 + 1 + 1 + sortedBlogs.length + 1;
 
   const [activePage, setActivePage] = useState(
     initialPostIndex !== -1 ? initialPostIndex + POST_PAGE_START : 0
   );
   const [currentPost, setCurrentPost] = useState<IBlog | null>(
-    initialPostIndex !== -1 ? blogs[initialPostIndex] ?? null : null
+    initialPostIndex !== -1 ? sortedBlogs[initialPostIndex] ?? null : null
   );
   const [lightboxImage, setLightboxImage] = useState<{
     src: string;
@@ -167,10 +176,10 @@ export function MobileBookLayout({ blogs, initialPostSlug }: MobileBookLayoutPro
       setActivePage(pageIndex);
       activePageRef.current = pageIndex;
 
-      const postEnd = POST_PAGE_START + blogs.length;
+      const postEnd = POST_PAGE_START + sortedBlogs.length;
       if (pageIndex >= POST_PAGE_START && pageIndex < postEnd) {
         const blogIdx = pageIndex - POST_PAGE_START;
-        const blog = blogs[blogIdx] ?? null;
+        const blog = sortedBlogs[blogIdx] ?? null;
         setCurrentPost(blog);
 
         if (typeof window !== "undefined" && blog?.slug) {
@@ -191,7 +200,7 @@ export function MobileBookLayout({ blogs, initialPostSlug }: MobileBookLayoutPro
         }
       }
     },
-    [blogs]
+    [sortedBlogs]
   );
 
   /** Single page-change path used by swipe, buttons, Open, TOC, and Return. */
@@ -498,7 +507,7 @@ export function MobileBookLayout({ blogs, initialPostSlug }: MobileBookLayoutPro
           <SpiralBinding />
           <div className="flex items-center justify-between px-4 pt-6 pb-1.5 border-b border-[#D8C7A7] text-[10px] font-mono text-[#4B5468] tracking-wider uppercase font-semibold shrink-0">
             <span>TABLE OF CONTENTS</span>
-            <span>{blogs.length} ARTICLES</span>
+            <span>{sortedBlogs.length} ARTICLES</span>
           </div>
 
           <div
@@ -509,14 +518,14 @@ export function MobileBookLayout({ blogs, initialPostSlug }: MobileBookLayoutPro
               Published Articles
             </h3>
 
-            {blogs.length === 0 ? (
+            {sortedBlogs.length === 0 ? (
               <div className="py-8 text-center space-y-2">
                 <BookOpen className="w-8 h-8 text-[#1E40AF]/60 mx-auto" />
                 <p className="font-sans text-xs text-[#4B5468]">Stories are coming soon.</p>
               </div>
             ) : (
               <div className="space-y-1.5">
-                {blogs.map((b, idx) => (
+                {sortedBlogs.map((b, idx) => (
                   <button
                     key={b.id || b.slug}
                     type="button"
@@ -554,7 +563,7 @@ export function MobileBookLayout({ blogs, initialPostSlug }: MobileBookLayoutPro
         </div>
 
         {/* ── PAGES 3..: Article pages ───────────────────────────────────── */}
-        {blogs.map((blog, idx) => {
+        {sortedBlogs.map((blog, idx) => {
           const { dropCap, remainder, isTruncated } = computeTextFitting(
             blog.content || blog.excerpt || ""
           );
