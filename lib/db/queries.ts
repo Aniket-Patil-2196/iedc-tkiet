@@ -162,21 +162,21 @@ export async function getPublishedEventBySlug(
 
 /**
  * Public Blogs Query: Strictly filters published articles. Fixed author "IEDC TKIET".
- * Guaranteed newest-first sort order by publication date.
+ * Guaranteed chronological sort order by publication date ascending (oldest first, archive/journal order).
  */
 export async function getPublishedBlogs(): Promise<IBlog[]> {
   try {
     const conn = await connectToDatabase();
     if (conn) {
       const docs = await BlogModel.find({ published: true })
-        .sort({ publishedAt: -1, publicationDate: -1, createdAt: -1 })
+        .sort({ publishedAt: 1, publicationDate: 1, createdAt: 1 })
         .lean();
       if (docs && docs.length > 0) {
         const blogs = docs.map((d: any) => mapBlogDoc(d));
         return blogs.sort((a, b) => {
           const dateA = new Date(a.publishedAt || a.publicationDate || a.createdAt || 0).getTime();
           const dateB = new Date(b.publishedAt || b.publicationDate || b.createdAt || 0).getTime();
-          return dateB - dateA;
+          return dateA - dateB;
         });
       }
       if (isProduction) return [];
@@ -192,7 +192,7 @@ export async function getPublishedBlogs(): Promise<IBlog[]> {
     .sort((a, b) => {
       const dateA = new Date(a.publishedAt || a.publicationDate || a.createdAt || 0).getTime();
       const dateB = new Date(b.publishedAt || b.publicationDate || b.createdAt || 0).getTime();
-      return dateB - dateA;
+      return dateA - dateB;
     });
 }
 

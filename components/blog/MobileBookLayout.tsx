@@ -131,12 +131,12 @@ const ruledPaperStyle: React.CSSProperties = {
 // ---------------------------------------------------------------------------
 
 export function MobileBookLayout({ blogs, initialPostSlug }: MobileBookLayoutProps) {
-  // Canonical sort order (newest first) for TOC, pages, and navigation
+  // Canonical sort order (oldest first: real journal / archive order)
   const sortedBlogs = useMemo(() => {
     return [...blogs].sort((a, b) => {
       const dateA = new Date(a.publishedAt || a.publicationDate || a.createdAt || 0).getTime();
       const dateB = new Date(b.publishedAt || b.publicationDate || b.createdAt || 0).getTime();
-      return dateB - dateA;
+      return dateA - dateB;
     });
   }, [blogs]);
 
