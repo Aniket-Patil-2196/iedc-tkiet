@@ -47,7 +47,6 @@ export default function PayRemainingPage() {
   const [lookup, setLookup] = useState<LookupResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [upiTransactionRef, setUpiTransactionRef] = useState("");
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -98,10 +97,6 @@ export default function PayRemainingPage() {
       setErrorMessage("Please upload your Part 2 payment screenshot.");
       return;
     }
-    if (!upiTransactionRef.trim() || upiTransactionRef.trim().length < 4) {
-      setErrorMessage("Please enter your UPI transaction reference / UTR.");
-      return;
-    }
 
     setSubmitting(true);
     try {
@@ -123,7 +118,6 @@ export default function PayRemainingPage() {
           regId: lookup.regId,
           email: lookup.email,
           phone: lookup.phone,
-          upiTransactionRef: upiTransactionRef.trim(),
           upiProofUrl: uploadJson.url,
         }),
       });
@@ -309,18 +303,6 @@ export default function PayRemainingPage() {
                 <form onSubmit={handleSubmitPart2} className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
-                      Part 2 UTR / Transaction Ref *
-                    </label>
-                    <input
-                      type="text"
-                      value={upiTransactionRef}
-                      onChange={(e) => setUpiTransactionRef(e.target.value)}
-                      placeholder="Enter UPI reference number"
-                      className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan font-mono"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
                       Payment Screenshot *
                     </label>
                     <label className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border border-dashed border-foundation-slate hover:border-brand-cyan cursor-pointer text-xs text-typo-gray hover:text-brand-cyan transition-colors">
@@ -353,7 +335,6 @@ export default function PayRemainingPage() {
                     type="button"
                     onClick={() => {
                       setLookup(null);
-                      setUpiTransactionRef("");
                       setProofFile(null);
                       setErrorMessage(null);
                     }}

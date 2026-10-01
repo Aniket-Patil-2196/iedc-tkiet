@@ -174,7 +174,8 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     // Duplicate UTR detection (part1 or part2 slots) — only when a UTR is provided.
-    // Screenshot-only submissions skip this check (no UTR to compare).
+    // Pay-remaining UI no longer collects UTR (same as register-upi), so screenshot-only
+    // Part 2 submissions skip this check and rely on admin verification of the proof image.
     if (upiTransactionRef && upiTransactionRef.length >= 4) {
       const duplicateUtr = await RegistrationModel.findOne({
         eventId: registration.eventId,
