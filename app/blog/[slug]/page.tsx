@@ -107,7 +107,7 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
                 {article.readTimeMinutes} min read
               </span>
               <span>·</span>
-              <BlogViewCounter slug={article.slug} initialViews={article.views} />
+              <BlogViewCounter slug={article.slug} initialViews={article.views} initialAvgReadTimeSeconds={article.avgReadTimeSeconds} />
             </div>
           </div>
 

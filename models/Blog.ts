@@ -61,6 +61,8 @@ const BlogSchema = new Schema<IBlogDocument>(
     tags: { type: [String], default: [] },
     location: { type: String, default: null },
     views: { type: Number, default: 0, index: true },
+    totalReadTimeSeconds: { type: Number, default: 0 },
+    avgReadTimeSeconds: { type: Number, default: 0 },
     seo: { type: BlogSeoSchema, default: undefined },
   },
   { timestamps: true }

@@ -151,6 +151,8 @@ export interface IBlog {
   tags?: string[];
   location?: string | null;
   views?: number;
+  totalReadTimeSeconds?: number;
+  avgReadTimeSeconds?: number;
   seo?: IBlogSeo;
   createdAt?: string | Date;
   updatedAt?: string | Date;

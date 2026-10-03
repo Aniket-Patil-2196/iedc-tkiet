@@ -1160,7 +1160,7 @@ export function InnovationJournalBook({
                                     </span>
                                   </div>
                                   <span className="text-[10px] sm:text-[11px] font-mono text-[#4B5468] block pl-5 truncate">
-                                    {getPubDate(b)} · {b.readTimeMinutes || 3} min read
+                                    {getPubDate(b)} · {b.readTimeMinutes || 3} min read{(b.views ?? 0) > 0 ? ` · ${(b.views! >= 1000 ? `${(b.views! / 1000).toFixed(1).replace(/\.0$/, "")}k` : b.views!)} views` : ""}
                                   </span>
                                 </div>
                                 <span className="text-xs font-mono text-[#1E40AF] opacity-0 group-hover:opacity-100 transition-opacity shrink-0">

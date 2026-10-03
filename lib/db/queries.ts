@@ -58,6 +58,8 @@ function mapBlogDoc(d: any): IBlog {
     category: rest.category ?? null,
     location: rest.location ?? null,
     views: typeof rest.views === "number" ? rest.views : 0,
+    totalReadTimeSeconds: typeof rest.totalReadTimeSeconds === "number" ? rest.totalReadTimeSeconds : 0,
+    avgReadTimeSeconds: typeof rest.avgReadTimeSeconds === "number" ? rest.avgReadTimeSeconds : 0,
     seo: rest.seo || undefined,
   }) as IBlog;
 }
