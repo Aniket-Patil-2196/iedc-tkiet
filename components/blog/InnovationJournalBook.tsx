@@ -1379,17 +1379,7 @@ export function InnovationJournalBook({
                       <div className="space-y-2.5 relative flex-1 flex flex-col min-h-0 overflow-hidden">
                         <div className="flex items-center justify-between pb-2 border-b border-[#D8C7A7] text-[11px] font-mono text-[#4B5468] tracking-wider uppercase font-semibold">
                           <span>{getPubDate(blog)}</span>
-                          <span className="flex items-center gap-1.5 sm:gap-2">
-                            <span>{blog.readTimeMinutes || 4} MIN READ</span>
-                            <span>·</span>
-                            <span>{formatBookViews(blog.views)} VIEWS</span>
-                            {blog.avgReadTimeSeconds && blog.avgReadTimeSeconds >= 5 ? (
-                              <>
-                                <span>·</span>
-                                <span>{Math.round(blog.avgReadTimeSeconds / 60) || 1} MIN AVG</span>
-                              </>
-                            ) : null}
-                          </span>
+                          <span>{formatBookViews(blog.views)} VIEWS</span>
                         </div>
 
                         <div className="space-y-0.5 shrink-0">
