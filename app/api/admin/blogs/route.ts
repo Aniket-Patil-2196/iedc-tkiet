@@ -29,7 +29,7 @@ export async function GET() {
       });
     }
 
-    const blogs = await BlogModel.find().sort({ publishedAt: -1, publicationDate: -1, createdAt: -1 });
+    const blogs = await BlogModel.find().sort({ publishedAt: 1, createdAt: 1 });
     return NextResponse.json({
       success: true,
       data: blogs,

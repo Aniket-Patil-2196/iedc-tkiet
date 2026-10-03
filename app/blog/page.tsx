@@ -1,6 +1,6 @@
 import { constructMetadata } from "@/lib/seo/metadata";
 import { Container } from "@/components/ui/Container";
-import { getPublishedBlogs } from "@/lib/db/queries";
+import { getPublishedBlogs, getBlogArchiveStats } from "@/lib/db/queries";
 import { InnovationJournalBook } from "@/components/blog/InnovationJournalBook";
 import Link from "next/link";
 import { formatEventDate } from "@/lib/utils/event-status";
@@ -22,7 +22,10 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   // 1. Strict published filter: draft articles are never shown publicly
   const publishedBlogs = await getPublishedBlogs();
 
-  // 2. Resolve query parameters (?post=<slug>)
+  // 2. Server-side aggregate readership stats across all published articles in a single DB query
+  const blogStats = await getBlogArchiveStats();
+
+  // 3. Resolve query parameters (?post=<slug>)
   const resolvedParams = searchParams ? await searchParams : undefined;
   const requestedSlug = resolvedParams?.post;
 
@@ -39,6 +42,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
         <InnovationJournalBook
           blogs={publishedBlogs}
           initialPostSlug={validInitialSlug}
+          stats={blogStats}
         />
       </div>
 

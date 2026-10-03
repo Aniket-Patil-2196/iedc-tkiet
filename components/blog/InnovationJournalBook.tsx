@@ -30,10 +30,16 @@ import { SITE_CONFIG } from "@/lib/constants/site";
 import { cn } from "@/lib/utils";
 import { MobileBookLayout } from "./MobileBookLayout";
 import { sortBlogsOldestFirst } from "@/lib/utils/blog-sort";
+import {
+  BlogArchiveStatsCard,
+  BlogArchiveStatsBar,
+  BlogArchiveStatsData,
+} from "./BlogArchiveStats";
 
 interface InnovationJournalBookProps {
   blogs: IBlog[];
   initialPostSlug?: string;
+  stats?: BlogArchiveStatsData;
 }
 
 function formatBookViews(n?: number): string {
@@ -52,6 +58,7 @@ const MOBILE_REF_H = 453;
 export function InnovationJournalBook({
   blogs,
   initialPostSlug,
+  stats,
 }: InnovationJournalBookProps) {
   // Canonical sort order (oldest first: real journal / archive order)
   const sortedBlogs = useMemo(() => {
@@ -924,12 +931,19 @@ export function InnovationJournalBook({
     return currentPageIndex >= articleFirst && currentPageIndex <= articleLast;
   }, [currentPost, displayState, sortedBlogs, totalIntroPages, currentPageIndex]);
 
+  // Readership stats positioning in left free margin (balanced with ThePen on right)
+  const isBookOpen = displayState === "open";
+  const activeBookWidth = isBookOpen ? pageWidth * 2 : pageWidth;
+  const freeMargin = (containerWidth - activeBookWidth) / 2;
+  const meetsStatsConstraint = containerWidth >= 1100 && freeMargin >= 160;
+  const statsRightOffset = `calc(50% + ${Math.round(activeBookWidth / 2 + 24)}px)`;
+
   // ── Render: CSS-based display switching between Mobile and Desktop to prevent SSR hydration mismatch ────
   return (
     <>
       {/* Mobile Card Stack Layout (< 768px) */}
       <div className="w-full md:hidden">
-        <MobileBookLayout blogs={sortedBlogs} initialPostSlug={initialPostSlug} />
+        <MobileBookLayout blogs={sortedBlogs} initialPostSlug={initialPostSlug} stats={stats} />
       </div>
 
       {/* Desktop Flip Book Layout (>= 768px) */}
@@ -955,6 +969,17 @@ export function InnovationJournalBook({
           Editorial perspectives on student incubation, deep tech breakthroughs, and startup ventures from {SITE_CONFIG.name}.
         </p>
       </header>
+
+      {/* Responsive Readership Stats Bar when side margin is constrained (< 1100px) */}
+      {stats && !meetsStatsConstraint && (
+        <div className="w-full max-w-6xl mx-auto px-4 mt-2.5 mb-1 hidden md:block">
+          <BlogArchiveStatsBar
+            totalViews={stats.totalViews}
+            totalReadTimeSeconds={stats.totalReadTimeSeconds}
+            articleCount={stats.articleCount}
+          />
+        </div>
+      )}
 
       {/* Screen reader live region (B4) */}
       <div aria-live="polite" className="sr-only">
@@ -985,6 +1010,23 @@ export function InnovationJournalBook({
         }
         className="book-outer-wrapper relative w-full min-w-[calc(100vw-32px)] sm:min-w-0 min-h-[calc((100vw-32px)/0.75)] sm:min-h-[420px] flex flex-col items-center justify-center mt-4 select-none max-[899px]:w-[calc(100vw-32px)] max-[899px]:h-[calc((100vw-32px)/0.75)] max-[899px]:min-w-[calc(100vw-32px)] max-[899px]:min-h-[calc((100vw-32px)/0.75)]"
       >
+        {/* Readership stats card on left side of the book in free margin */}
+        {stats && meetsStatsConstraint && (
+          <aside
+            style={{
+              right: statsRightOffset,
+            }}
+            aria-label="Blog Readership Statistics"
+            className="absolute top-1/2 -translate-y-1/2 z-20 select-none pointer-events-auto transition-opacity duration-300 hidden min-[1100px]:block"
+          >
+            <BlogArchiveStatsCard
+              totalViews={stats.totalViews}
+              totalReadTimeSeconds={stats.totalReadTimeSeconds}
+              articleCount={stats.articleCount}
+            />
+          </aside>
+        )}
+
         {/* FIX 1: The Pen as Absolute Overlay in Free Margins Outside the Book */}
         <ThePen
           displayState={displayState}

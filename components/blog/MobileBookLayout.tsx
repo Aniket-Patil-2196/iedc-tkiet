@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { stripHtmlToPlainText } from "@/lib/utils/blog-validation";
 import { formatEventDate } from "@/lib/utils/event-status";
 import { sortBlogsOldestFirst } from "@/lib/utils/blog-sort";
+import { BlogArchiveStatsBar, BlogArchiveStatsData } from "./BlogArchiveStats";
 
 // ---------------------------------------------------------------------------
 // Types / helpers
@@ -29,6 +30,7 @@ import { sortBlogsOldestFirst } from "@/lib/utils/blog-sort";
 interface MobileBookLayoutProps {
   blogs: IBlog[];
   initialPostSlug?: string;
+  stats?: BlogArchiveStatsData;
 }
 
 function formatBookViews(n?: number): string {
@@ -138,7 +140,11 @@ const ruledPaperStyle: React.CSSProperties = {
 // Component — horizontal full-bleed page-turn (mobile only)
 // ---------------------------------------------------------------------------
 
-export function MobileBookLayout({ blogs, initialPostSlug }: MobileBookLayoutProps) {
+export function MobileBookLayout({
+  blogs,
+  initialPostSlug,
+  stats,
+}: MobileBookLayoutProps) {
   // Canonical sort order (oldest first: real journal / archive order)
   const sortedBlogs = useMemo(() => {
     return sortBlogsOldestFirst(blogs);
@@ -371,6 +377,15 @@ export function MobileBookLayout({ blogs, initialPostSlug }: MobileBookLayoutPro
           <h1 className="font-display font-bold text-typo-white tracking-tight text-[clamp(1.35rem,5.5vw,1.85rem)] leading-tight">
             The Innovation Blog
           </h1>
+          {stats && (
+            <div className="pt-1">
+              <BlogArchiveStatsBar
+                totalViews={stats.totalViews}
+                totalReadTimeSeconds={stats.totalReadTimeSeconds}
+                articleCount={stats.articleCount}
+              />
+            </div>
+          )}
         </header>
 
         {/* ── Horizontal page-turn scroller (fills remaining shell height) ─ */}

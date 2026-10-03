@@ -173,7 +173,7 @@ export async function getPublishedBlogs(): Promise<IBlog[]> {
     const conn = await connectToDatabase();
     if (conn) {
       const docs = await BlogModel.find({ published: true })
-        .sort({ publicationDate: 1, publishedAt: 1, createdAt: 1 })
+        .sort({ publishedAt: 1, createdAt: 1 })
         .lean();
       if (docs && docs.length > 0) {
         const blogs = docs.map((d: any) => mapBlogDoc(d));
@@ -188,6 +188,58 @@ export async function getPublishedBlogs(): Promise<IBlog[]> {
   if (isProduction) return [];
 
   return sortBlogsOldestFirst([...PLACEHOLDER_BLOGS].filter((b) => b.published));
+}
+
+/**
+ * Public Blog Archive Stats: Aggregates total views and cumulative reading time across all published articles in a single DB query.
+ */
+export async function getBlogArchiveStats(): Promise<{
+  totalViews: number;
+  totalReadTimeSeconds: number;
+  articleCount: number;
+}> {
+  try {
+    const conn = await connectToDatabase();
+    if (conn) {
+      const stats = await BlogModel.aggregate([
+        { $match: { published: true } },
+        {
+          $group: {
+            _id: null,
+            totalViews: { $sum: "$views" },
+            totalReadTimeSeconds: { $sum: "$totalReadTimeSeconds" },
+            articleCount: { $sum: 1 },
+          },
+        },
+      ]);
+      if (stats && stats.length > 0) {
+        return {
+          totalViews: stats[0].totalViews || 0,
+          totalReadTimeSeconds: stats[0].totalReadTimeSeconds || 0,
+          articleCount: stats[0].articleCount || 0,
+        };
+      }
+      if (isProduction) {
+        return { totalViews: 0, totalReadTimeSeconds: 0, articleCount: 0 };
+      }
+    }
+  } catch (err) {
+    console.warn("[DB QUERY WARNING - BLOG STATS]", err);
+  }
+
+  if (isProduction) {
+    return { totalViews: 0, totalReadTimeSeconds: 0, articleCount: 0 };
+  }
+
+  const published = PLACEHOLDER_BLOGS.filter((b) => b.published);
+  return {
+    totalViews: published.reduce((s, b) => s + (b.views || 0), 0),
+    totalReadTimeSeconds: published.reduce(
+      (s, b) => s + (b.totalReadTimeSeconds || 0),
+      0
+    ),
+    articleCount: published.length,
+  };
 }
 
 /**

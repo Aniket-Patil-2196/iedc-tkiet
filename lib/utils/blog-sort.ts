@@ -38,16 +38,16 @@ export function parsePublicationTimestamp(raw?: string | Date | null): number {
  */
 export function getBlogSortTimestamp(
   blog: {
-    publicationDate?: string;
     publishedAt?: string | Date;
+    publicationDate?: string;
     createdAt?: string | Date;
   }
 ): number {
-  const pubDateTs = parsePublicationTimestamp(blog.publicationDate);
-  if (pubDateTs > 0) return pubDateTs;
-
   const publishedAtTs = parsePublicationTimestamp(blog.publishedAt);
   if (publishedAtTs > 0) return publishedAtTs;
+
+  const pubDateTs = parsePublicationTimestamp(blog.publicationDate);
+  if (pubDateTs > 0) return pubDateTs;
 
   return parsePublicationTimestamp(blog.createdAt);
 }
