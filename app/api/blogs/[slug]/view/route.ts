@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { connectToDatabase } from "@/lib/mongodb/client";
 import BlogModel from "@/models/Blog";
-import BlogViewModel from "@/models/BlogView";
-import { getClientIp } from "@/lib/utils/comment-security";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -13,19 +11,22 @@ interface RouteParams {
   };
 }
 
-function getOrCreateVisitorId(request: Request): { visitorId: string; isNew: boolean } {
-  const cookieHeader = request.headers.get("cookie") || "";
-  const match = cookieHeader.match(/(?:^|;\s*)iedc_vid=([^;]+)/);
-  if (match && match[1]) {
-    return { visitorId: decodeURIComponent(match[1]), isNew: false };
-  }
-  const ip = getClientIp(request);
-  return { visitorId: `vid_${crypto.createHash("md5").update(ip).digest("hex").slice(0, 12)}_${crypto.randomUUID().slice(0, 8)}`, isNew: true };
-}
-
-// POST: Atomically record a view with deduplication within 2-hour window
+/**
+ * POST: Atomically records a view for a published blog post.
+ * Uses standard rate limiting per client IP (60 req/min) to prevent abuse,
+ * while the frontend uses sessionStorage to avoid duplicate view counts per browser session.
+ */
 export async function POST(request: Request, { params }: RouteParams) {
   try {
+    const clientIp = getClientIp(request);
+    const rate = checkRateLimit(`blog_view:${clientIp}`, 60, 60);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Rate limit exceeded." },
+        { status: 429 }
+      );
+    }
+
     const conn = await connectToDatabase();
     if (!conn) {
       return NextResponse.json(
@@ -35,64 +36,27 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     const { slug } = params;
-    const { visitorId, isNew } = getOrCreateVisitorId(request);
 
-    // Find the blog
-    const blog = await BlogModel.findOne({ slug, published: true }).select("_id slug views");
-    if (!blog) {
+    // Atomically increment views and return the updated count + avg read time
+    const updated = await BlogModel.findOneAndUpdate(
+      { slug, published: true },
+      { $inc: { views: 1 } },
+      { new: true }
+    ).select("views avgReadTimeSeconds");
+
+    if (!updated) {
       return NextResponse.json(
         { success: false, error: "Article not found or not published." },
         { status: 404 }
       );
     }
 
-    let isUniqueViewInWindow = false;
-
-    try {
-      // Attempt to insert view record. If same visitor viewed this blog within 2 hours,
-      // unique index { blogSlug: 1, visitorId: 1 } throws E11000 duplicate key error.
-      await BlogViewModel.create({
-        blogSlug: slug,
-        visitorId,
-      });
-      isUniqueViewInWindow = true;
-    } catch (err: any) {
-      // Duplicate key (code 11000) means already viewed within TTL window
-      if (err.code !== 11000) {
-        console.warn("[BLOG VIEW TRACKING WARNING]", err?.message);
-      }
-    }
-
-    let currentViews = blog.views || 0;
-
-    if (isUniqueViewInWindow) {
-      // Atomic increment
-      const updated = await BlogModel.findByIdAndUpdate(
-        blog._id,
-        { $inc: { views: 1 } },
-        { new: true }
-      ).select("views");
-      currentViews = updated?.views || currentViews + 1;
-    }
-
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
-      views: currentViews,
-      incremented: isUniqueViewInWindow,
+      views: updated.views,
+      avgReadTimeSeconds: updated.avgReadTimeSeconds || 0,
+      incremented: true,
     });
-
-    if (isNew) {
-      response.cookies.set({
-        name: "iedc_vid",
-        value: visitorId,
-        path: "/",
-        maxAge: 60 * 60 * 24 * 365,
-        httpOnly: true,
-        sameSite: "lax",
-      });
-    }
-
-    return response;
   } catch (error) {
     console.error("[BLOG VIEW POST ERROR]", error);
     return NextResponse.json(
@@ -102,7 +66,9 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 }
 
-// GET: Fetch current view count
+/**
+ * GET: Retrieves current view count and average read time.
+ */
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
     const conn = await connectToDatabase();
@@ -114,11 +80,14 @@ export async function GET(_request: Request, { params }: RouteParams) {
     }
 
     const { slug } = params;
-    const blog = await BlogModel.findOne({ slug }).select("views");
+    const blog = await BlogModel.findOne({ slug, published: true }).select(
+      "views avgReadTimeSeconds"
+    );
 
     return NextResponse.json({
       success: true,
       views: blog?.views || 0,
+      avgReadTimeSeconds: blog?.avgReadTimeSeconds || 0,
     });
   } catch (error) {
     console.error("[BLOG VIEW GET ERROR]", error);

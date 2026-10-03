@@ -40,6 +40,7 @@ import {
   IPreviousSpeaker,
   IImpactMetric,
 } from "@/types/content";
+import { sortBlogsOldestFirst } from "@/lib/utils/blog-sort";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -172,15 +173,11 @@ export async function getPublishedBlogs(): Promise<IBlog[]> {
     const conn = await connectToDatabase();
     if (conn) {
       const docs = await BlogModel.find({ published: true })
-        .sort({ publishedAt: 1, publicationDate: 1, createdAt: 1 })
+        .sort({ publicationDate: 1, publishedAt: 1, createdAt: 1 })
         .lean();
       if (docs && docs.length > 0) {
         const blogs = docs.map((d: any) => mapBlogDoc(d));
-        return blogs.sort((a, b) => {
-          const dateA = new Date(a.publishedAt || a.publicationDate || a.createdAt || 0).getTime();
-          const dateB = new Date(b.publishedAt || b.publicationDate || b.createdAt || 0).getTime();
-          return dateA - dateB;
-        });
+        return sortBlogsOldestFirst(blogs);
       }
       if (isProduction) return [];
     }
@@ -190,13 +187,7 @@ export async function getPublishedBlogs(): Promise<IBlog[]> {
 
   if (isProduction) return [];
 
-  return [...PLACEHOLDER_BLOGS]
-    .filter((b) => b.published)
-    .sort((a, b) => {
-      const dateA = new Date(a.publishedAt || a.publicationDate || a.createdAt || 0).getTime();
-      const dateB = new Date(b.publishedAt || b.publicationDate || b.createdAt || 0).getTime();
-      return dateA - dateB;
-    });
+  return sortBlogsOldestFirst([...PLACEHOLDER_BLOGS].filter((b) => b.published));
 }
 
 /**

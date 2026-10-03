@@ -53,8 +53,13 @@ export function BlogViewCounter({
         });
         if (res.ok) {
           const data = await res.json();
-          if (!cancelled && data.success && typeof data.views === "number") {
-            setViews(data.views);
+          if (!cancelled && data.success) {
+            if (typeof data.views === "number") {
+              setViews(data.views);
+            }
+            if (typeof data.avgReadTimeSeconds === "number" && data.avgReadTimeSeconds > 0) {
+              setAvgReadTime(data.avgReadTimeSeconds);
+            }
           }
           // Mark session so we don't double-count on navigation within same tab session
           if (typeof sessionStorage !== "undefined") {
@@ -71,8 +76,13 @@ export function BlogViewCounter({
         const res = await fetch(`/api/blogs/${encodeURIComponent(slug)}/view`);
         if (res.ok) {
           const data = await res.json();
-          if (!cancelled && data.success && typeof data.views === "number") {
-            setViews(data.views);
+          if (!cancelled && data.success) {
+            if (typeof data.views === "number") {
+              setViews(data.views);
+            }
+            if (typeof data.avgReadTimeSeconds === "number" && data.avgReadTimeSeconds > 0) {
+              setAvgReadTime(data.avgReadTimeSeconds);
+            }
           }
         }
       } catch {

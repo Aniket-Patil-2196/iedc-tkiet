@@ -85,7 +85,7 @@ export function PostageStamp({
   const orderedReferences = sortBlogReferences(blog.references);
   const primaryImage = displayImages[0];
   const secondaryImages = displayImages.slice(1);
-  const postmarkDate = formatPostmarkDate(blog.publishedAt || blog.publicationDate || blog.createdAt);
+  const postmarkDate = formatPostmarkDate(blog.publicationDate || blog.publishedAt || blog.createdAt);
   const figureCaption =
     (primaryImage?.caption && String(primaryImage.caption).trim()) ||
     ((blog as any).caption && String((blog as any).caption).trim()) ||

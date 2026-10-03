@@ -29,11 +29,18 @@ import { stripHtmlToPlainText } from "@/lib/utils/blog-validation";
 import { SITE_CONFIG } from "@/lib/constants/site";
 import { cn } from "@/lib/utils";
 import { MobileBookLayout } from "./MobileBookLayout";
-
+import { sortBlogsOldestFirst } from "@/lib/utils/blog-sort";
 
 interface InnovationJournalBookProps {
   blogs: IBlog[];
   initialPostSlug?: string;
+}
+
+function formatBookViews(n?: number): string {
+  const count = typeof n === "number" ? n : 0;
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
+  return count.toLocaleString();
 }
 
 // Reference Canvas dimensions (Ratio 3:4)
@@ -48,11 +55,7 @@ export function InnovationJournalBook({
 }: InnovationJournalBookProps) {
   // Canonical sort order (oldest first: real journal / archive order)
   const sortedBlogs = useMemo(() => {
-    return [...blogs].sort((a, b) => {
-      const dateA = new Date(a.publishedAt || a.publicationDate || a.createdAt || 0).getTime();
-      const dateB = new Date(b.publishedAt || b.publicationDate || b.createdAt || 0).getTime();
-      return dateA - dateB;
-    });
+    return sortBlogsOldestFirst(blogs);
   }, [blogs]);
 
   // 1. Initial State Resolution
@@ -617,6 +620,27 @@ export function InnovationJournalBook({
     return () => window.removeEventListener("popstate", handlePopState);
   }, [sortedBlogs, totalIntroPages]);
 
+  // Track article view with sessionStorage dedup when opened in the 3D book
+  useEffect(() => {
+    if (!currentPost?.slug) return;
+    const slug = currentPost.slug;
+    const sessionKey = `iedc_viewed_${slug}`;
+    if (typeof sessionStorage !== "undefined" && sessionStorage.getItem(sessionKey) === "1") {
+      return;
+    }
+    fetch(`/api/blogs/${encodeURIComponent(slug)}/view`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && typeof sessionStorage !== "undefined") {
+          sessionStorage.setItem(sessionKey, "1");
+        }
+      })
+      .catch(() => {});
+  }, [currentPost?.slug]);
+
   const handleNextPage = useCallback(() => {
     if (!pageFlipRef.current || currentPageIndex >= totalPages - 1) return;
     setIsAnimating(true);
@@ -690,7 +714,7 @@ export function InnovationJournalBook({
 
   // Safe publication date formatting
   const getPubDate = (blog: IBlog) => {
-    const raw = blog.publishedAt || blog.publicationDate || blog.createdAt;
+    const raw = blog.publicationDate || blog.publishedAt || blog.createdAt;
     return formatEventDate(raw);
   };
 
@@ -1160,7 +1184,7 @@ export function InnovationJournalBook({
                                     </span>
                                   </div>
                                   <span className="text-[10px] sm:text-[11px] font-mono text-[#4B5468] block pl-5 truncate">
-                                    {getPubDate(b)} · {b.readTimeMinutes || 3} min read{(b.views ?? 0) > 0 ? ` · ${(b.views! >= 1000 ? `${(b.views! / 1000).toFixed(1).replace(/\.0$/, "")}k` : b.views!)} views` : ""}
+                                    {getPubDate(b)} · {b.readTimeMinutes || 3} min read · {formatBookViews(b.views)} views
                                   </span>
                                 </div>
                                 <span className="text-xs font-mono text-[#1E40AF] opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -1313,7 +1337,17 @@ export function InnovationJournalBook({
                       <div className="space-y-2.5 relative flex-1 flex flex-col min-h-0 overflow-hidden">
                         <div className="flex items-center justify-between pb-2 border-b border-[#D8C7A7] text-[11px] font-mono text-[#4B5468] tracking-wider uppercase font-semibold">
                           <span>{getPubDate(blog)}</span>
-                          <span>{blog.readTimeMinutes || 4} MIN READ</span>
+                          <span className="flex items-center gap-1.5 sm:gap-2">
+                            <span>{blog.readTimeMinutes || 4} MIN READ</span>
+                            <span>·</span>
+                            <span>{formatBookViews(blog.views)} VIEWS</span>
+                            {blog.avgReadTimeSeconds && blog.avgReadTimeSeconds >= 5 ? (
+                              <>
+                                <span>·</span>
+                                <span>{Math.round(blog.avgReadTimeSeconds / 60) || 1} MIN AVG</span>
+                              </>
+                            ) : null}
+                          </span>
                         </div>
 
                         <div className="space-y-0.5 shrink-0">

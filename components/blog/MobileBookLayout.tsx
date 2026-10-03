@@ -20,6 +20,7 @@ import { SITE_CONFIG } from "@/lib/constants/site";
 import { cn } from "@/lib/utils";
 import { stripHtmlToPlainText } from "@/lib/utils/blog-validation";
 import { formatEventDate } from "@/lib/utils/event-status";
+import { sortBlogsOldestFirst } from "@/lib/utils/blog-sort";
 
 // ---------------------------------------------------------------------------
 // Types / helpers
@@ -30,12 +31,19 @@ interface MobileBookLayoutProps {
   initialPostSlug?: string;
 }
 
+function formatBookViews(n?: number): string {
+  const count = typeof n === "number" ? n : 0;
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
+  return count.toLocaleString();
+}
+
 function isDevPlaceholder(b: IBlog) {
   return b.id?.startsWith("blog-placeholder") || b.id?.startsWith("placeholder");
 }
 
 function getPubDate(blog: IBlog) {
-  const raw = blog.publishedAt || blog.publicationDate || blog.createdAt;
+  const raw = blog.publicationDate || blog.publishedAt || blog.createdAt;
   return formatEventDate(raw);
 }
 
@@ -133,11 +141,7 @@ const ruledPaperStyle: React.CSSProperties = {
 export function MobileBookLayout({ blogs, initialPostSlug }: MobileBookLayoutProps) {
   // Canonical sort order (oldest first: real journal / archive order)
   const sortedBlogs = useMemo(() => {
-    return [...blogs].sort((a, b) => {
-      const dateA = new Date(a.publishedAt || a.publicationDate || a.createdAt || 0).getTime();
-      const dateB = new Date(b.publishedAt || b.publicationDate || b.createdAt || 0).getTime();
-      return dateA - dateB;
-    });
+    return sortBlogsOldestFirst(blogs);
   }, [blogs]);
 
   const initialPostIndex = initialPostSlug
@@ -542,7 +546,7 @@ export function MobileBookLayout({ blogs, initialPostSlug }: MobileBookLayoutPro
                         </span>
                       </div>
                       <span className="text-[10px] font-mono text-[#4B5468] block pl-5 truncate">
-                        {getPubDate(b)} · {b.readTimeMinutes || 3} min read
+                        {getPubDate(b)} · {b.readTimeMinutes || 3} min read · {formatBookViews(b.views)} views
                       </span>
                     </div>
                     <span className="text-xs font-mono text-[#1E40AF] opacity-60 group-hover:opacity-100 transition-opacity shrink-0 pt-0.5">
@@ -586,7 +590,7 @@ export function MobileBookLayout({ blogs, initialPostSlug }: MobileBookLayoutPro
                   )}
                 </span>
                 <span>
-                  {getPubDate(blog)} · {blog.readTimeMinutes || 3} MIN
+                  {getPubDate(blog)} · {blog.readTimeMinutes || 3} MIN · {formatBookViews(blog.views)} VIEWS
                 </span>
               </div>
 
