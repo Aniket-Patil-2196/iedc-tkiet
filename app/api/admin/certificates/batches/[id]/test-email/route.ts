@@ -111,21 +111,19 @@ export async function POST(request: NextRequest, { params }: Params) {
       return NextResponse.json(
         {
           success: false,
-          error: result.error || "Failed to dispatch test email with Resend.",
+          error: result.error || "Failed to dispatch test email via Google Apps Script.",
+          isQuotaExceeded: result.isQuotaExceeded,
         },
         { status: 400 }
       );
     }
 
-    console.log(`[TEST EMAIL API SUCCESS] Dispatched to ${testEmail}. Provider ID: ${result.providerMessageId}`);
+    console.log(`[TEST EMAIL API SUCCESS] Dispatched to ${testEmail}. Remaining: ${result.remaining ?? "N/A"}`);
 
     return NextResponse.json({
       success: true,
-      message: result.isSimulated
-        ? `Test email simulated successfully to ${testEmail} (RESEND_API_KEY not configured).`
-        : `Test email sent successfully to ${testEmail}. Please check your inbox (and spam folder).`,
-      isSimulated: result.isSimulated,
-      providerMessageId: result.providerMessageId,
+      message: `Test email sent successfully to ${testEmail} via Gmail. Please check your inbox (and spam folder).`,
+      remaining: result.remaining,
     });
   } catch (error: any) {
     console.error("[TEST EMAIL API UNCAUGHT EXCEPTION]", error);

@@ -166,8 +166,9 @@ export async function processBatchEmailDistribution(
   let sentCount = 0;
   let failedCount = 0;
   let lastError: string | undefined;
-  // Resend free tier rate limit: 2 requests per second (600ms delay between requests)
-  const delayBetweenSends = options.delayMs ?? 600;
+  let quotaExceeded = false;
+  // 1-second delay between Apps Script sends
+  const delayBetweenSends = options.delayMs ?? 1000;
 
   let cachedTemplateBuffer: Buffer | null = null;
 
@@ -250,7 +251,7 @@ export async function processBatchEmailDistribution(
         attemptedAt: new Date(),
         status: sendResult.success ? "sent" : "failed",
         providerMessageId: sendResult.providerMessageId,
-        errorCategory: sendResult.errorCategory,
+        errorCategory: sendResult.isQuotaExceeded ? "quota_exceeded" : (sendResult.success ? undefined : "delivery_failure"),
         errorMessage: sendResult.error,
       });
 
@@ -261,14 +262,37 @@ export async function processBatchEmailDistribution(
         await recipient.save();
         sentCount++;
       } else {
-        recipient.emailStatus = "failed";
-        recipient.lastEmailError = sendResult.error || "Email delivery failed";
         lastError = sendResult.error;
-        await recipient.save();
-        failedCount++;
+
+        // If Gmail quota / limit is exceeded, leave recipient as pending so they can be resumed later
+        if (sendResult.isQuotaExceeded) {
+          quotaExceeded = true;
+          recipient.emailStatus = "pending";
+          recipient.lastEmailError = `Daily quota reached: ${sendResult.error}`;
+          await recipient.save();
+          console.warn(`[APPS SCRIPT QUOTA HIT] Stopping email run early for batch ${batchId}. Recipient ${recipient.email} reverted to pending.`);
+          break; // Stop immediately on quota error
+        } else {
+          recipient.emailStatus = "failed";
+          recipient.lastEmailError = sendResult.error || "Email delivery failed";
+          await recipient.save();
+          failedCount++;
+        }
       }
     } catch (err: any) {
       console.error(`[EMAIL DISPATCH ERROR] Recipient ${recipient._id}:`, err);
+      const isQuota = /service invoked too many times|limit exceeded|daily limit|quota/i.test(err?.message || "");
+
+      if (isQuota) {
+        quotaExceeded = true;
+        recipient.emailStatus = "pending";
+        recipient.lastEmailError = `Daily quota reached: ${err.message}`;
+        lastError = err.message;
+        await recipient.save();
+        console.warn(`[APPS SCRIPT QUOTA EXCEPTION] Stopping run early for batch ${batchId}`);
+        break;
+      }
+
       recipient.emailStatus = "failed";
       recipient.lastEmailError = err.message || "Failed during dispatch";
       lastError = err.message;
@@ -287,7 +311,7 @@ export async function processBatchEmailDistribution(
       failedCount++;
     }
 
-    // Rate limiting delay for Resend (respecting 2 requests/sec)
+    // Rate limiting delay (1 second between sends)
     if (delayBetweenSends > 0) {
       await new Promise((resolve) => setTimeout(resolve, delayBetweenSends));
     }
@@ -312,6 +336,9 @@ export async function processBatchEmailDistribution(
   if (sent === total) {
     batch.status = "completed";
     batch.completedAt = new Date();
+  } else if (quotaExceeded) {
+    // When quota is hit, keep batch in generated or ready state so user can retry tomorrow
+    batch.status = "generated";
   } else if (pending === 0 && failed > 0) {
     batch.status = "failed";
   } else {
@@ -325,7 +352,8 @@ export async function processBatchEmailDistribution(
     failed,
     pending,
     processedThisRun: sentCount + failedCount,
-    hasMore: pending > 0,
+    hasMore: !quotaExceeded && pending > 0,
+    isQuotaExceeded: quotaExceeded,
     lastError,
   };
 }

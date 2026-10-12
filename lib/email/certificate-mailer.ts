@@ -1,6 +1,3 @@
-import { Resend } from "resend";
-import nodemailer from "nodemailer";
-
 /**
  * Escapes HTML characters in placeholders
  */
@@ -27,6 +24,133 @@ export function replacePlaceholders(
   });
 }
 
+export interface SendCertificateEmailParams {
+  to: string;
+  name: string;
+  subject: string;
+  html: string;
+  pdfBuffer: Buffer;
+  filename: string;
+}
+
+export interface SendCertificateEmailResult {
+  ok: boolean;
+  error?: string;
+  remaining?: number;
+  isQuotaExceeded?: boolean;
+}
+
+/**
+ * Shared helper that dispatches certificate email via Google Apps Script web app
+ */
+export async function sendCertificateEmail({
+  to,
+  name,
+  subject,
+  html,
+  pdfBuffer,
+  filename,
+}: SendCertificateEmailParams): Promise<SendCertificateEmailResult> {
+  const appsScriptUrl = process.env.APPS_SCRIPT_URL;
+  const appsScriptSecret = process.env.APPS_SCRIPT_SECRET;
+
+  if (!appsScriptUrl || !appsScriptUrl.trim()) {
+    console.error("[APPS SCRIPT ERROR] APPS_SCRIPT_URL is not configured.");
+    return {
+      ok: false,
+      error: "APPS_SCRIPT_URL is not configured in environment variables.",
+    };
+  }
+
+  // Keep PDF attachments under 20 MB limit
+  if (pdfBuffer.length > 20 * 1024 * 1024) {
+    console.error(`[APPS SCRIPT ERROR] PDF exceeds 20MB limit: ${pdfBuffer.length} bytes`);
+    return {
+      ok: false,
+      error: "PDF attachment exceeds the 20 MB size limit.",
+    };
+  }
+
+  // 25 second timeout per send
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+  try {
+    console.log(`[APPS SCRIPT SEND] Dispatching certificate to ${to} (${filename}, ${pdfBuffer.length} bytes)...`);
+
+    const res = await fetch(appsScriptUrl.trim(), {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        secret: appsScriptSecret || "",
+        to,
+        subject,
+        html,
+        senderName: "IEDC TKIET",
+        filename,
+        mimeType: "application/pdf",
+        pdfBase64: pdfBuffer.toString("base64"),
+      }),
+      redirect: "follow",
+      signal: controller.signal,
+    });
+
+    const responseText = await res.text();
+    let data: any = null;
+
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      console.error("[APPS SCRIPT NON-JSON RESPONSE]", responseText.slice(0, 500));
+      const cleanSnippet = responseText
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 150);
+      return {
+        ok: false,
+        error: `Apps Script returned non-JSON response (HTTP ${res.status}): ${cleanSnippet || "HTML error page"}`,
+      };
+    }
+
+    if (!res.ok || !data || data.ok !== true) {
+      const errorMsg = data?.error || `Apps Script returned failure (HTTP ${res.status})`;
+      console.error(`[APPS SCRIPT EMAIL ERROR to ${to}]:`, errorMsg);
+
+      const isQuota = /service invoked too many times|limit exceeded|daily limit|quota/i.test(errorMsg);
+
+      return {
+        ok: false,
+        error: errorMsg,
+        remaining: data?.remaining,
+        isQuotaExceeded: isQuota,
+      };
+    }
+
+    console.log(`[APPS SCRIPT SUCCESS] Certificate email delivered to ${to}. Remaining: ${data.remaining ?? "N/A"}`);
+    return {
+      ok: true,
+      remaining: data.remaining,
+    };
+  } catch (err: any) {
+    if (err.name === "AbortError" || err.message?.includes("aborted")) {
+      console.error(`[APPS SCRIPT TIMEOUT] Request to Apps Script timed out after 25s for ${to}`);
+      return {
+        ok: false,
+        error: "Google Apps Script request timed out after 25 seconds.",
+      };
+    }
+
+    console.error("[APPS SCRIPT FETCH EXCEPTION]", err);
+    return {
+      ok: false,
+      error: err?.message || "Failed to connect to Google Apps Script web app.",
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export interface SendCertificateParams {
   recipientEmail: string;
   recipientName: string;
@@ -36,19 +160,18 @@ export interface SendCertificateParams {
   subjectTemplate: string;
   bodyTemplate: string;
   pdfBuffer: Buffer;
-  replyTo?: string;
 }
 
 export interface SendCertificateResult {
   success: boolean;
   providerMessageId?: string;
   error?: string;
-  errorCategory?: "transient" | "permanent" | "config";
-  isSimulated?: boolean;
+  remaining?: number;
+  isQuotaExceeded?: boolean;
 }
 
 /**
- * Sends a single personalized certificate email using Resend (with SMTP fallback).
+ * Personalized certificate email adapter using sendCertificateEmail
  */
 export async function sendPersonalizedCertificateEmail(
   params: SendCertificateParams
@@ -63,143 +186,26 @@ export async function sendPersonalizedCertificateEmail(
   };
 
   const subject = replacePlaceholders(params.subjectTemplate, variables, false);
-  const textBody = replacePlaceholders(params.bodyTemplate, variables, false);
   const htmlBody = replacePlaceholders(
     params.bodyTemplate.replace(/\n/g, "<br/>"),
     variables,
     true
   );
+  const html = `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">${htmlBody}</div>`;
 
-  console.log(`[CERTIFICATE EMAIL] Preparing to send to ${params.recipientEmail} (${params.certificateId})`);
+  const result = await sendCertificateEmail({
+    to: params.recipientEmail,
+    name: params.recipientName,
+    subject,
+    html,
+    pdfBuffer: params.pdfBuffer,
+    filename: safeFilename,
+  });
 
-  // 1. PRIMARY: Resend Integration
-  const resendApiKey = process.env.RESEND_API_KEY;
-  if (resendApiKey && resendApiKey.trim()) {
-    try {
-      console.log(`[RESEND] Initializing Resend client for ${params.recipientEmail}...`);
-      const resend = new Resend(resendApiKey.trim());
-
-      const rawFrom = process.env.EMAIL_FROM || "onboarding@resend.dev";
-      const fromAddress = rawFrom.includes("<")
-        ? rawFrom
-        : `IEDC TKIET <${rawFrom}>`;
-
-      // Check if trying to send to someone else with onboarding@resend.dev
-      const isTestDomain = rawFrom.includes("resend.dev");
-      const isOwnerEmail = params.recipientEmail.toLowerCase() === "aniketcloud01@gmail.com";
-
-      if (isTestDomain && !isOwnerEmail) {
-        console.warn(
-          `[RESEND WARNING] Attempting to email ${params.recipientEmail} using test domain ${rawFrom}`
-        );
-      }
-
-      console.log(`[RESEND] Dispatching email via Resend API from "${fromAddress}" to "${params.recipientEmail}"...`);
-
-      const { data, error } = await resend.emails.send({
-        from: fromAddress,
-        to: [params.recipientEmail],
-        replyTo: params.replyTo || process.env.CONTACT_RECEIVER_EMAIL || undefined,
-        subject,
-        text: textBody,
-        html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">${htmlBody}</div>`,
-        attachments: [
-          {
-            filename: safeFilename,
-            content: params.pdfBuffer,
-          },
-        ],
-      });
-
-      if (error) {
-        console.error("[RESEND ERROR RESPONSE]", JSON.stringify(error, null, 2));
-
-        let errorMessage = error.message || String(error);
-        if (
-          errorMessage.toLowerCase().includes("testing emails to your own email address") ||
-          errorMessage.toLowerCase().includes("verify a domain")
-        ) {
-          errorMessage =
-            `Resend test domain (${rawFrom}) can only deliver to the account owner (aniketcloud01@gmail.com). To email participants, please verify a custom domain in Resend and configure EMAIL_FROM in Vercel.`;
-        }
-
-        return {
-          success: false,
-          error: errorMessage,
-          errorCategory: "permanent",
-        };
-      }
-
-      console.log(`[RESEND SUCCESS] Sent certificate email to ${params.recipientEmail}. Message ID: ${data?.id}`);
-      return {
-        success: true,
-        providerMessageId: data?.id,
-      };
-    } catch (err: any) {
-      console.error("[RESEND EXCEPTION]", err);
-      return {
-        success: false,
-        error: err?.message || "Unexpected error dispatching email with Resend",
-        errorCategory: "transient",
-      };
-    }
-  }
-
-  // 2. SECONDARY FALLBACK: Traditional SMTP (if SMTP_HOST is explicitly configured)
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASSWORD;
-
-  if (smtpHost && smtpUser && smtpPass) {
-    try {
-      console.log(`[SMTP FALLBACK] Dispatching email via ${smtpHost}...`);
-      const port = parseInt(process.env.SMTP_PORT || "587", 10);
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port,
-        secure: port === 465,
-        auth: { user: smtpUser, pass: smtpPass },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-      });
-
-      const sender = process.env.SMTP_FROM || smtpUser;
-      const info = await transporter.sendMail({
-        from: sender.includes("<") ? sender : `"IEDC TKIET" <${sender}>`,
-        to: `"${params.recipientName}" <${params.recipientEmail}>`,
-        subject,
-        text: textBody,
-        html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">${htmlBody}</div>`,
-        attachments: [
-          {
-            filename: safeFilename,
-            content: params.pdfBuffer,
-            contentType: "application/pdf",
-          },
-        ],
-      });
-
-      return {
-        success: true,
-        providerMessageId: info.messageId,
-      };
-    } catch (smtpErr: any) {
-      console.error("[SMTP ERROR]", smtpErr);
-      return {
-        success: false,
-        error: smtpErr?.message || "SMTP dispatch error",
-        errorCategory: "transient",
-      };
-    }
-  }
-
-  // 3. Neither RESEND_API_KEY nor SMTP configured
-  console.warn(
-    `[EMAIL CONFIG NOTICE] Neither RESEND_API_KEY nor SMTP credentials found. Cannot send email to ${params.recipientEmail}.`
-  );
   return {
-    success: false,
-    error: "RESEND_API_KEY is not configured in environment variables. Please add RESEND_API_KEY in Vercel project settings.",
-    errorCategory: "config",
+    success: result.ok,
+    error: result.error,
+    remaining: result.remaining,
+    isQuotaExceeded: result.isQuotaExceeded,
   };
 }

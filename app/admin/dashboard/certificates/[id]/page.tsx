@@ -161,6 +161,8 @@ export default function BatchDetailsPage() {
     try {
       let hasMore = true;
       let totalSentThisSession = 0;
+      let totalFailedThisSession = 0;
+      let stopReason: string | null = null;
 
       while (hasMore) {
         const res = await fetch(`/api/admin/certificates/batches/${batchId}/send-emails`, {
@@ -176,24 +178,40 @@ export default function BatchDetailsPage() {
           throw new Error(errMsg);
         }
 
-        totalSentThisSession += data.result?.sent || 0;
+        const runSent = data.result?.sent ?? 0;
+        const runFailed = data.result?.failed ?? 0;
+        totalSentThisSession = runSent;
+        totalFailedThisSession = runFailed;
+
         await fetchBatch();
         await fetchRecipients();
 
+        if (data.result?.isQuotaExceeded) {
+          stopReason = data.result?.lastError || "Gmail daily quota reached. Remaining participants are saved as pending — please retry tomorrow.";
+          break;
+        }
+
         hasMore = data.hasMore === true && (data.result?.pending || 0) > 0;
 
-        // If all remaining recipients failed, break loop to prevent infinite retry
-        if (data.result?.processedThisRun === 0 || (data.result?.pending > 0 && data.result?.failed === data.result?.pending)) {
+        // If no progress made in this run or all pending failed, break
+        if (data.result?.processedThisRun === 0) {
           if (data.result?.lastError) {
-            setActionError(`Delivery stopped: ${data.result.lastError}`);
+            stopReason = `Delivery stopped: ${data.result.lastError}`;
           }
           break;
         }
       }
 
-      setActionNotice("Email distribution run completed.");
       await fetchBatch();
       await fetchRecipients();
+
+      if (stopReason) {
+        setActionError(stopReason);
+      } else if (totalFailedThisSession > 0) {
+        setActionError(`Completed: ${totalSentThisSession} sent, ${totalFailedThisSession} failed. Check the roster below for error details.`);
+      } else {
+        setActionNotice(`Completed: ${totalSentThisSession} sent successfully.`);
+      }
     } catch (err: any) {
       console.error("[EMAIL DISTRIBUTION UI ERROR]", err);
       setActionError(err.message || "Failed during email delivery");
@@ -227,11 +245,11 @@ export default function BatchDetailsPage() {
         throw new Error(errorText);
       }
 
-      alert(data.message || "Test email dispatched successfully!");
+      alert(data.message || "Test email dispatched successfully via Gmail!");
       setIsTestEmailOpen(false);
     } catch (err: any) {
       console.error("[TEST EMAIL UI ERROR]", err);
-      alert(err.message || "Failed to send test email");
+      alert(`Test Email Failed: ${err.message || "Failed to send test email"}`);
     } finally {
       setIsSendingTest(false);
     }
@@ -332,16 +350,16 @@ export default function BatchDetailsPage() {
               </button>
             </div>
 
-            {(actionError.includes("resend.dev") || actionError.includes("domain") || actionError.includes("aniketcloud01@gmail.com") || actionError.includes("RESEND_API_KEY")) && (
+            {(actionError.includes("quota") || actionError.includes("limit") || actionError.includes("Service invoked")) && (
               <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs space-y-1.5 leading-relaxed">
                 <p className="font-semibold flex items-center gap-1.5 text-amber-200">
-                  <AlertCircle className="w-4 h-4" /> Resend Domain Configuration Notice:
+                  <AlertCircle className="w-4 h-4" /> Gmail Quota Information:
                 </p>
                 <p>
-                  Resend’s default sandbox address (<code>onboarding@resend.dev</code>) can only deliver emails to your account email (<code>aniketcloud01@gmail.com</code>).
+                  Gmail free accounts have a daily limit of approximately 100 emails per 24 hours. Google Apps Script has paused sending for today.
                 </p>
                 <p>
-                  To email participants, verify your domain in the <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-100">Resend Dashboard</a> and add <code>EMAIL_FROM=&quot;IEDC TKIET &lt;certificates@yourdomain.com&gt;&quot;</code> to your Vercel Environment Variables.
+                  All unsent recipients remain in <strong>Pending</strong> status and their certificates will not be lost. You can click <strong>Start Email Distribution</strong> tomorrow to resume sending.
                 </p>
               </div>
             )}
@@ -370,7 +388,7 @@ export default function BatchDetailsPage() {
                   />
                 </div>
                 {genCounts.failed > 0 && (
-                  <p className="text-[11px] text-rose-400">Failed: {genCounts.failed} certificate(s)</p>
+                  <p className="text-[11px] text-rose-400">Failed: {genCounts.failed}</p>
                 )}
               </div>
 
@@ -378,7 +396,7 @@ export default function BatchDetailsPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-xs">
                   <span className="font-semibold text-typo-white flex items-center gap-1.5">
-                    <Mail className="w-4 h-4 text-emerald-400" /> Emails Sent (SMTP Accepted)
+                    <Mail className="w-4 h-4 text-emerald-400" /> Emails Sent (Gmail)
                   </span>
                   <span className="font-mono text-emerald-400 font-bold">
                     {emailCounts.sent} / {totalParticipants} ({emailPercent}%)
@@ -390,9 +408,16 @@ export default function BatchDetailsPage() {
                     style={{ width: `${emailPercent}%` }}
                   />
                 </div>
-                {emailCounts.failed > 0 && (
-                  <p className="text-[11px] text-rose-400">Failed deliveries: {emailCounts.failed}</p>
-                )}
+                <div className="flex justify-between items-center text-[11px]">
+                  {emailCounts.failed > 0 ? (
+                    <span className="text-rose-400">Failed: {emailCounts.failed}</span>
+                  ) : (
+                    <span className="text-typo-gray">Gmail free limit: ~100 emails/day</span>
+                  )}
+                  {emailCounts.pending > 0 && (
+                    <span className="text-typo-gray">Pending: {emailCounts.pending}</span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -692,7 +717,10 @@ export default function BatchDetailsPage() {
         >
           <div className="space-y-4 text-sm">
             <p className="text-typo-gray">
-              Dispatch a test email with an on-the-fly rendered personalized certificate attachment to verify formatting, layout, and deliverability.
+              Dispatch a test email via your Google Apps Script web app (Gmail) with an on-the-fly rendered personalized certificate attachment.
+            </p>
+            <p className="text-xs text-typo-gray/80 bg-foundation-space p-2.5 rounded-lg border border-foundation-slate/50">
+              Note: Gmail free accounts have a daily limit of about 100 emails. Attachment size must remain under 20 MB.
             </p>
 
             <div>
