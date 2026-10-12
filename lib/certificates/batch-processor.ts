@@ -159,15 +159,17 @@ export async function processBatchEmailDistribution(
     query.emailStatus = { $in: ["pending", "failed"] };
   }
 
-  let recipientsQuery = CertificateRecipientModel.find(query);
-  if (options.maxCount) {
-    recipientsQuery = recipientsQuery.limit(options.maxCount);
-  }
-  const recipients = await recipientsQuery;
+  // Process in small, safe chunks (default 5 at a time)
+  const batchLimit = options.maxCount ?? 5;
+  const recipients = await CertificateRecipientModel.find(query).limit(batchLimit);
 
   let sentCount = 0;
   let failedCount = 0;
-  const delayBetweenSends = options.delayMs || 150;
+  let lastError: string | undefined;
+  // Resend free tier rate limit: 2 requests per second (600ms delay between requests)
+  const delayBetweenSends = options.delayMs ?? 600;
+
+  let cachedTemplateBuffer: Buffer | null = null;
 
   for (const recipient of recipients) {
     // Check if batch got cancelled
@@ -182,14 +184,51 @@ export async function processBatchEmailDistribution(
       recipient.lastEmailAttemptAt = new Date();
       await recipient.save();
 
-      // Get generated PDF
-      if (!recipient.certificateFileReference) {
-        throw new Error("Missing generated certificate file reference");
+      // Retrieve or regenerate PDF safely
+      let pdfBuffer: Buffer | null = null;
+      if (recipient.certificateFileReference) {
+        try {
+          const fileData = await getCertificateFile(recipient.certificateFileReference);
+          if (fileData) {
+            pdfBuffer = fileData.buffer;
+          }
+        } catch (fetchErr) {
+          console.warn("[PDF RETRIEVAL NOTICE] Could not read stored file:", fetchErr);
+        }
       }
 
-      const fileData = await getCertificateFile(recipient.certificateFileReference);
-      if (!fileData) {
-        throw new Error("Certificate PDF file not found in storage");
+      // Safe fallback: generate on-the-fly in memory if stored file is missing (e.g. serverless cold start)
+      if (!pdfBuffer) {
+        console.log(`[EMAIL SEND] Stored PDF not found for ${recipient.participantName}. Generating in memory on the fly...`);
+        if (!cachedTemplateBuffer) {
+          const tmpl = await getCertificateFile(batch.templateSnapshot.fileReference);
+          if (tmpl) {
+            cachedTemplateBuffer = tmpl.buffer;
+          }
+        }
+
+        if (cachedTemplateBuffer) {
+          pdfBuffer = await renderCertificatePdf(
+            cachedTemplateBuffer,
+            batch.templateSnapshot,
+            {
+              participantName: recipient.participantName,
+              certificateId: recipient.certificateId,
+              eventName: batch.eventName,
+              eventDate: batch.eventDate,
+              certificateType: recipient.certificateType || batch.certificateType,
+              additionalFields: recipient.additionalFields
+                ? recipient.additionalFields instanceof Map
+                  ? Object.fromEntries(recipient.additionalFields)
+                  : (recipient.additionalFields as any)
+                : {},
+            }
+          );
+        }
+      }
+
+      if (!pdfBuffer) {
+        throw new Error("Unable to retrieve or regenerate certificate PDF attachment");
       }
 
       const sendResult = await sendPersonalizedCertificateEmail({
@@ -200,7 +239,7 @@ export async function processBatchEmailDistribution(
         certificateType: recipient.certificateType || batch.certificateType,
         subjectTemplate: batch.emailSubject,
         bodyTemplate: batch.emailBody,
-        pdfBuffer: fileData.buffer,
+        pdfBuffer,
       });
 
       // Record audit attempt
@@ -224,6 +263,7 @@ export async function processBatchEmailDistribution(
       } else {
         recipient.emailStatus = "failed";
         recipient.lastEmailError = sendResult.error || "Email delivery failed";
+        lastError = sendResult.error;
         await recipient.save();
         failedCount++;
       }
@@ -231,6 +271,7 @@ export async function processBatchEmailDistribution(
       console.error(`[EMAIL DISPATCH ERROR] Recipient ${recipient._id}:`, err);
       recipient.emailStatus = "failed";
       recipient.lastEmailError = err.message || "Failed during dispatch";
+      lastError = err.message;
       await recipient.save();
 
       await CertificateEmailAttemptModel.create({
@@ -246,7 +287,7 @@ export async function processBatchEmailDistribution(
       failedCount++;
     }
 
-    // Rate limiting delay
+    // Rate limiting delay for Resend (respecting 2 requests/sec)
     if (delayBetweenSends > 0) {
       await new Promise((resolve) => setTimeout(resolve, delayBetweenSends));
     }
@@ -284,5 +325,7 @@ export async function processBatchEmailDistribution(
     failed,
     pending,
     processedThisRun: sentCount + failedCount,
+    hasMore: pending > 0,
+    lastError,
   };
 }

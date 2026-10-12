@@ -3,9 +3,12 @@ import { connectToDatabase } from "@/lib/mongodb/client";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import os from "os";
 
 const BUCKET_NAME = "certificate_files";
-const LOCAL_STORAGE_DIR = path.join(process.cwd(), "private_storage", "certificates");
+const LOCAL_STORAGE_DIR = process.env.VERCEL
+  ? path.join(os.tmpdir(), "certificates")
+  : path.join(process.cwd(), "private_storage", "certificates");
 
 // Ensure local directory exists for dev/fallback caching
 try {

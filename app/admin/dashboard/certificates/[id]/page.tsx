@@ -152,26 +152,53 @@ export default function BatchDetailsPage() {
     }
   };
 
-  // Start Email Distribution
+  // Start Email Distribution (Chunked in batches of 5 with live progress updates)
   const handleStartEmailDistribution = async (retryFailedOnly = false) => {
     setIsSendingEmails(true);
     setActionNotice(null);
     setActionError(null);
+
     try {
-      const res = await fetch(`/api/admin/certificates/batches/${batchId}/send-emails`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ retryFailedOnly }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Email delivery failed");
+      let hasMore = true;
+      let totalSentThisSession = 0;
+
+      while (hasMore) {
+        const res = await fetch(`/api/admin/certificates/batches/${batchId}/send-emails`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ retryFailedOnly, batchSize: 5 }),
+        });
+
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok || !data?.success) {
+          const errMsg = data?.error || `Server responded with HTTP ${res.status} (${res.statusText})`;
+          throw new Error(errMsg);
+        }
+
+        totalSentThisSession += data.result?.sent || 0;
+        await fetchBatch();
+        await fetchRecipients();
+
+        hasMore = data.hasMore === true && (data.result?.pending || 0) > 0;
+
+        // If all remaining recipients failed, break loop to prevent infinite retry
+        if (data.result?.processedThisRun === 0 || (data.result?.pending > 0 && data.result?.failed === data.result?.pending)) {
+          if (data.result?.lastError) {
+            setActionError(`Delivery stopped: ${data.result.lastError}`);
+          }
+          break;
+        }
       }
-      setActionNotice(data.message || "Email distribution processed successfully.");
+
+      setActionNotice("Email distribution run completed.");
       await fetchBatch();
       await fetchRecipients();
     } catch (err: any) {
+      console.error("[EMAIL DISTRIBUTION UI ERROR]", err);
       setActionError(err.message || "Failed during email delivery");
+      await fetchBatch();
+      await fetchRecipients();
     } finally {
       setIsSendingEmails(false);
     }
@@ -184,19 +211,26 @@ export default function BatchDetailsPage() {
       return;
     }
     setIsSendingTest(true);
+    setActionError(null);
+
     try {
       const res = await fetch(`/api/admin/certificates/batches/${batchId}/test-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ testEmail: testEmailAddress }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to dispatch test email");
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.success) {
+        const errorText = data?.error || `Server responded with HTTP ${res.status} (${res.statusText})`;
+        throw new Error(errorText);
       }
+
       alert(data.message || "Test email dispatched successfully!");
       setIsTestEmailOpen(false);
     } catch (err: any) {
+      console.error("[TEST EMAIL UI ERROR]", err);
       alert(err.message || "Failed to send test email");
     } finally {
       setIsSendingTest(false);
@@ -287,14 +321,30 @@ export default function BatchDetailsPage() {
         )}
 
         {actionError && (
-          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{actionError}</span>
+          <div className="space-y-3">
+            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{actionError}</span>
+              </div>
+              <button onClick={() => setActionError(null)} className="text-xs font-semibold hover:underline">
+                Dismiss
+              </button>
             </div>
-            <button onClick={() => setActionError(null)} className="text-xs font-semibold hover:underline">
-              Dismiss
-            </button>
+
+            {(actionError.includes("resend.dev") || actionError.includes("domain") || actionError.includes("aniketcloud01@gmail.com") || actionError.includes("RESEND_API_KEY")) && (
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs space-y-1.5 leading-relaxed">
+                <p className="font-semibold flex items-center gap-1.5 text-amber-200">
+                  <AlertCircle className="w-4 h-4" /> Resend Domain Configuration Notice:
+                </p>
+                <p>
+                  Resend’s default sandbox address (<code>onboarding@resend.dev</code>) can only deliver emails to your account email (<code>aniketcloud01@gmail.com</code>).
+                </p>
+                <p>
+                  To email participants, verify your domain in the <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-100">Resend Dashboard</a> and add <code>EMAIL_FROM=&quot;IEDC TKIET &lt;certificates@yourdomain.com&gt;&quot;</code> to your Vercel Environment Variables.
+                </p>
+              </div>
+            )}
           </div>
         )}
 

@@ -1,5 +1,5 @@
+import { Resend } from "resend";
 import nodemailer from "nodemailer";
-import { ICertificateRecipient } from "@/types/certificate";
 
 /**
  * Escapes HTML characters in placeholders
@@ -27,34 +27,6 @@ export function replacePlaceholders(
   });
 }
 
-/**
- * Creates nodemailer transport using environment variables.
- */
-export function getMailTransporter() {
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT || "587", 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASSWORD;
-
-  if (!host || !user || !pass) {
-    return null;
-  }
-
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465, // true for 465, false for 587
-    auth: {
-      user,
-      pass,
-    },
-    // Useful for institutional SMTP servers with specific certs
-    tls: {
-      rejectUnauthorized: process.env.NODE_ENV === "production",
-    },
-  });
-}
-
 export interface SendCertificateParams {
   recipientEmail: string;
   recipientName: string;
@@ -76,16 +48,12 @@ export interface SendCertificateResult {
 }
 
 /**
- * Sends a single personalized certificate email with attachment.
+ * Sends a single personalized certificate email using Resend (with SMTP fallback).
  */
 export async function sendPersonalizedCertificateEmail(
   params: SendCertificateParams
 ): Promise<SendCertificateResult> {
-  const transporter = getMailTransporter();
-  const senderAddress =
-    process.env.SMTP_FROM ||
-    process.env.SMTP_USER ||
-    "no-reply@tkiet.ac.in";
+  const safeFilename = `IEDC_TKIET_Certificate_${params.certificateId.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`;
 
   const variables: Record<string, string> = {
     participantName: params.recipientName,
@@ -102,53 +70,136 @@ export async function sendPersonalizedCertificateEmail(
     true
   );
 
-  const safeFilename = `IEDC_TKIET_Certificate_${params.certificateId.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`;
+  console.log(`[CERTIFICATE EMAIL] Preparing to send to ${params.recipientEmail} (${params.certificateId})`);
 
-  // If SMTP is not configured in dev/test environment
-  if (!transporter) {
-    console.warn(
-      `[CERTIFICATE EMAIL SIMULATION] SMTP not configured. Simulated send to ${params.recipientEmail} (${params.certificateId})`
-    );
-    return {
-      success: true,
-      providerMessageId: `simulated-${Date.now()}-${params.certificateId}`,
-      isSimulated: true,
-    };
+  // 1. PRIMARY: Resend Integration
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (resendApiKey && resendApiKey.trim()) {
+    try {
+      console.log(`[RESEND] Initializing Resend client for ${params.recipientEmail}...`);
+      const resend = new Resend(resendApiKey.trim());
+
+      const rawFrom = process.env.EMAIL_FROM || "onboarding@resend.dev";
+      const fromAddress = rawFrom.includes("<")
+        ? rawFrom
+        : `IEDC TKIET <${rawFrom}>`;
+
+      // Check if trying to send to someone else with onboarding@resend.dev
+      const isTestDomain = rawFrom.includes("resend.dev");
+      const isOwnerEmail = params.recipientEmail.toLowerCase() === "aniketcloud01@gmail.com";
+
+      if (isTestDomain && !isOwnerEmail) {
+        console.warn(
+          `[RESEND WARNING] Attempting to email ${params.recipientEmail} using test domain ${rawFrom}`
+        );
+      }
+
+      console.log(`[RESEND] Dispatching email via Resend API from "${fromAddress}" to "${params.recipientEmail}"...`);
+
+      const { data, error } = await resend.emails.send({
+        from: fromAddress,
+        to: [params.recipientEmail],
+        replyTo: params.replyTo || process.env.CONTACT_RECEIVER_EMAIL || undefined,
+        subject,
+        text: textBody,
+        html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">${htmlBody}</div>`,
+        attachments: [
+          {
+            filename: safeFilename,
+            content: params.pdfBuffer,
+          },
+        ],
+      });
+
+      if (error) {
+        console.error("[RESEND ERROR RESPONSE]", JSON.stringify(error, null, 2));
+
+        let errorMessage = error.message || String(error);
+        if (
+          errorMessage.toLowerCase().includes("testing emails to your own email address") ||
+          errorMessage.toLowerCase().includes("verify a domain")
+        ) {
+          errorMessage =
+            `Resend test domain (${rawFrom}) can only deliver to the account owner (aniketcloud01@gmail.com). To email participants, please verify a custom domain in Resend and configure EMAIL_FROM in Vercel.`;
+        }
+
+        return {
+          success: false,
+          error: errorMessage,
+          errorCategory: "permanent",
+        };
+      }
+
+      console.log(`[RESEND SUCCESS] Sent certificate email to ${params.recipientEmail}. Message ID: ${data?.id}`);
+      return {
+        success: true,
+        providerMessageId: data?.id,
+      };
+    } catch (err: any) {
+      console.error("[RESEND EXCEPTION]", err);
+      return {
+        success: false,
+        error: err?.message || "Unexpected error dispatching email with Resend",
+        errorCategory: "transient",
+      };
+    }
   }
 
-  try {
-    const info = await transporter.sendMail({
-      from: `"IEDC TKIET" <${senderAddress}>`,
-      to: `"${params.recipientName}" <${params.recipientEmail}>`,
-      replyTo: params.replyTo || process.env.CONTACT_RECEIVER_EMAIL || senderAddress,
-      subject,
-      text: textBody,
-      html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">${htmlBody}</div>`,
-      attachments: [
-        {
-          filename: safeFilename,
-          content: params.pdfBuffer,
-          contentType: "application/pdf",
-        },
-      ],
-    });
+  // 2. SECONDARY FALLBACK: Traditional SMTP (if SMTP_HOST is explicitly configured)
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASSWORD;
 
-    return {
-      success: true,
-      providerMessageId: info.messageId,
-    };
-  } catch (err: any) {
-    console.error("[SMTP TRANSMISSION ERROR]", err);
-    const message = err.message || "Failed to send email";
-    const isPermanent =
-      /invalid recipient|recipient rejected|mailbox unavailable|user not found|550|551|553/i.test(
-        message
-      );
+  if (smtpHost && smtpUser && smtpPass) {
+    try {
+      console.log(`[SMTP FALLBACK] Dispatching email via ${smtpHost}...`);
+      const port = parseInt(process.env.SMTP_PORT || "587", 10);
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port,
+        secure: port === 465,
+        auth: { user: smtpUser, pass: smtpPass },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+      });
 
-    return {
-      success: false,
-      error: message,
-      errorCategory: isPermanent ? "permanent" : "transient",
-    };
+      const sender = process.env.SMTP_FROM || smtpUser;
+      const info = await transporter.sendMail({
+        from: sender.includes("<") ? sender : `"IEDC TKIET" <${sender}>`,
+        to: `"${params.recipientName}" <${params.recipientEmail}>`,
+        subject,
+        text: textBody,
+        html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">${htmlBody}</div>`,
+        attachments: [
+          {
+            filename: safeFilename,
+            content: params.pdfBuffer,
+            contentType: "application/pdf",
+          },
+        ],
+      });
+
+      return {
+        success: true,
+        providerMessageId: info.messageId,
+      };
+    } catch (smtpErr: any) {
+      console.error("[SMTP ERROR]", smtpErr);
+      return {
+        success: false,
+        error: smtpErr?.message || "SMTP dispatch error",
+        errorCategory: "transient",
+      };
+    }
   }
+
+  // 3. Neither RESEND_API_KEY nor SMTP configured
+  console.warn(
+    `[EMAIL CONFIG NOTICE] Neither RESEND_API_KEY nor SMTP credentials found. Cannot send email to ${params.recipientEmail}.`
+  );
+  return {
+    success: false,
+    error: "RESEND_API_KEY is not configured in environment variables. Please add RESEND_API_KEY in Vercel project settings.",
+    errorCategory: "config",
+  };
 }
