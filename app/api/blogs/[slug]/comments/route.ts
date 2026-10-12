@@ -87,7 +87,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       blogSlug: slug,
       status: { $ne: "rejected" },
     })
-      .sort({ createdAt: 1 })
+      .sort({ createdAt: -1 })
       .select("_id parentId replyToUser name body likesCount isDeleted createdAt adminReply +likedBy")
       .lean();
 

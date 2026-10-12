@@ -33,6 +33,7 @@ const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/dashboard/events", label: "Events", icon: Calendar },
   { href: "/admin/dashboard/registrations", label: "Registrations", icon: Ticket },
+  { href: "/admin/dashboard/certificates", label: "Certificate Manager", icon: Award },
   { href: "/admin/dashboard/speakers", label: "Previous Speakers", icon: Mic },
   { href: "/admin/dashboard/blogs", label: "Blogs", icon: FileText },
   { href: "/admin/dashboard/comments", label: "Comments", icon: MessageSquare },

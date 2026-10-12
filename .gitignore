@@ -70,6 +70,7 @@ public/uploads/*
 
 # Temporary / Scratch
 scratch/
+private_storage/
 scripts/seed-team.mjs
 scripts/test-refinements.mjs
 scripts/test-team-redesign.mjs

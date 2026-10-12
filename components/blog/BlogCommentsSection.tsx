@@ -177,7 +177,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
     });
   };
 
-  // Organize comments into root comments and nested replies map
+  // Organize comments into root comments and nested replies map (newest root comments first)
   const { rootComments, repliesMap } = useMemo(() => {
     const roots: CommentData[] = [];
     const replies: Record<string, CommentData[]> = {};
@@ -191,6 +191,18 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
         }
         replies[c.parentId].push(c);
       }
+    });
+
+    // Enforce newest-first order (descending createdAt) so most recent comment appears at the TOP
+    roots.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    // Keep threaded replies in chronological conversation sequence
+    Object.keys(replies).forEach((parentId) => {
+      replies[parentId].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
     });
 
     return { rootComments: roots, repliesMap: replies };
@@ -240,7 +252,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
 
       const data = await res.json();
       if (res.ok && data.success && data.data) {
-        // Immediate UI update without page refresh!
+        // Immediate UI update without page refresh: placed at top (newest first)
         const newComment: CommentData = {
           _id: data.data._id,
           parentId: null,
@@ -253,7 +265,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
           adminReply: null,
         };
 
-        setComments((prev) => [...prev, newComment]);
+        setComments((prev) => [newComment, ...prev]);
         if (data.authorToken) {
           saveAuthorToken(data.data._id, data.authorToken);
         }
@@ -514,38 +526,47 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
     return (
       <div
         key={comment._id}
-        className={`group relative transition-all rounded-2xl ${
+        className={`group relative transition-all ${
           isReply
-            ? "mt-3 bg-foundation-dark/60 border border-slate-800/80 p-3.5 sm:p-4 hover:border-slate-700/80"
-            : "bg-gradient-to-b from-foundation-dark/95 to-foundation-slate/20 border border-slate-800 p-4 sm:p-5 shadow-sm hover:border-slate-700"
+            ? "mt-2.5 rounded-xl bg-slate-900/50 border border-slate-800/70 p-3.5 sm:p-4 hover:border-slate-700/80 shadow-sm"
+            : "rounded-2xl bg-gradient-to-b from-foundation-dark/95 via-foundation-dark/85 to-foundation-slate/25 border border-slate-800/85 p-4 sm:p-5 shadow-sm hover:border-slate-700/85 hover:shadow-md"
         }`}
       >
-        {/* Header: Avatar, Name, Relative Date, Options */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
+        {/* Header: Avatar, Name, Badges, Relative Date, Options */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             {/* Avatar with deterministic initials */}
             <div
-              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr ${getAvatarGradient(
+              className={`${
+                isReply ? "w-7 h-7 text-[11px]" : "w-8 h-8 sm:w-9 sm:h-9 text-xs"
+              } rounded-full bg-gradient-to-tr ${getAvatarGradient(
                 comment.name
-              )} flex items-center justify-center text-xs font-mono font-bold text-white shadow-sm shrink-0`}
+              )} flex items-center justify-center font-mono font-bold text-white shadow-sm ring-1 ring-white/10 shrink-0`}
             >
               {comment.name ? comment.name.charAt(0).toUpperCase() : "U"}
             </div>
 
-            <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <span className="font-sans font-semibold text-xs sm:text-sm text-white truncate">
+            <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-sans font-semibold text-xs sm:text-sm text-slate-100 truncate group-hover:text-white transition-colors">
                 {comment.name}
               </span>
 
+              {/* Author badge if commenter is author of this remark */}
+              {isAuthor && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                  You
+                </span>
+              )}
+
               {/* Reply-to Badge */}
               {comment.replyToUser && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-mono text-brand-cyan/90 bg-brand-cyan/10 px-1.5 py-0.2 rounded">
+                <span className="inline-flex items-center gap-1 text-[11px] font-mono text-brand-cyan bg-brand-cyan/10 border border-brand-cyan/20 px-1.5 py-0.5 rounded">
                   <CornerDownRight className="w-3 h-3 shrink-0" />
                   <span>@{comment.replyToUser}</span>
                 </span>
               )}
 
-              <span className="text-slate-600 text-xs">·</span>
+              <span className="text-slate-600 text-xs select-none">·</span>
 
               <span
                 className="font-mono text-[11px] text-slate-400 shrink-0"
@@ -561,19 +582,23 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
             <button
               type="button"
               onClick={() => setOpenMenuId(isMenuOpen ? null : comment._id)}
-              className="p-1 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800/60 transition-colors"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800/60 transition-colors"
               title="More actions"
+              aria-label="More actions"
             >
               <MoreVertical className="w-3.5 h-3.5" />
             </button>
 
             {isMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-36 py-1 rounded-xl bg-foundation-dark border border-slate-700 shadow-xl z-20 text-xs font-mono">
+              <div className="absolute right-0 top-full mt-1.5 w-36 py-1 rounded-xl bg-foundation-dark border border-slate-700 shadow-xl z-20 text-xs font-mono backdrop-blur-md">
                 {isAuthor && !comment.isDeleted && (
                   <button
                     type="button"
-                    onClick={() => handleDeleteComment(comment._id)}
-                    className="w-full px-3 py-1.5 text-left text-rose-400 hover:bg-rose-500/10 flex items-center gap-2"
+                    onClick={() => {
+                      setOpenMenuId(null);
+                      handleDeleteComment(comment._id);
+                    }}
+                    className="w-full px-3 py-1.5 text-left text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Delete</span>
@@ -581,8 +606,11 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
                 )}
                 <button
                   type="button"
-                  onClick={() => handleReportComment(comment._id)}
-                  className="w-full px-3 py-1.5 text-left text-slate-300 hover:bg-slate-800 flex items-center gap-2"
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    handleReportComment(comment._id);
+                  }}
+                  className="w-full px-3 py-1.5 text-left text-slate-300 hover:bg-slate-800 flex items-center gap-2 transition-colors"
                 >
                   <Flag className="w-3.5 h-3.5" />
                   <span>Report</span>
@@ -593,7 +621,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
         </div>
 
         {/* Comment Body */}
-        <div className="mt-2.5 text-xs sm:text-sm text-slate-200 font-sans leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+        <div className="mt-2.5 text-xs sm:text-[13.5px] text-slate-200 font-sans leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
           {comment.isDeleted ? (
             <span className="italic text-slate-500">{comment.body}</span>
           ) : (
@@ -603,29 +631,29 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
 
         {/* Admin Official Reply if Present */}
         {comment.adminReply && (
-          <div className="mt-3 p-3 rounded-xl bg-brand-blue/10 border border-brand-cyan/30 text-xs space-y-1">
+          <div className="mt-3 p-3.5 rounded-xl bg-brand-blue/10 border-l-2 border-brand-cyan border border-brand-cyan/25 text-xs space-y-1">
             <div className="flex items-center gap-1.5 text-[11px] font-mono text-brand-cyan font-bold uppercase tracking-wider">
               <CornerDownRight className="w-3.5 h-3.5" />
               <span>IEDC Editorial Response</span>
             </div>
-            <p className="text-slate-300 whitespace-pre-wrap break-words pl-4">
+            <p className="text-slate-300 whitespace-pre-wrap break-words pl-4 font-sans leading-relaxed">
               {comment.adminReply}
             </p>
           </div>
         )}
 
         {/* Bottom Actions Bar: Likes, Reply button, Expand replies */}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/60 text-xs">
-          <div className="flex items-center gap-3">
-            {/* Like button with live count & pop animation */}
+        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-800/70 text-xs">
+          <div className="flex items-center gap-2">
+            {/* Like button with tactile pill styling & clear visual weight */}
             <button
               type="button"
               onClick={() => handleToggleLike(comment._id)}
               disabled={comment.isDeleted}
-              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg font-mono text-xs transition-all active:scale-90 ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-mono text-xs transition-all active:scale-95 ${
                 isLiked
-                  ? "text-rose-400 bg-rose-500/10 font-bold"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                  ? "text-rose-400 bg-rose-500/15 border border-rose-500/30 font-semibold shadow-sm"
+                  : "text-slate-400 bg-slate-900/60 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 hover:text-slate-200 shadow-sm"
               }`}
               title={isLiked ? "Unlike" : "Like"}
             >
@@ -637,7 +665,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
               <span>{comment.likesCount > 0 ? comment.likesCount : "Like"}</span>
             </button>
 
-            {/* Reply button */}
+            {/* Reply button with tactile pill styling */}
             {!comment.isDeleted && (
               <button
                 type="button"
@@ -646,10 +674,10 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
                   setReplyBody("");
                   setReplyFeedback(null);
                 }}
-                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg font-mono text-xs transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-mono text-xs transition-all active:scale-95 ${
                   isReplyingToThis
-                    ? "text-brand-cyan bg-brand-cyan/10 font-semibold"
-                    : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                    ? "text-brand-cyan bg-brand-cyan/15 border border-brand-cyan/30 font-semibold shadow-sm"
+                    : "text-slate-400 bg-slate-900/60 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 hover:text-slate-200 shadow-sm"
                 }`}
               >
                 <ReplyIcon className="w-3.5 h-3.5" />
@@ -663,18 +691,18 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
             <button
               type="button"
               onClick={() => toggleThreadCollapse(comment._id)}
-              className="inline-flex items-center gap-1 font-mono text-[11px] text-brand-cyan hover:underline transition-all"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-mono text-[11px] text-brand-cyan/90 hover:text-brand-cyan hover:bg-brand-cyan/10 transition-colors"
             >
               {isThreadCollapsed ? (
                 <>
-                  <ChevronDown className="w-3 h-3" />
+                  <ChevronDown className="w-3.5 h-3.5" />
                   <span>
                     Show {replies.length} {replies.length === 1 ? "reply" : "replies"}
                   </span>
                 </>
               ) : (
                 <>
-                  <ChevronUp className="w-3 h-3" />
+                  <ChevronUp className="w-3.5 h-3.5" />
                   <span>Hide {replies.length === 1 ? "reply" : "replies"}</span>
                 </>
               )}
@@ -750,7 +778,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
 
         {/* Nested Replies Section (Thread line & Indentation) */}
         {hasReplies && !isThreadCollapsed && (
-          <div className="mt-3 pl-3 sm:pl-6 border-l-2 border-slate-800 space-y-2">
+          <div className="mt-3 pl-3 sm:pl-5 border-l-2 border-slate-800/80 space-y-2.5">
             {replies.map((reply) => renderCommentCard(reply, true))}
           </div>
         )}
@@ -943,7 +971,18 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
             </p>
           </div>
         ) : (
-          rootComments.map((root) => renderCommentCard(root, false))
+          <div className="space-y-3.5">
+            <div className="flex items-center justify-between text-xs font-mono text-slate-400 px-1 pb-0.5">
+              <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-brand-cyan" />
+                Latest Remarks
+              </span>
+              <span className="text-[11px] text-slate-500">
+                Newest first · {rootComments.length} {rootComments.length === 1 ? "thread" : "threads"}
+              </span>
+            </div>
+            {rootComments.map((root) => renderCommentCard(root, false))}
+          </div>
         )}
       </div>
     </section>
