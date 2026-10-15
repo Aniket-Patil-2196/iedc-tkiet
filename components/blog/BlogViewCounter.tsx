@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Eye, Timer } from "lucide-react";
+import { Eye } from "lucide-react";
 
 interface BlogViewCounterProps {
   slug: string;
@@ -33,7 +33,7 @@ export function BlogViewCounter({
   className = "",
 }: BlogViewCounterProps) {
   const [views, setViews] = useState<number>(initialViews);
-  const [avgReadTime, setAvgReadTime] = useState<number>(initialAvgReadTimeSeconds);
+  const [, setAvgReadTime] = useState<number>(initialAvgReadTimeSeconds);
   const startTimeRef = useRef<number>(Date.now());
   const timerSentRef = useRef<boolean>(false);
 
@@ -168,15 +168,6 @@ export function BlogViewCounter({
     return n.toLocaleString();
   }
 
-  function formatAvgTime(seconds: number): string {
-    if (!seconds || seconds < 5) return "";
-    if (seconds < 60) return `${seconds}s avg`;
-    const mins = Math.round(seconds / 60);
-    return `${mins} min avg`;
-  }
-
-  const formattedTime = formatAvgTime(avgReadTime);
-
   return (
     <span
       className={`inline-flex items-center gap-3 font-mono text-[11px] sm:text-xs transition-colors ${className}`}
@@ -191,17 +182,6 @@ export function BlogViewCounter({
           {formatViews(views)} {views === 1 ? "view" : "views"}
         </span>
       </span>
-
-      {/* Avg Read Time */}
-      {showAvgTime && formattedTime && (
-        <span
-          className="inline-flex items-center gap-1.5"
-          title={`Average time readers spend on this article`}
-        >
-          <Timer className="w-3.5 h-3.5 opacity-80 shrink-0" />
-          <span>{formattedTime}</span>
-        </span>
-      )}
     </span>
   );
 }

@@ -1226,7 +1226,7 @@ export function InnovationJournalBook({
                                     </span>
                                   </div>
                                   <span className="text-[10px] sm:text-[11px] font-mono text-[#4B5468] block pl-5 truncate">
-                                    {getPubDate(b)} · {b.readTimeMinutes || 3} min read · {formatBookViews(b.views)} views
+                                    {getPubDate(b)} · {formatBookViews(b.views)} views
                                   </span>
                                 </div>
                                 <span className="text-xs font-mono text-[#1E40AF] opacity-0 group-hover:opacity-100 transition-opacity shrink-0">

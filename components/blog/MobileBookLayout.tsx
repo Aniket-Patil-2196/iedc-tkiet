@@ -561,7 +561,7 @@ export function MobileBookLayout({
                         </span>
                       </div>
                       <span className="text-[10px] font-mono text-[#4B5468] block pl-5 truncate">
-                        {getPubDate(b)} · {b.readTimeMinutes || 3} min read · {formatBookViews(b.views)} views
+                        {getPubDate(b)} · {formatBookViews(b.views)} views
                       </span>
                     </div>
                     <span className="text-xs font-mono text-[#1E40AF] opacity-60 group-hover:opacity-100 transition-opacity shrink-0 pt-0.5">
@@ -605,7 +605,7 @@ export function MobileBookLayout({
                   )}
                 </span>
                 <span>
-                  {getPubDate(blog)} · {blog.readTimeMinutes || 3} MIN · {formatBookViews(blog.views)} VIEWS
+                  {getPubDate(blog)} · {formatBookViews(blog.views)} VIEWS
                 </span>
               </div>
 

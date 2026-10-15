@@ -8,7 +8,7 @@ import { PostageStamp } from "@/components/blog/PostageStamp";
 import { BlogCommentsSection } from "@/components/blog/BlogCommentsSection";
 import { BlogManuscriptBody } from "@/components/blog/BlogManuscriptBody";
 import { BlogViewCounter } from "@/components/blog/BlogViewCounter";
-import { ArrowLeft, ArrowRight, BookOpen, Sparkles, Calendar, Clock, User } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Calendar, User } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -91,24 +91,13 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
 
         {/* 1. Manuscript Header / Running Head */}
         <header className="space-y-4 pb-8 border-b border-amber-950/15 relative z-10">
-          <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] sm:text-xs font-mono text-[var(--ink-accent)] uppercase tracking-wider">
-            <span className="flex items-center gap-1.5 font-semibold">
-              <Sparkles className="w-3.5 h-3.5 text-[var(--ink-accent)]" />
-              IEDC TKIET ARCHIVAL MANUSCRIPT
+          <div className="flex flex-wrap items-center gap-3 text-[11px] sm:text-xs font-mono text-[var(--ink-muted)] uppercase tracking-wider">
+            <span className="flex items-center gap-1">
+              <Calendar className="w-3 h-3 text-[var(--ink-accent)]" />
+              {formatEventDate(article.publicationDate || article.publishedAt)}
             </span>
-            <div className="flex items-center gap-3 text-[var(--ink-muted)]">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3 text-[var(--ink-accent)]" />
-                {formatEventDate(article.publicationDate || article.publishedAt)}
-              </span>
-              <span>·</span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-[var(--ink-accent)]" />
-                {article.readTimeMinutes} min read
-              </span>
-              <span>·</span>
-              <BlogViewCounter slug={article.slug} initialViews={article.views} initialAvgReadTimeSeconds={article.avgReadTimeSeconds} />
-            </div>
+            <span>·</span>
+            <BlogViewCounter slug={article.slug} initialViews={article.views} initialAvgReadTimeSeconds={article.avgReadTimeSeconds} />
           </div>
 
           {/* Large Editorial Headline */}
@@ -140,11 +129,7 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
 
         {/* 4. Archival End Seal & Navigation */}
         <footer className="pt-8 border-t border-amber-950/15 relative z-10 space-y-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-[var(--ink-muted)]">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[var(--ink-accent)] animate-pulse" />
-              <span>Verified Archival Entry · IEDC TKIET Warananagar</span>
-            </div>
+          <div className="flex items-center justify-end gap-4 text-xs font-mono text-[var(--ink-muted)]">
             <Link
               href={`/blog?post=${article.slug}`}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--ink-heading)] text-[var(--paper)] font-bold text-xs uppercase tracking-wider hover:bg-slate-900 shadow-md transition-all border border-amber-950/20"
