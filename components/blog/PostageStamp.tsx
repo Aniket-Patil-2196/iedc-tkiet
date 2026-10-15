@@ -95,19 +95,23 @@ export function PostageStamp({
   return (
     <div className={cn("space-y-4 w-full select-none", className)}>
       {/* 1. STAMPS STACK CONTAINER */}
-      <div className="relative w-full pt-2 pb-1">
+      <div className="relative w-full py-3 px-2 sm:py-4 sm:px-3">
         {primaryImage ? (
           <div className="relative">
             {/* Primary Postage Stamp */}
-            <div className="relative z-10 postage-stamp-shadow inline-block w-full rotate-[-1.5deg] transition-transform duration-300 hover:rotate-0">
-              <div className="postage-stamp-perforated bg-[var(--stamp-paper,#FBF6E9)] p-2.5 sm:p-3">
-                <div className="relative w-full aspect-[4/3] rounded-sm overflow-hidden border border-[#D8C7A7] bg-[#E8DCBF] group">
+            <div className="relative z-10 postage-stamp-shadow mx-auto block max-w-full rotate-[-1.5deg] transition-transform duration-300 hover:rotate-0">
+              <div className="postage-stamp-perforated bg-[var(--stamp-paper,#FBF6E9)] p-3 sm:p-4">
+                <div className="relative w-full rounded-sm border border-[#D8C7A7] bg-[#E8DCBF]/20 group">
                   <Image
                     src={primaryImage.url}
                     alt={primaryImage.alt || blog.title}
-                    fill
+                    width={1200}
+                    height={800}
                     unoptimized
-                    className="object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer"
+                    priority={isManuscriptFullPage}
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 80vw, 1200px"
+                    className="w-full h-auto object-contain block transition-transform duration-500 group-hover:scale-[1.01] cursor-pointer"
+                    style={{ width: "100%", height: "auto", objectFit: "contain" }}
                     onClick={() =>
                       handleOpen({
                         src: primaryImage.url,
@@ -128,7 +132,7 @@ export function PostageStamp({
                       })
                     }
                     aria-label="View full figure"
-                    className="absolute bottom-2 right-2 p-1.5 rounded bg-black/75 text-white hover:text-brand-cyan backdrop-blur border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute bottom-2 right-2 p-1.5 rounded bg-black/75 text-white hover:text-brand-cyan backdrop-blur border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                   >
                     <Maximize2 className="w-3.5 h-3.5" />
                   </button>
@@ -136,78 +140,133 @@ export function PostageStamp({
               </div>
             </div>
 
-            {/* Secondary Stamps (if 2 or 3 images exist) */}
-            {secondaryImages.map((secImg, idx) => {
-              const rotation = idx === 0 ? "rotate-[3deg]" : "rotate-[-4deg]";
-              const positionClass =
-                idx === 0
-                  ? "-bottom-2 right-0 max-[360px]:w-24 w-28 sm:w-36 z-20"
-                  : "-bottom-3 left-1 max-[360px]:w-24 w-28 sm:w-36 z-20";
+            {/* Secondary Stamps (if 2 or 3 images exist in book mode) */}
+            {!isManuscriptFullPage &&
+              secondaryImages.map((secImg, idx) => {
+                const rotation = idx === 0 ? "rotate-[3deg]" : "rotate-[-4deg]";
+                const positionClass =
+                  idx === 0
+                    ? "-bottom-2 right-0 max-[360px]:w-24 w-28 sm:w-36 z-20"
+                    : "-bottom-3 left-1 max-[360px]:w-24 w-28 sm:w-36 z-20";
 
-              return (
-                <div
-                  key={idx}
-                  className={cn(
-                    "absolute postage-stamp-shadow transition-transform duration-300 hover:scale-105",
-                    rotation,
-                    positionClass
-                  )}
-                >
-                  <div className="postage-stamp-perforated bg-[var(--stamp-paper,#FBF6E9)] p-1.5 sm:p-2">
-                    <div className="relative w-full aspect-[4/3] rounded-sm overflow-hidden border border-[#D8C7A7] bg-[#E8DCBF] group">
-                      <Image
-                        src={secImg.url}
-                        alt={secImg.alt || `Figure ${idx + 2}`}
-                        fill
-                        unoptimized
-                        className="object-cover cursor-pointer"
-                        onClick={() =>
-                          handleOpen({
-                            src: secImg.url,
-                            alt: secImg.alt || `Figure ${idx + 2}`,
-                            caption: secImg.caption,
-                          })
-                        }
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleOpen({
-                            src: secImg.url,
-                            alt: secImg.alt || `Figure ${idx + 2}`,
-                            caption: secImg.caption,
-                          })
-                        }
-                        aria-label={`View figure ${idx + 2}`}
-                        className="absolute inset-0 w-full h-full bg-transparent"
-                      />
+                return (
+                  <div
+                    key={idx}
+                    className={cn(
+                      "absolute postage-stamp-shadow transition-transform duration-300 hover:scale-105",
+                      rotation,
+                      positionClass
+                    )}
+                  >
+                    <div className="postage-stamp-perforated bg-[var(--stamp-paper,#FBF6E9)] p-2">
+                      <div className="relative w-full rounded-sm border border-[#D8C7A7] bg-[#E8DCBF]/20 group">
+                        <Image
+                          src={secImg.url}
+                          alt={secImg.alt || `Figure ${idx + 2}`}
+                          width={400}
+                          height={300}
+                          unoptimized
+                          className="w-full h-auto object-contain block cursor-pointer"
+                          style={{ width: "100%", height: "auto", objectFit: "contain" }}
+                          onClick={() =>
+                            handleOpen({
+                              src: secImg.url,
+                              alt: secImg.alt || `Figure ${idx + 2}`,
+                              caption: secImg.caption,
+                            })
+                          }
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleOpen({
+                              src: secImg.url,
+                              alt: secImg.alt || `Figure ${idx + 2}`,
+                              caption: secImg.caption,
+                            })
+                          }
+                          aria-label={`View figure ${idx + 2}`}
+                          className="absolute inset-0 w-full h-full bg-transparent"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
 
-            {/* Postmark Overlay in Blue-Black Ink (~55% opacity, multiply blend) */}
+            {/* Secondary Stamps in Full Page Manuscript view */}
+            {isManuscriptFullPage && secondaryImages.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4">
+                {secondaryImages.map((secImg, idx) => (
+                  <div
+                    key={idx}
+                    className="relative postage-stamp-shadow hover:scale-[1.02] transition-transform"
+                  >
+                    <div className="postage-stamp-perforated bg-[var(--stamp-paper,#FBF6E9)] p-2.5 sm:p-3">
+                      <div className="relative w-full rounded-sm border border-[#D8C7A7] bg-[#E8DCBF]/20 group">
+                        <Image
+                          src={secImg.url}
+                          alt={secImg.alt || `Figure ${idx + 2}`}
+                          width={600}
+                          height={400}
+                          unoptimized
+                          className="w-full h-auto object-contain block cursor-pointer"
+                          style={{ width: "100%", height: "auto", objectFit: "contain" }}
+                          onClick={() =>
+                            handleOpen({
+                              src: secImg.url,
+                              alt: secImg.alt || `Figure ${idx + 2}`,
+                              caption: secImg.caption,
+                            })
+                          }
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleOpen({
+                              src: secImg.url,
+                              alt: secImg.alt || `Figure ${idx + 2}`,
+                              caption: secImg.caption,
+                            })
+                          }
+                          aria-label={`View figure ${idx + 2}`}
+                          className="absolute bottom-1 right-1 p-1 rounded bg-black/75 text-white hover:text-brand-cyan backdrop-blur opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Maximize2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                      {secImg.caption && (
+                        <p className={cn(fontHandwriting.className, "text-[11px] text-[#4B5468] italic pt-1 truncate")}>
+                          {secImg.caption}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Postmark Overlay in Blue-Black Ink (~55% opacity, multiply blend) - positioned at the top-right corner over the border */}
             <div
               aria-hidden="true"
               style={{ mixBlendMode: "multiply" }}
-              className="absolute -top-2 right-0 sm:-top-3 sm:-right-2 z-30 pointer-events-none rotate-[12deg] flex items-center gap-1.5 opacity-55 text-[#1B2333]"
+              className="absolute -top-3.5 -right-1 sm:-top-5 sm:-right-2 z-30 pointer-events-none rotate-[10deg] flex items-center gap-1 opacity-55 text-[#1B2333]"
             >
               {/* Circular Postal Stamp */}
-              <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full border-2 border-dashed border-[#1B2333] flex flex-col items-center justify-center p-1 text-center bg-transparent">
-                <span className="text-[9px] sm:text-[10px] font-book-handwriting font-bold text-[#1B2333] tracking-wider leading-none">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-dashed border-[#1B2333] flex flex-col items-center justify-center p-0.5 sm:p-1 text-center bg-transparent shrink-0">
+                <span className="text-[8px] sm:text-[9px] font-book-handwriting font-bold text-[#1B2333] tracking-wider leading-none">
                   IEDC TKIET
                 </span>
-                <span className="text-[8px] sm:text-[9px] font-mono text-[#1B2333] font-semibold tracking-tight leading-tight pt-0.5">
+                <span className="text-[7px] sm:text-[8px] font-mono text-[#1B2333] font-semibold tracking-tight leading-tight pt-0.5">
                   {postmarkDate}
                 </span>
-                <span className="text-[7px] font-mono text-[#1B2333] tracking-widest leading-none pt-0.5">
+                <span className="text-[6px] sm:text-[7px] font-mono text-[#1B2333] tracking-widest leading-none pt-0.5">
                   WARANA
                 </span>
               </div>
 
               {/* Wavy Cancellation Lines */}
-              <div className="space-y-1 w-8 sm:w-10">
+              <div className="space-y-1 w-6 sm:w-8 shrink-0">
                 <div className="h-0.5 bg-[#1B2333] rounded-full" />
                 <div className="h-0.5 bg-[#1B2333] rounded-full" />
                 <div className="h-0.5 bg-[#1B2333] rounded-full" />

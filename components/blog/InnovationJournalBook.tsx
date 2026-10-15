@@ -1332,7 +1332,7 @@ export function InnovationJournalBook({
                       }}
                       className="w-full h-full p-6 sm:p-7 flex flex-col justify-between select-none overflow-hidden min-w-0 [overflow-wrap:anywhere]"
                     >
-                      <div className="space-y-3 min-h-0 overflow-hidden">
+                      <div className="space-y-3 min-h-0 overflow-visible">
                         <div className="flex items-center justify-between pb-2.5 border-b border-[#D8C7A7] text-[11px] font-mono text-[#4B5468] tracking-wider uppercase font-semibold">
                           <span className="text-[#1E40AF]">
                             PLATE {(blogIdx + 1).toString().padStart(2, "0")} · ARCHIVE
