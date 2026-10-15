@@ -273,7 +273,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
         setBody("");
         setFeedback({
           type: "success",
-          message: "Your remark has been published!",
+          message: "Your comment has been published!",
         });
         setTimeout(() => setFeedback(null), 5000);
       } else {
@@ -792,32 +792,32 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
     <section
       id="readers-remarks"
       aria-label="Readers Remarks and Discussion"
-      className="w-full max-w-4xl mx-auto mt-12 mb-16 px-4 sm:px-0 space-y-8"
+      className="w-full max-w-4xl mx-auto mt-8 sm:mt-10 mb-12 sm:mb-14 px-4 sm:px-0 space-y-5 sm:space-y-6"
     >
       {/* Section Divider & Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 sm:pb-3.5 border-b border-slate-800">
         <div>
           <span className="text-[11px] font-mono text-brand-cyan uppercase tracking-widest flex items-center gap-1.5">
             <MessageSquare className="w-3.5 h-3.5" />
             Scholarly Discussion & Community Exchange
           </span>
-          <h2 className="font-display text-xl sm:text-2xl font-bold text-white tracking-tight">
+          <h2 className="font-display text-lg sm:text-xl font-bold text-white tracking-tight">
             Reader Remarks
           </h2>
         </div>
         <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
-          <span className="px-2.5 py-1 rounded-full bg-slate-900 border border-slate-700/80 text-brand-cyan font-bold">
+          <span className="px-2.5 py-0.5 sm:py-1 rounded-full bg-slate-900 border border-slate-700/80 text-brand-cyan font-bold">
             {totalCommentCount}
           </span>
-          <span>{totalCommentCount === 1 ? "remark published" : "remarks published"}</span>
+          <span>Total Comments</span>
         </div>
       </div>
 
-      {/* Modern Reddit/Instagram Style Comment Input Card */}
-      <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-slate-950 p-5 sm:p-7 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-cyan/5 rounded-full blur-2xl pointer-events-none" />
+      {/* Compact Comment Input Card */}
+      <div className="rounded-xl sm:rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-slate-950 p-4 sm:p-5 shadow-lg relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-28 h-28 bg-brand-cyan/5 rounded-full blur-2xl pointer-events-none" />
 
-        <div className="flex items-center justify-between gap-4 mb-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
           <h3 className="font-display text-sm sm:text-base font-semibold text-white">
             Join the Discussion
           </h3>
@@ -827,7 +827,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
           </span>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3.5">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {/* Honeypot field (hidden from human visitors) */}
           <div
             style={{
@@ -850,7 +850,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
             <div className="space-y-1">
               <label
                 htmlFor="comment-author-name"
@@ -866,7 +866,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Dr. A. Patil / Student Lead"
-                className="w-full px-3.5 py-2 rounded-xl bg-slate-950/80 border border-slate-800 text-xs sm:text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-brand-cyan transition-all"
+                className="w-full px-3 py-1.5 sm:py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-xs sm:text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-brand-cyan transition-all"
               />
             </div>
 
@@ -886,7 +886,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@domain.com"
-                className="w-full px-3.5 py-2 rounded-xl bg-slate-950/80 border border-slate-800 text-xs sm:text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-brand-cyan transition-all"
+                className="w-full px-3 py-1.5 sm:py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-xs sm:text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-brand-cyan transition-all"
               />
             </div>
           </div>
@@ -895,7 +895,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
           <div className="space-y-1">
             <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
               <label htmlFor="comment-body-text">
-                Your Remark or Perspective <span className="text-rose-400">*</span>
+                Your Comment <span className="text-rose-400">*</span>
               </label>
               <span className={body.length > 900 ? "text-amber-400" : "text-slate-500"}>
                 {1000 - body.length} left
@@ -914,15 +914,15 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
                   handleSubmit();
                 }
               }}
-              placeholder="What are your thoughts on this innovation manuscript? (Enter to post, Shift+Enter for new line)"
-              className="w-full p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-xs sm:text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-brand-cyan transition-all resize-none leading-relaxed"
+              placeholder="Write your comment..."
+              className="w-full p-2.5 sm:p-3 h-20 sm:h-[88px] min-h-[80px] rounded-lg sm:rounded-xl bg-slate-950/80 border border-slate-800 text-xs sm:text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-brand-cyan transition-all resize-none leading-relaxed"
             />
           </div>
 
           {/* Feedback banner */}
           {feedback && (
             <div
-              className={`p-3 rounded-xl text-xs flex items-center gap-2.5 ${
+              className={`p-2.5 rounded-lg text-xs flex items-center gap-2 ${
                 feedback.type === "success"
                   ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-300"
                   : "bg-rose-500/10 border border-rose-500/30 text-rose-300"
@@ -938,31 +938,31 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
           )}
 
           {/* Submit button bar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-1">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-0.5">
             <span className="text-[11px] font-mono text-slate-500 hidden sm:inline">
               Press Enter to post · Shift + Enter for new line
             </span>
             <button
               type="submit"
               disabled={submitting || !body.trim()}
-              className="w-full sm:w-auto inline-flex items-center justify-center min-h-[40px] gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-brand-blue to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-mono text-xs uppercase tracking-wider font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-50"
+              className="w-full sm:w-auto inline-flex items-center justify-center min-h-[36px] sm:min-h-[38px] gap-2 px-4 sm:px-5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-brand-blue to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-mono text-xs uppercase tracking-wider font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-50"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>{submitting ? "Posting..." : "Post Remark"}</span>
+              <span>{submitting ? "Posting..." : "Post Comment"}</span>
             </button>
           </div>
         </form>
       </div>
 
       {/* Comments List Feed */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-3.5">
         {loading ? (
-          <div className="text-center py-12 space-y-2">
+          <div className="text-center py-10 space-y-2">
             <Clock className="w-5 h-5 text-brand-cyan animate-spin mx-auto" />
             <p className="text-xs font-mono text-slate-500">Loading reader remarks...</p>
           </div>
         ) : rootComments.length === 0 ? (
-          <div className="text-center py-10 rounded-2xl border border-slate-800/80 bg-slate-900/30 p-6 space-y-2">
+          <div className="text-center py-8 rounded-xl border border-slate-800/80 bg-slate-900/30 p-5 space-y-1.5">
             <p className="font-display text-sm font-semibold text-slate-300">
               No remarks yet.
             </p>
@@ -971,7 +971,7 @@ export function BlogCommentsSection({ blogSlug, blogTitle }: BlogCommentsSection
             </p>
           </div>
         ) : (
-          <div className="space-y-3.5">
+          <div className="space-y-3 sm:space-y-3.5">
             <div className="flex items-center justify-between text-xs font-mono text-slate-400 px-1 pb-0.5">
               <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-brand-cyan" />
