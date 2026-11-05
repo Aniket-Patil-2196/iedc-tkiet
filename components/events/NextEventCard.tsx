@@ -456,6 +456,7 @@ export function UpcomingEventCard({
               installmentPart2Amount: event.installmentPart2Amount,
               capacity: event.capacity || undefined,
               registrationDeadline: event.registrationDeadline || undefined,
+              submission: event.submission,
             }}
           />
         ) : (

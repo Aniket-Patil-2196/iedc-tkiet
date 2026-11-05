@@ -27,6 +27,7 @@ import { UpiRegistrationModal } from "@/components/events/UpiRegistrationModal";
 import { WhatsAppGroupJoinCard } from "@/components/events/WhatsAppGroupJoinCard";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
+import { IEventSubmissionConfig } from "@/types/content";
 
 export interface EventRegistrationPanelProps {
   event: {
@@ -54,6 +55,7 @@ export interface EventRegistrationPanelProps {
     installmentEnabled?: boolean;
     installmentPart1Amount?: number | null;
     installmentPart2Amount?: number | null;
+    submission?: IEventSubmissionConfig | null;
   };
   status: EventStatusResult;
   paidCount: number;
@@ -399,6 +401,7 @@ export function EventRegistrationPanel({
               installmentPart2Amount: event.installmentPart2Amount,
               capacity: event.capacity || undefined,
               registrationDeadline: event.registrationDeadline || undefined,
+              submission: event.submission,
             }}
           />
         ) : (

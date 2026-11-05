@@ -25,6 +25,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { WhatsAppGroupJoinCard } from "@/components/events/WhatsAppGroupJoinCard";
+import {
+  ParticipantSubmissionCard,
+  isWhatsAppUnlocked,
+} from "@/components/events/ParticipantSubmissionCard";
+import {
+  IRegistrationSubmission,
+  IEventSubmissionConfig,
+} from "@/types/content";
 
 const YEAR_OPTIONS = [
   "1st Year",
@@ -50,6 +58,7 @@ interface EventInfo {
   installmentPart2Amount?: number | null;
   capacity?: number | null;
   registrationDeadline?: string | Date;
+  submission?: IEventSubmissionConfig | null;
 }
 
 interface UpiRegistrationModalProps {
@@ -80,6 +89,8 @@ export function UpiRegistrationModal({ isOpen, onClose, event }: UpiRegistration
   const [receiptToken, setReceiptToken] = useState<string | null>(null);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [copiedUpi, setCopiedUpi] = useState(false);
+  const [submissionState, setSubmissionState] =
+    useState<IRegistrationSubmission | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -781,10 +792,32 @@ export function UpiRegistrationModal({ isOpen, onClose, event }: UpiRegistration
                 </div>
               )}
 
+              {/* Participant Submission Card (Upload / Link) */}
+              {event.submission?.enabled && receiptToken && (
+                <div className="pt-2 text-left">
+                  <ParticipantSubmissionCard
+                    eventId={event.id}
+                    receiptToken={receiptToken}
+                    registrationStatus="paid"
+                    eventSubmissionConfig={event.submission}
+                    initialSubmission={submissionState}
+                    onSubmissionUpdated={(newSub) => {
+                      setSubmissionState(newSub);
+                    }}
+                  />
+                </div>
+              )}
+
               <WhatsAppGroupJoinCard
                 groupLink={event.whatsappGroupLink}
                 qrUrl={event.whatsappQrUrl}
                 compact
+                isLocked={Boolean(
+                  event.submission?.enabled &&
+                  event.submission?.gateWhatsapp &&
+                  !isWhatsAppUnlocked(event.submission?.gateWhatsapp, submissionState)
+                )}
+                lockedReason="Submit your files above to unlock the WhatsApp group invite."
               />
 
               <div className="flex flex-col sm:flex-row gap-2.5 pt-2">

@@ -131,12 +131,19 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    if (registration.status !== "paid") {
+    const isEligible =
+      registration.status === "paid" ||
+      registration.status === "verification_required" ||
+      registration.status === "pending" ||
+      registration.paymentMethod === "MANUAL_UPI" ||
+      registration.paymentMode === "manual_upi";
+
+    if (!isEligible) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "Submissions are only permitted for confirmed, paid registrations.",
+            "Submissions are only permitted for active or recorded registrations.",
         },
         { status: 403 }
       );
