@@ -1445,15 +1445,15 @@ export default function AdminRegistrationsPage() {
                     </span>
                   </a>
                 )}
-                {selectedRegForSubmission.eventId?.submission?.folderUrl && (
+                {Boolean((selectedRegForSubmission.eventId?.submission as any)?.formUrl || selectedRegForSubmission.eventId?.submission?.folderUrl) && (
                   <a
-                    href={selectedRegForSubmission.eventId.submission.folderUrl}
+                    href={((selectedRegForSubmission.eventId?.submission as any)?.formUrl || selectedRegForSubmission.eventId?.submission?.folderUrl) || "#"}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-4 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-2 font-sans text-xs font-semibold transition-colors"
                   >
                     <ExternalLink className="w-4 h-4 shrink-0" />
-                    <span>Open folder</span>
+                    <span>Open submission form</span>
                   </a>
                 )}
                 {!selectedRegForSubmission.submission?.link &&

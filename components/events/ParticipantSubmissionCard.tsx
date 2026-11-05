@@ -75,6 +75,7 @@ export function ParticipantSubmissionCard({
   );
 
   const mode = config.mode || "both";
+  const targetFormUrl = config.formUrl || config.folderUrl;
 
   // Form states
   const [linkInput, setLinkInput] = useState(submission?.link || "");
@@ -94,8 +95,10 @@ export function ParticipantSubmissionCard({
       const parsed = new URL(url);
       const host = parsed.hostname.toLowerCase();
       return (
+        host === "forms.gle" ||
         host === "drive.google.com" ||
         host === "docs.google.com" ||
+        host.endsWith(".forms.gle") ||
         host.endsWith(".drive.google.com") ||
         host.endsWith(".docs.google.com")
       );
@@ -157,10 +160,11 @@ export function ParticipantSubmissionCard({
     await submitLink(trimmed);
   };
 
-  const handleFolderConfirm = async () => {
-    const folderLink = config.folderUrl?.trim() || "";
-    await submitLink(folderLink);
+  const handleFormConfirm = async () => {
+    const formLink = targetFormUrl?.trim() || "";
+    await submitLink(formLink);
   };
+  const handleFolderConfirm = handleFormConfirm;
 
   // Stepper calculations
   const isPaid = registrationStatus === "paid";
@@ -169,8 +173,9 @@ export function ParticipantSubmissionCard({
   const isRejected = submission?.status === "rejected";
   const isPending = hasSubmitted && submission?.status === "pending";
 
-  const showFolderSection =
-    (mode === "folder" || mode === "both") && Boolean(config.folderUrl);
+  const showFormSection =
+    (mode === "form" || mode === "folder" || mode === "both") && Boolean(targetFormUrl);
+  const showFolderSection = showFormSection;
   const showLinkForm = mode === "link" || mode === "both";
 
   return (
@@ -442,13 +447,13 @@ export function ParticipantSubmissionCard({
                 <div className="flex items-center gap-2 mt-1">
                   <FileText className="w-4 h-4 text-brand-cyan shrink-0" />
                   <a
-                    href={submission?.link || config.folderUrl || "#"}
+                    href={submission?.link || targetFormUrl || "#"}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs font-semibold text-brand-cyan hover:underline truncate inline-flex items-center gap-1.5"
                   >
                     <span className="truncate">
-                      {submission?.fileName || submission?.link || "Google Drive Folder"}
+                      {submission?.fileName || submission?.link || "Submission Form / Link"}
                     </span>
                     <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                   </a>
@@ -494,28 +499,26 @@ export function ParticipantSubmissionCard({
               <div className="p-4 rounded-xl bg-foundation-slate/40 border border-foundation-slate space-y-3">
                 <div className="space-y-1">
                   <p className="text-xs font-semibold text-typo-white">
-                    Step A: Open Event Upload Folder
+                    Step A: Open Submission Form
                   </p>
                   <p className="text-[11px] text-typo-gray leading-relaxed">
-                    Sign in with your Google account, name files like{" "}
-                    <strong className="text-brand-cyan">YourName_TeamName</strong>, and do
-                    not delete or edit other participants&apos; files.
+                    Complete the official Google Form with your project details, answers, and required file attachments.
                   </p>
                 </div>
 
                 <a
-                  href={config.folderUrl || "#"}
+                  href={targetFormUrl || "#"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-blue hover:bg-blue-600 text-white font-sans text-xs font-semibold transition-colors"
                 >
                   <FolderOpen className="w-4 h-4" />
-                  <span>Open upload folder</span>
+                  <span>Open submission form</span>
                   <ExternalLink className="w-3.5 h-3.5 opacity-80" />
                 </a>
 
                 {/* For mode 'folder' only: button to confirm upload */}
-                {mode === "folder" && (
+                {(mode === "form" || mode === "folder") && (
                   <div className="pt-3 border-t border-foundation-slate/60 flex items-center gap-3">
                     <Button
                       type="button"
@@ -531,7 +534,7 @@ export function ParticipantSubmissionCard({
                       ) : (
                         <>
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>I have uploaded my files</span>
+                          <span>I have submitted the form</span>
                         </>
                       )}
                     </Button>

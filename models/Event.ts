@@ -77,10 +77,11 @@ const EventSchema = new Schema<IEventDocument>(
       enabled: { type: Boolean, default: false },
       mode: {
         type: String,
-        enum: ["folder", "link", "both"],
+        enum: ["form", "link", "both", "folder"],
         default: "both",
       },
       instructions: { type: String, default: "" },
+      formUrl: { type: String, default: null },
       folderUrl: { type: String, default: null },
       deadline: { type: Date, default: null },
       gateWhatsapp: { type: Boolean, default: false },

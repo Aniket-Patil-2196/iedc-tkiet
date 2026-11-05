@@ -63,12 +63,13 @@ export interface IEvent {
   updatedAt?: string;
 }
 
-export type SubmissionMode = "folder" | "link" | "both";
+export type SubmissionMode = "form" | "link" | "both" | "folder";
 
 export interface IEventSubmissionConfig {
   enabled?: boolean;
   mode?: SubmissionMode;
   instructions?: string;
+  formUrl?: string | null;
   folderUrl?: string | null;
   deadline?: string | Date | null;
   gateWhatsapp?: boolean;

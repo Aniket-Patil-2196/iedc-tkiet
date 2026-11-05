@@ -451,6 +451,8 @@ export function UpcomingEventCard({
               fee: event.fee,
               upiId: event.upiId,
               upiQrUrl: event.upiQrUrl,
+              whatsappGroupLink: (event as any).whatsappGroupLink,
+              whatsappQrUrl: (event as any).whatsappQrUrl,
               installmentEnabled: event.installmentEnabled,
               installmentPart1Amount: event.installmentPart1Amount,
               installmentPart2Amount: event.installmentPart2Amount,

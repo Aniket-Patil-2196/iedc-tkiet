@@ -198,9 +198,9 @@ export default function AdminEventsPage() {
       ) {
         if (
           formData.submissionFolderUrl &&
-          !formData.submissionFolderUrl.toLowerCase().includes("drive.google.com")
+          !formData.submissionFolderUrl.toLowerCase().includes("drive.google.com") && !formData.submissionFolderUrl.toLowerCase().includes("forms.gle") && !formData.submissionFolderUrl.toLowerCase().includes("docs.google.com") && !formData.submissionFolderUrl.toLowerCase().includes("forms.gle") && !formData.submissionFolderUrl.toLowerCase().includes("docs.google.com")
         ) {
-          alert("Google Drive folder link must be a valid drive.google.com link.");
+          alert("Form/Folder link must be a valid forms.gle, docs.google.com, or drive.google.com link.");
           setSaving(false);
           return;
         }
@@ -231,6 +231,7 @@ export default function AdminEventsPage() {
           enabled: Boolean(formData.submissionEnabled),
           mode: formData.submissionMode,
           instructions: formData.submissionInstructions.trim(),
+          formUrl: formData.submissionFolderUrl.trim() || null,
           folderUrl: formData.submissionFolderUrl.trim() || null,
           deadline: formData.submissionDeadline
             ? istInputToUtcDate(formData.submissionDeadline)
@@ -1022,9 +1023,10 @@ export default function AdminEventsPage() {
                       }
                       className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
                     >
-                      <option value="both">Both Folder &amp; Link</option>
-                      <option value="folder">Google Drive Folder Only</option>
+                      <option value="both">Both Form &amp; Link</option>
+                      <option value="form">Google Form Only</option>
                       <option value="link">Participant Link Only</option>
+                      <option value="folder">Google Drive Folder Only (Legacy)</option>
                     </select>
                   </div>
 
@@ -1051,7 +1053,7 @@ export default function AdminEventsPage() {
                     formData.submissionMode === "both") && (
                     <div className="space-y-1.5 sm:col-span-2">
                       <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
-                        Google Drive folder link (set to Anyone with the link, Editor)
+                        Google Form link (submission form)
                       </label>
                       <input
                         type="url"
@@ -1062,11 +1064,11 @@ export default function AdminEventsPage() {
                             submissionFolderUrl: e.target.value,
                           })
                         }
-                        placeholder="https://drive.google.com/drive/folders/..."
+                        placeholder="https://forms.gle/... or https://docs.google.com/forms/..."
                         className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan font-mono"
                       />
                       <span className="text-[10px] text-typo-gray block">
-                        Participants will open this folder directly to upload their project deliverables.
+                        Participants will open this Google Form to submit their project details and files.
                       </span>
                     </div>
                   )}

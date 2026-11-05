@@ -109,22 +109,30 @@ export async function PUT(request: Request, { params }: Params) {
             submissionDeadline = body.submission.deadline;
           }
         }
-        let folderUrl: string | null = null;
-        if (body.submission.folderUrl && typeof body.submission.folderUrl === "string") {
-          const trimmed = body.submission.folderUrl.trim();
+        let formUrl: string | null = null;
+        const rawUrl = body.submission.formUrl || body.submission.folderUrl;
+        if (rawUrl && typeof rawUrl === "string") {
+          const trimmed = rawUrl.trim();
           if (trimmed) {
             try {
               const parsed = new URL(trimmed);
-              if (!parsed.hostname.toLowerCase().includes("drive.google.com")) {
+              const host = parsed.hostname.toLowerCase();
+              const isValidHost =
+                host.includes("forms.gle") ||
+                host.includes("docs.google.com") ||
+                host.includes("drive.google.com") ||
+                trimmed.startsWith("http://") ||
+                trimmed.startsWith("https://");
+              if (!isValidHost) {
                 return NextResponse.json(
-                  { success: false, error: "Google Drive folder link must be from drive.google.com." },
+                  { success: false, error: "Submission link must be a valid Google Form or Drive link." },
                   { status: 400 }
                 );
               }
-              folderUrl = trimmed;
+              formUrl = trimmed;
             } catch {
               return NextResponse.json(
-                { success: false, error: "Invalid Google Drive folder URL format." },
+                { success: false, error: "Invalid submission URL format." },
                 { status: 400 }
               );
             }
@@ -133,13 +141,14 @@ export async function PUT(request: Request, { params }: Params) {
 
         updateData.submission = {
           enabled: Boolean(body.submission.enabled),
-          mode: ["folder", "link", "both"].includes(body.submission.mode)
+          mode: ["form", "folder", "link", "both"].includes(body.submission.mode)
             ? body.submission.mode
             : "both",
           instructions: body.submission.instructions
             ? String(body.submission.instructions).trim()
             : "",
-          folderUrl,
+          formUrl,
+          folderUrl: formUrl,
           deadline: submissionDeadline,
           gateWhatsapp: Boolean(body.submission.gateWhatsapp),
         };
