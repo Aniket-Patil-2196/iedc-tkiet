@@ -145,6 +145,50 @@ export async function POST(request: Request) {
     }
     const registrationOpen = body.registrationOpen !== undefined ? Boolean(body.registrationOpen) : true;
 
+    // Sanitize submission configuration
+    let submissionConfig: any = undefined;
+    if (body.submission) {
+      let submissionDeadline: Date | null = null;
+      if (body.submission.deadline) {
+        if (typeof body.submission.deadline === "string") {
+          submissionDeadline = istInputToUtcDate(body.submission.deadline) || new Date(body.submission.deadline);
+        } else if (body.submission.deadline instanceof Date) {
+          submissionDeadline = body.submission.deadline;
+        }
+      }
+
+      let folderUrl: string | null = null;
+      if (body.submission.folderUrl && typeof body.submission.folderUrl === "string") {
+        const trimmed = body.submission.folderUrl.trim();
+        if (trimmed) {
+          try {
+            const parsed = new URL(trimmed);
+            if (!parsed.hostname.toLowerCase().includes("drive.google.com")) {
+              return NextResponse.json(
+                { success: false, error: "Google Drive folder link must be from drive.google.com." },
+                { status: 400 }
+              );
+            }
+            folderUrl = trimmed;
+          } catch {
+            return NextResponse.json(
+              { success: false, error: "Invalid Google Drive folder URL format." },
+              { status: 400 }
+            );
+          }
+        }
+      }
+
+      submissionConfig = {
+        enabled: Boolean(body.submission.enabled),
+        mode: ["folder", "link", "both"].includes(body.submission.mode) ? body.submission.mode : "both",
+        instructions: body.submission.instructions ? String(body.submission.instructions).trim() : "",
+        folderUrl,
+        deadline: submissionDeadline,
+        gateWhatsapp: Boolean(body.submission.gateWhatsapp),
+      };
+    }
+
     const newEvent = await EventModel.create({
       ...body,
       slug,
@@ -155,6 +199,7 @@ export async function POST(request: Request) {
       registrationOpen,
       category: body.category || "Workshop",
       published: Boolean(body.published),
+      ...(submissionConfig !== undefined ? { submission: submissionConfig } : {}),
     });
 
     return NextResponse.json({ success: true, data: newEvent });

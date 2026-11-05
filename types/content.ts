@@ -58,8 +58,32 @@ export interface IEvent {
   installmentEnabled?: boolean;
   installmentPart1Amount?: number | null;
   installmentPart2Amount?: number | null;
+  submission?: IEventSubmissionConfig;
   createdAt: string;
   updatedAt?: string;
+}
+
+export type SubmissionMode = "folder" | "link" | "both";
+
+export interface IEventSubmissionConfig {
+  enabled?: boolean;
+  mode?: SubmissionMode;
+  instructions?: string;
+  folderUrl?: string | null;
+  deadline?: string | Date | null;
+  gateWhatsapp?: boolean;
+}
+
+export type SubmissionStatus = "pending" | "approved" | "rejected";
+
+export interface IRegistrationSubmission {
+  link?: string | null;
+  fileName?: string | null;
+  driveFileId?: string | null;
+  mimeType?: string | null;
+  submittedAt?: string | Date | null;
+  status?: SubmissionStatus | null;
+  adminNote?: string | null;
 }
 
 export type RegistrationStatus =
@@ -108,6 +132,7 @@ export interface IRegistration {
   paidAt?: string | Date;
   refundId?: string;
   refundedAt?: string | Date;
+  submission?: IRegistrationSubmission | null;
   createdAt: string | Date;
   updatedAt?: string | Date;
 }

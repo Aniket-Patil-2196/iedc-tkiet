@@ -179,6 +179,20 @@ const RegistrationSchema = new Schema<IRegistrationDocument>(
       type: Date,
       default: null,
     },
+    // Participant Submission
+    submission: {
+      link: { type: String, default: null },
+      fileName: { type: String, default: null },
+      driveFileId: { type: String, default: null },
+      mimeType: { type: String, default: null },
+      submittedAt: { type: Date, default: null },
+      status: {
+        type: String,
+        enum: ["pending", "approved", "rejected", null],
+        default: null,
+      },
+      adminNote: { type: String, default: null },
+    },
   },
   { timestamps: true }
 );

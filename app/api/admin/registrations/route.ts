@@ -89,7 +89,7 @@ export async function GET(request: Request) {
     // 4. Fetch registrations with sorting (newest first)
     const registrations = await RegistrationModel.find(query)
       .sort({ createdAt: -1 })
-      .populate("eventId", "title slug startDate venue fee")
+      .populate("eventId", "title slug startDate venue fee submission isOnline")
       .lean();
 
     // 5. Compute summary metrics across all records or for selected event

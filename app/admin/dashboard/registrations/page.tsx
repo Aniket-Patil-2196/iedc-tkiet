@@ -72,12 +72,26 @@ interface RegistrationItem {
   part2ProofUrl?: string;
   part2TransactionRef?: string;
   part2PaidAt?: string;
+  submission?: {
+    link?: string | null;
+    fileName?: string | null;
+    driveFileId?: string | null;
+    mimeType?: string | null;
+    submittedAt?: string | null;
+    status?: "pending" | "approved" | "rejected" | null;
+    adminNote?: string | null;
+  } | null;
   eventId?: {
     _id: string;
     title: string;
     slug: string;
     startDate: string;
     venue: string;
+    submission?: {
+      enabled?: boolean;
+      mode?: string;
+      folderUrl?: string | null;
+    };
   };
 }
 
@@ -148,6 +162,14 @@ export default function AdminRegistrationsPage() {
 
   // Proof Image Preview Modal state
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+
+  // Participant Submission Filter & Review states
+  const [selectedSubmissionFilter, setSelectedSubmissionFilter] = useState("all");
+  const [submissionModalOpen, setSubmissionModalOpen] = useState(false);
+  const [selectedRegForSubmission, setSelectedRegForSubmission] =
+    useState<RegistrationItem | null>(null);
+  const [submissionReviewNote, setSubmissionReviewNote] = useState("");
+  const [updatingSubmission, setUpdatingSubmission] = useState(false);
 
   // Read eventId from URL if navigated from events table
   useEffect(() => {
@@ -318,7 +340,48 @@ export default function AdminRegistrationsPage() {
     }
   };
 
-  // CSV Export (Includes UPI & installment fields)
+  // Submission Status Review Submit (approve/reject/pending with adminNote)
+  const handleUpdateSubmissionStatus = async (
+    status: "pending" | "approved" | "rejected"
+  ) => {
+    if (!selectedRegForSubmission) return;
+    setUpdatingSubmission(true);
+    setActionError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/registrations/${selectedRegForSubmission._id}/submission`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status,
+            adminNote: submissionReviewNote.trim(),
+          }),
+        }
+      );
+      const json = await res.json();
+      if (json.success) {
+        setRegistrations((prev) =>
+          prev.map((r) =>
+            r._id === selectedRegForSubmission._id
+              ? { ...r, submission: json.submission }
+              : r
+          )
+        );
+        setSubmissionModalOpen(false);
+        setSelectedRegForSubmission(null);
+        setSubmissionReviewNote("");
+      } else {
+        alert(json.error || "Failed to update submission status");
+      }
+    } catch {
+      alert("Network error updating submission status");
+    } finally {
+      setUpdatingSubmission(false);
+    }
+  };
+
+  // CSV Export (Includes UPI, installment & participant submission fields)
   const handleExportCsv = () => {
     if (registrations.length === 0) {
       alert("No registrations to export");
@@ -343,6 +406,10 @@ export default function AdminRegistrationsPage() {
       "Installment Status",
       "Razorpay Payment ID",
       "Razorpay Order ID",
+      "Submission Link",
+      "Submission Status",
+      "Submission Date (IST)",
+      "Submission Note",
       "Date Paid (IST)",
       "Created At (IST)",
       "Admin Note",
@@ -366,6 +433,10 @@ export default function AdminRegistrationsPage() {
       `"${r.installmentStatus || ""}"`,
       `"${r.razorpayPaymentId || ""}"`,
       `"${r.razorpayOrderId || ""}"`,
+      `"${(r.submission?.link || "").replace(/"/g, '""')}"`,
+      `"${r.submission?.status || (r.submission?.submittedAt ? "pending" : "not submitted")}"`,
+      `"${r.submission?.submittedAt ? formatDateIST(r.submission.submittedAt) : ""}"`,
+      `"${(r.submission?.adminNote || "").replace(/"/g, '""')}"`,
       `"${r.paidAt ? formatDateIST(r.paidAt) : ""}"`,
       `"${formatDateIST(r.createdAt)}"`,
       `"${(r.adminNote || "").replace(/"/g, '""')}"`,
@@ -409,6 +480,24 @@ export default function AdminRegistrationsPage() {
     const ms = Date.now() - new Date(dateStr).getTime();
     return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
   };
+
+  const displayedRegistrations = registrations.filter((r) => {
+    if (selectedSubmissionFilter === "all") return true;
+    const hasSubmitted = Boolean(
+      r.submission?.submittedAt ||
+        r.submission?.link ||
+        r.submission?.driveFileId
+    );
+    if (selectedSubmissionFilter === "submitted") return hasSubmitted;
+    if (selectedSubmissionFilter === "not_submitted") return !hasSubmitted;
+    if (selectedSubmissionFilter === "rejected")
+      return r.submission?.status === "rejected";
+    if (selectedSubmissionFilter === "approved")
+      return r.submission?.status === "approved";
+    if (selectedSubmissionFilter === "pending")
+      return r.submission?.status === "pending";
+    return true;
+  });
 
   return (
     <div className="flex-1 overflow-y-auto bg-foundation-darkest min-h-screen">
@@ -594,6 +683,20 @@ export default function AdminRegistrationsPage() {
                 </button>
               ))}
             </div>
+
+            {/* Submission Filter */}
+            <select
+              value={selectedSubmissionFilter}
+              onChange={(e) => setSelectedSubmissionFilter(e.target.value)}
+              className="px-3.5 py-2 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+            >
+              <option value="all">Submissions: All</option>
+              <option value="submitted">Submitted</option>
+              <option value="not_submitted">Not Submitted</option>
+              <option value="rejected">Rejected</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+            </select>
           </div>
 
           {/* Search Input */}
@@ -614,14 +717,17 @@ export default function AdminRegistrationsPage() {
           <div className="p-12 rounded-2xl bg-foundation-dark border border-foundation-slate text-center text-xs font-sans text-typo-gray">
             Loading registrations database...
           </div>
-        ) : registrations.length === 0 ? (
+        ) : displayedRegistrations.length === 0 ? (
           <div className="p-12 rounded-2xl bg-foundation-dark border border-foundation-slate text-center space-y-3">
             <Ticket className="w-10 h-10 text-typo-gray/60 mx-auto" />
             <h3 className="font-display text-base font-bold text-typo-white">
               No matching registrations found.
             </h3>
             <p className="text-xs font-sans text-typo-gray">
-              {searchQuery || selectedEventId !== "all" || selectedStatus !== "all"
+              {searchQuery ||
+              selectedEventId !== "all" ||
+              selectedStatus !== "all" ||
+              selectedSubmissionFilter !== "all"
                 ? "Try adjusting your filters or search query."
                 : "Participants who complete registration will appear here automatically."}
             </p>
@@ -637,12 +743,13 @@ export default function AdminRegistrationsPage() {
                     <th className="p-4">Event</th>
                     <th className="p-4">Amount &amp; Plan</th>
                     <th className="p-4">Payment &amp; Proof</th>
+                    <th className="p-4">Submission</th>
                     <th className="p-4">Registered At</th>
                     <th className="p-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-foundation-slate/50">
-                  {registrations.map((reg) => {
+                  {displayedRegistrations.map((reg) => {
                     const isManualUpi =
                       reg.paymentMethod === "MANUAL_UPI" || reg.paymentMode === "manual_upi";
                     const awaitingUpiReview =
@@ -820,6 +927,72 @@ export default function AdminRegistrationsPage() {
                                   title={reg.razorpayOrderId}
                                 >
                                   {reg.razorpayOrderId}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Participant Submission */}
+                        <td className="p-4 whitespace-nowrap text-xs">
+                          {reg.eventId?.submission?.enabled === false &&
+                          !reg.submission?.submittedAt ? (
+                            <span className="text-typo-gray/40 font-mono text-[11px]">
+                              -
+                            </span>
+                          ) : !reg.submission?.submittedAt && !reg.submission?.link ? (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-medium bg-foundation-slate/30 text-typo-gray border border-foundation-slate/60">
+                              Not submitted
+                            </span>
+                          ) : (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold uppercase border ${
+                                    reg.submission?.status === "approved"
+                                      ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                                      : reg.submission?.status === "rejected"
+                                      ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
+                                      : "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                                  }`}
+                                >
+                                  {reg.submission?.status || "pending"}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedRegForSubmission(reg);
+                                    setSubmissionReviewNote(
+                                      reg.submission?.adminNote || ""
+                                    );
+                                    setSubmissionModalOpen(true);
+                                  }}
+                                  className="text-[11px] text-brand-cyan hover:underline font-semibold"
+                                >
+                                  Review
+                                </button>
+                              </div>
+
+                              {reg.submission?.link && (
+                                <a
+                                  href={reg.submission.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[11px] text-brand-cyan hover:underline inline-flex items-center gap-1 truncate max-w-[140px] font-mono block"
+                                  title={
+                                    reg.submission.fileName || reg.submission.link
+                                  }
+                                >
+                                  <span className="truncate">
+                                    {reg.submission.fileName || "View Link"}
+                                  </span>
+                                  <ExternalLink className="w-3 h-3 shrink-0" />
+                                </a>
+                              )}
+
+                              {reg.submission?.submittedAt && (
+                                <span className="text-[10px] text-typo-gray block">
+                                  {formatDateIST(reg.submission.submittedAt)}
                                 </span>
                               )}
                             </div>
@@ -1204,6 +1377,147 @@ export default function AdminRegistrationsPage() {
             </Button>
           </div>
         </form>
+      </AdminModal>
+
+      {/* Participant Submission Review Modal */}
+      <AdminModal
+        isOpen={submissionModalOpen}
+        onClose={() => setSubmissionModalOpen(false)}
+        title="Review Participant Submission"
+        subtitle="Review deliverable files or links and assign review status"
+        maxWidth="md"
+      >
+        {selectedRegForSubmission && (
+          <div className="space-y-4 text-xs font-sans">
+            {/* Participant Details */}
+            <div className="p-4 rounded-xl bg-foundation-slate/40 border border-foundation-slate space-y-2">
+              <div className="flex justify-between">
+                <span className="text-typo-gray">Participant:</span>
+                <span className="font-semibold text-typo-white">
+                  {selectedRegForSubmission.name}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-typo-gray">Email:</span>
+                <span className="font-mono text-typo-white">
+                  {selectedRegForSubmission.email}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-typo-gray">Event:</span>
+                <span className="text-typo-white font-medium">
+                  {selectedRegForSubmission.eventId?.title || "N/A"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-typo-gray">Current Status:</span>
+                <span className="font-mono font-semibold uppercase text-brand-cyan">
+                  {selectedRegForSubmission.submission?.status || "pending"}
+                </span>
+              </div>
+              {selectedRegForSubmission.submission?.submittedAt && (
+                <div className="flex justify-between">
+                  <span className="text-typo-gray">Submitted At:</span>
+                  <span className="text-typo-white">
+                    {formatDateIST(selectedRegForSubmission.submission.submittedAt)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Submission Link / Deliverable */}
+            <div className="p-4 rounded-xl bg-foundation-slate/20 border border-foundation-slate/60 space-y-2">
+              <span className="text-xs font-semibold text-typo-gray uppercase tracking-wider block">
+                Deliverable
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {selectedRegForSubmission.submission?.link && (
+                  <a
+                    href={selectedRegForSubmission.submission.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2.5 rounded-xl bg-brand-blue/20 hover:bg-brand-blue/30 text-brand-cyan border border-brand-cyan/40 inline-flex items-center gap-2 font-mono text-xs transition-colors flex-1 min-w-[200px]"
+                  >
+                    <ExternalLink className="w-4 h-4 shrink-0" />
+                    <span className="truncate">
+                      {selectedRegForSubmission.submission.fileName ||
+                        selectedRegForSubmission.submission.link}
+                    </span>
+                  </a>
+                )}
+                {selectedRegForSubmission.eventId?.submission?.folderUrl && (
+                  <a
+                    href={selectedRegForSubmission.eventId.submission.folderUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-2 font-sans text-xs font-semibold transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4 shrink-0" />
+                    <span>Open folder</span>
+                  </a>
+                )}
+                {!selectedRegForSubmission.submission?.link &&
+                  !selectedRegForSubmission.eventId?.submission?.folderUrl && (
+                    <p className="text-typo-gray">No submission link available.</p>
+                  )}
+              </div>
+            </div>
+
+            {/* Admin Note Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider block">
+                Reviewer Note / Feedback (Visible to Participant)
+              </label>
+              <textarea
+                rows={3}
+                value={submissionReviewNote}
+                onChange={(e) => setSubmissionReviewNote(e.target.value)}
+                placeholder="Optional feedback, acceptance comments, or instructions if rejected..."
+                className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+              />
+            </div>
+
+            {/* Actions: Approve / Reject / Pending / Cancel */}
+            <div className="pt-2 flex flex-wrap items-center justify-end gap-2.5">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={updatingSubmission}
+                onClick={() => setSubmissionModalOpen(false)}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={updatingSubmission}
+                onClick={() => handleUpdateSubmissionStatus("pending")}
+                className="text-xs border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+              >
+                Set Pending
+              </Button>
+              <Button
+                type="button"
+                disabled={updatingSubmission}
+                onClick={() => handleUpdateSubmissionStatus("rejected")}
+                className="text-xs bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5"
+              >
+                <Ban className="w-3.5 h-3.5" />
+                <span>Reject</span>
+              </Button>
+              <Button
+                type="button"
+                disabled={updatingSubmission}
+                onClick={() => handleUpdateSubmissionStatus("approved")}
+                className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Approve</span>
+              </Button>
+            </div>
+          </div>
+        )}
       </AdminModal>
     </div>
   );

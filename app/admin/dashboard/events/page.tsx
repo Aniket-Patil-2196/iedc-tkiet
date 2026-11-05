@@ -57,6 +57,13 @@ export default function AdminEventsPage() {
     installmentEnabled: false,
     installmentPart1Amount: "",
     installmentPart2Amount: "",
+    // Participant Submission
+    submissionEnabled: false,
+    submissionMode: "both" as "folder" | "link" | "both",
+    submissionInstructions: "",
+    submissionFolderUrl: "",
+    submissionDeadline: "",
+    submissionGateWhatsapp: false,
   });
 
   const fetchEvents = async () => {
@@ -113,6 +120,12 @@ export default function AdminEventsPage() {
       installmentEnabled: false,
       installmentPart1Amount: "",
       installmentPart2Amount: "",
+      submissionEnabled: false,
+      submissionMode: "both",
+      submissionInstructions: "",
+      submissionFolderUrl: "",
+      submissionDeadline: "",
+      submissionGateWhatsapp: false,
     });
     setModalOpen(true);
   };
@@ -158,6 +171,12 @@ export default function AdminEventsPage() {
         (event as any).installmentPart2Amount !== null && (event as any).installmentPart2Amount !== undefined
           ? String((event as any).installmentPart2Amount)
           : "",
+      submissionEnabled: Boolean(event.submission?.enabled),
+      submissionMode: ((event.submission as any)?.mode || "both") as "folder" | "link" | "both",
+      submissionInstructions: event.submission?.instructions || "",
+      submissionFolderUrl: (event.submission as any)?.folderUrl || "",
+      submissionDeadline: utcDateToIstInputString(event.submission?.deadline),
+      submissionGateWhatsapp: Boolean(event.submission?.gateWhatsapp),
     });
     setModalOpen(true);
   };
@@ -172,6 +191,20 @@ export default function AdminEventsPage() {
         ? `/api/admin/events/${(editingEvent as any)._id || editingEvent?.id}`
         : "/api/admin/events";
       const method = isEdit ? "PUT" : "POST";
+
+      if (
+        formData.submissionEnabled &&
+        (formData.submissionMode === "folder" || formData.submissionMode === "both")
+      ) {
+        if (
+          formData.submissionFolderUrl &&
+          !formData.submissionFolderUrl.toLowerCase().includes("drive.google.com")
+        ) {
+          alert("Google Drive folder link must be a valid drive.google.com link.");
+          setSaving(false);
+          return;
+        }
+      }
 
       const payload = {
         ...formData,
@@ -194,6 +227,16 @@ export default function AdminEventsPage() {
           formData.installmentPart2Amount !== "" && formData.installmentPart2Amount !== null
             ? Math.max(0, parseInt(String(formData.installmentPart2Amount), 10) || 0)
             : null,
+        submission: {
+          enabled: Boolean(formData.submissionEnabled),
+          mode: formData.submissionMode,
+          instructions: formData.submissionInstructions.trim(),
+          folderUrl: formData.submissionFolderUrl.trim() || null,
+          deadline: formData.submissionDeadline
+            ? istInputToUtcDate(formData.submissionDeadline)
+            : null,
+          gateWhatsapp: Boolean(formData.submissionGateWhatsapp),
+        },
       };
 
       const res = await fetch(url, {
@@ -936,6 +979,146 @@ export default function AdminEventsPage() {
               <span>No registration needed. This event will be displayed as open entry / walk-in attendance.</span>
             </div>
           )}
+
+          {/* Participant Submission Configuration */}
+          <div className="p-4 rounded-xl bg-foundation-slate/20 border border-foundation-slate/80 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-xs font-semibold text-typo-white uppercase tracking-wider block">
+                  Participant Submission
+                </label>
+                <span className="text-[10px] text-typo-gray block">
+                  Allow registered participants to submit files or project links for evaluation.
+                </span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.submissionEnabled}
+                  onChange={(e) =>
+                    setFormData({ ...formData, submissionEnabled: e.target.checked })
+                  }
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-foundation-slate peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-blue" />
+              </label>
+            </div>
+
+            {formData.submissionEnabled && (
+              <div className="space-y-4 pt-3 border-t border-foundation-slate/60">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Mode */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                      Submission Mode
+                    </label>
+                    <select
+                      value={formData.submissionMode}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          submissionMode: e.target.value as "folder" | "link" | "both",
+                        })
+                      }
+                      className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                    >
+                      <option value="both">Both Folder &amp; Link</option>
+                      <option value="folder">Google Drive Folder Only</option>
+                      <option value="link">Participant Link Only</option>
+                    </select>
+                  </div>
+
+                  {/* Deadline (IST) */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                      Submission Deadline (IST)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={formData.submissionDeadline}
+                      onChange={(e) =>
+                        setFormData({ ...formData, submissionDeadline: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                    />
+                    <span className="text-[10px] text-typo-gray block">
+                      Submissions close after this date &amp; time.
+                    </span>
+                  </div>
+
+                  {/* Google Drive Folder Link */}
+                  {(formData.submissionMode === "folder" ||
+                    formData.submissionMode === "both") && (
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                        Google Drive folder link (set to Anyone with the link, Editor)
+                      </label>
+                      <input
+                        type="url"
+                        value={formData.submissionFolderUrl}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            submissionFolderUrl: e.target.value,
+                          })
+                        }
+                        placeholder="https://drive.google.com/drive/folders/..."
+                        className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan font-mono"
+                      />
+                      <span className="text-[10px] text-typo-gray block">
+                        Participants will open this folder directly to upload their project deliverables.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Instructions */}
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                      Submission Instructions
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={formData.submissionInstructions}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          submissionInstructions: e.target.value,
+                        })
+                      }
+                      placeholder="Explain submission deliverables, evaluation criteria, or naming conventions..."
+                      className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
+                    />
+                  </div>
+
+                  {/* Gate WhatsApp */}
+                  <div className="sm:col-span-2 flex items-center justify-between p-3 rounded-xl bg-foundation-slate/40 border border-foundation-slate/60">
+                    <div>
+                      <span className="text-xs font-semibold text-typo-white block">
+                        Gate WhatsApp Group Access
+                      </span>
+                      <span className="text-[10px] text-typo-gray block">
+                        Hide WhatsApp invite link on receipt until the participant completes submission.
+                      </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.submissionGateWhatsapp}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            submissionGateWhatsapp: e.target.checked,
+                          })
+                        }
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-foundation-slate peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600" />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           <ImageInput
             label="Primary Event Poster (Portrait / Standard)"

@@ -27,6 +27,14 @@ import {
 import { Button } from "@/components/ui/Button";
 import { formatDateIST } from "@/lib/utils/date-ist";
 import { WhatsAppGroupJoinCard } from "@/components/events/WhatsAppGroupJoinCard";
+import {
+  ParticipantSubmissionCard,
+  isWhatsAppUnlocked,
+} from "@/components/events/ParticipantSubmissionCard";
+import {
+  IEventSubmissionConfig,
+  IRegistrationSubmission,
+} from "@/types/content";
 
 interface ReceiptViewerProps {
   registration: {
@@ -62,6 +70,7 @@ interface ReceiptViewerProps {
     paidAt?: string | Date;
     refundId?: string;
     refundedAt?: string | Date;
+    submission?: IRegistrationSubmission | null;
     createdAt: string | Date;
   };
   event: {
@@ -71,8 +80,10 @@ interface ReceiptViewerProps {
     startDate: string;
     venue: string;
     fee?: number;
+    isOnline?: boolean;
     whatsappGroupLink?: string | null;
     whatsappQrUrl?: string | null;
+    submission?: IEventSubmissionConfig | null;
   };
 }
 
@@ -89,6 +100,17 @@ export function ReceiptViewer({
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isExportingPng, setIsExportingPng] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Participant submission state
+  const [currentSubmission, setCurrentSubmission] = useState<IRegistrationSubmission | null>(
+    initialReg.submission || null
+  );
+
+  const isWhatsappLocked = Boolean(
+    event.submission?.enabled &&
+      event.submission?.gateWhatsapp &&
+      !isWhatsAppUnlocked(event.submission?.gateWhatsapp, currentSubmission)
+  );
 
   // Part 2 submission state
   const [part2Utr, setPart2Utr] = useState("");
@@ -410,9 +432,23 @@ export function ReceiptViewer({
             </p>
           )}
 
+          {/* Participant submission (if enabled) */}
+          {event.submission?.enabled && (
+            <ParticipantSubmissionCard
+              eventId={event.id}
+              receiptToken={initialReg.receiptToken}
+              registrationStatus={currentStatus}
+              eventSubmissionConfig={event.submission}
+              initialSubmission={currentSubmission}
+              onSubmissionUpdated={(newSub) => setCurrentSubmission(newSub)}
+            />
+          )}
+
           <WhatsAppGroupJoinCard
             groupLink={event.whatsappGroupLink}
             qrUrl={event.whatsappQrUrl}
+            isLocked={isWhatsappLocked}
+            lockedReason="Submit your participant files above to unlock the WhatsApp group invite."
           />
 
           <div className="pt-4 border-t border-foundation-slate/60 text-xs text-typo-gray">
@@ -626,10 +662,24 @@ export function ReceiptViewer({
         </div>
       </div>
 
+      {/* Participant submission card (stepper & submission form) */}
+      {event.submission?.enabled && (
+        <ParticipantSubmissionCard
+          eventId={event.id}
+          receiptToken={initialReg.receiptToken}
+          registrationStatus={currentStatus}
+          eventSubmissionConfig={event.submission}
+          initialSubmission={currentSubmission}
+          onSubmissionUpdated={(newSub) => setCurrentSubmission(newSub)}
+        />
+      )}
+
       {/* WhatsApp join CTA — outside light-theme receipt so it does not affect PDF/PNG export */}
       <WhatsAppGroupJoinCard
         groupLink={event.whatsappGroupLink}
         qrUrl={event.whatsappQrUrl}
+        isLocked={isWhatsappLocked}
+        lockedReason="Submit your participant files above to unlock the WhatsApp group invite."
       />
 
       {/* Official Receipt Container (ALWAYS LIGHT THEME FOR FORMAL PRINT & EXPORT) */}

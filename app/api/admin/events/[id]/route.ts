@@ -95,6 +95,57 @@ export async function PUT(request: Request, { params }: Params) {
       updateData.registrationOpen = Boolean(body.registrationOpen);
     }
 
+    if (body.submission !== undefined) {
+      if (body.submission === null) {
+        updateData.submission = { enabled: false };
+      } else {
+        let submissionDeadline: Date | null = null;
+        if (body.submission.deadline) {
+          if (typeof body.submission.deadline === "string") {
+            submissionDeadline =
+              istInputToUtcDate(body.submission.deadline) ||
+              new Date(body.submission.deadline);
+          } else if (body.submission.deadline instanceof Date) {
+            submissionDeadline = body.submission.deadline;
+          }
+        }
+        let folderUrl: string | null = null;
+        if (body.submission.folderUrl && typeof body.submission.folderUrl === "string") {
+          const trimmed = body.submission.folderUrl.trim();
+          if (trimmed) {
+            try {
+              const parsed = new URL(trimmed);
+              if (!parsed.hostname.toLowerCase().includes("drive.google.com")) {
+                return NextResponse.json(
+                  { success: false, error: "Google Drive folder link must be from drive.google.com." },
+                  { status: 400 }
+                );
+              }
+              folderUrl = trimmed;
+            } catch {
+              return NextResponse.json(
+                { success: false, error: "Invalid Google Drive folder URL format." },
+                { status: 400 }
+              );
+            }
+          }
+        }
+
+        updateData.submission = {
+          enabled: Boolean(body.submission.enabled),
+          mode: ["folder", "link", "both"].includes(body.submission.mode)
+            ? body.submission.mode
+            : "both",
+          instructions: body.submission.instructions
+            ? String(body.submission.instructions).trim()
+            : "",
+          folderUrl,
+          deadline: submissionDeadline,
+          gateWhatsapp: Boolean(body.submission.gateWhatsapp),
+        };
+      }
+    }
+
     const updated = await EventModel.findByIdAndUpdate(
       params.id,
       updateData,

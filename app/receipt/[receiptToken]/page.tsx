@@ -90,8 +90,10 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
     startDate: event ? event.startDate || (event as any).date || "" : "",
     venue: event ? event.venue : "TKIET Campus, Warananagar",
     fee: event ? event.fee : 0,
+    isOnline: Boolean((event as any)?.isOnline),
     whatsappGroupLink: event ? (event as any).whatsappGroupLink || null : null,
     whatsappQrUrl: event ? (event as any).whatsappQrUrl || null : null,
+    submission: (event as any)?.submission || null,
   };
 
   const regData = {
@@ -120,6 +122,7 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
     paidAt: registration.paidAt ? new Date(registration.paidAt).toISOString() : undefined,
     refundId: registration.refundId,
     refundedAt: registration.refundedAt ? new Date(registration.refundedAt).toISOString() : undefined,
+    submission: (registration as any).submission || null,
     createdAt: registration.createdAt ? new Date(registration.createdAt).toISOString() : new Date().toISOString(),
   };
 

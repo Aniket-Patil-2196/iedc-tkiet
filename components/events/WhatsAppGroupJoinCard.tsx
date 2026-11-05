@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -23,6 +23,9 @@ export interface WhatsAppGroupJoinCardProps {
   className?: string;
   /** Compact layout for tight panels / modals */
   compact?: boolean;
+  /** Gating support: when true, WhatsApp is locked */
+  isLocked?: boolean;
+  lockedReason?: string;
 }
 
 /**
@@ -33,9 +36,38 @@ export function WhatsAppGroupJoinCard({
   qrUrl,
   className,
   compact = false,
+  isLocked = false,
+  lockedReason,
 }: WhatsAppGroupJoinCardProps) {
   const link = typeof groupLink === "string" ? groupLink.trim() : "";
   if (!link) return null;
+
+  if (isLocked) {
+    return (
+      <div
+        className={cn(
+          "rounded-xl bg-foundation-slate/20 border border-foundation-slate/80 text-left",
+          compact ? "p-3.5 space-y-2" : "p-4 space-y-3",
+          className
+        )}
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-foundation-slate/80 border border-foundation-slate flex items-center justify-center shrink-0 text-typo-gray">
+            <Lock className="w-4 h-4" />
+          </div>
+          <div className="min-w-0 space-y-0.5">
+            <p className="text-xs font-semibold text-typo-white leading-snug">
+              WhatsApp Group Access Locked
+            </p>
+            <p className="text-[11px] text-typo-gray leading-relaxed">
+              {lockedReason ||
+                "Submit your participant files above to unlock the WhatsApp group invite."}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const qr = typeof qrUrl === "string" ? qrUrl.trim() : "";
 

@@ -72,6 +72,19 @@ const EventSchema = new Schema<IEventDocument>(
     installmentEnabled: { type: Boolean, default: false },
     installmentPart1Amount: { type: Number, default: null, min: 0 },
     installmentPart2Amount: { type: Number, default: null, min: 0 },
+    // Participant Submission Configuration
+    submission: {
+      enabled: { type: Boolean, default: false },
+      mode: {
+        type: String,
+        enum: ["folder", "link", "both"],
+        default: "both",
+      },
+      instructions: { type: String, default: "" },
+      folderUrl: { type: String, default: null },
+      deadline: { type: Date, default: null },
+      gateWhatsapp: { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );
