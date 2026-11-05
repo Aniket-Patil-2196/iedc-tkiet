@@ -59,7 +59,7 @@ export default function AdminEventsPage() {
     installmentPart2Amount: "",
     // Participant Submission
     submissionEnabled: false,
-    submissionMode: "both" as "folder" | "link" | "both",
+    submissionMode: "form" as any,
     submissionInstructions: "",
     submissionFolderUrl: "",
     submissionDeadline: "",
@@ -121,7 +121,7 @@ export default function AdminEventsPage() {
       installmentPart1Amount: "",
       installmentPart2Amount: "",
       submissionEnabled: false,
-      submissionMode: "both",
+      submissionMode: "form",
       submissionInstructions: "",
       submissionFolderUrl: "",
       submissionDeadline: "",
@@ -172,7 +172,7 @@ export default function AdminEventsPage() {
           ? String((event as any).installmentPart2Amount)
           : "",
       submissionEnabled: Boolean(event.submission?.enabled),
-      submissionMode: ((event.submission as any)?.mode || "both") as "folder" | "link" | "both",
+      submissionMode: ((event.submission as any)?.mode || "form") as any,
       submissionInstructions: event.submission?.instructions || "",
       submissionFolderUrl: (event.submission as any)?.folderUrl || "",
       submissionDeadline: utcDateToIstInputString(event.submission?.deadline),
@@ -194,7 +194,7 @@ export default function AdminEventsPage() {
 
       if (
         formData.submissionEnabled &&
-        (formData.submissionMode === "folder" || formData.submissionMode === "both")
+        (formData.submissionMode === "form" || formData.submissionMode === "folder" || formData.submissionMode === "both")
       ) {
         if (
           formData.submissionFolderUrl &&
@@ -1023,8 +1023,8 @@ export default function AdminEventsPage() {
                       }
                       className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
                     >
+                      <option value="form">Google Form</option>
                       <option value="both">Both Form &amp; Link</option>
-                      <option value="form">Google Form Only</option>
                       <option value="link">Participant Link Only</option>
                       <option value="folder">Google Drive Folder Only (Legacy)</option>
                     </select>
@@ -1049,8 +1049,7 @@ export default function AdminEventsPage() {
                   </div>
 
                   {/* Google Drive Folder Link */}
-                  {(formData.submissionMode === "folder" ||
-                    formData.submissionMode === "both") && (
+                  {(formData.submissionMode === "form" || formData.submissionMode === "folder" || formData.submissionMode === "both") && (
                     <div className="space-y-1.5 sm:col-span-2">
                       <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
                         Google Form link (submission form)
