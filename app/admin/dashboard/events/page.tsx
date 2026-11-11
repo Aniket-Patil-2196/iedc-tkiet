@@ -59,7 +59,6 @@ export default function AdminEventsPage() {
     installmentPart2Amount: "",
     // Participant Submission
     submissionEnabled: false,
-    submissionMode: "form" as any,
     submissionInstructions: "",
     submissionFolderUrl: "",
     submissionDeadline: "",
@@ -123,7 +122,6 @@ export default function AdminEventsPage() {
       installmentPart1Amount: "",
       installmentPart2Amount: "",
       submissionEnabled: false,
-      submissionMode: "form",
       submissionInstructions: "",
       submissionFolderUrl: "",
       submissionDeadline: "",
@@ -176,7 +174,6 @@ export default function AdminEventsPage() {
           ? String((event as any).installmentPart2Amount)
           : "",
       submissionEnabled: Boolean(event.submission?.enabled),
-      submissionMode: ((event.submission as any)?.mode || "form") as any,
       submissionInstructions: event.submission?.instructions || "",
       submissionFolderUrl: (event.submission as any)?.folderUrl || "",
       submissionDeadline: utcDateToIstInputString(event.submission?.deadline),
@@ -201,15 +198,12 @@ export default function AdminEventsPage() {
         : "/api/admin/events";
       const method = isEdit ? "PUT" : "POST";
 
-      if (
-        formData.submissionEnabled &&
-        (formData.submissionMode === "form" || formData.submissionMode === "folder" || formData.submissionMode === "both")
-      ) {
+      if (formData.submissionEnabled && formData.submissionFolderUrl) {
         if (
-          formData.submissionFolderUrl &&
-          !formData.submissionFolderUrl.toLowerCase().includes("drive.google.com") && !formData.submissionFolderUrl.toLowerCase().includes("forms.gle") && !formData.submissionFolderUrl.toLowerCase().includes("docs.google.com") && !formData.submissionFolderUrl.toLowerCase().includes("forms.gle") && !formData.submissionFolderUrl.toLowerCase().includes("docs.google.com")
+          !formData.submissionFolderUrl.toLowerCase().includes("drive.google.com") &&
+          !formData.submissionFolderUrl.toLowerCase().includes("docs.google.com")
         ) {
-          alert("Form/Folder link must be a valid forms.gle, docs.google.com, or drive.google.com link.");
+          alert("Folder link must be a valid drive.google.com or docs.google.com link.");
           setSaving(false);
           return;
         }
@@ -238,9 +232,7 @@ export default function AdminEventsPage() {
             : null,
         submission: {
           enabled: Boolean(formData.submissionEnabled),
-          mode: formData.submissionMode,
           instructions: formData.submissionInstructions.trim(),
-          formUrl: formData.submissionFolderUrl.trim() || null,
           folderUrl: formData.submissionFolderUrl.trim() || null,
           deadline: formData.submissionDeadline
             ? istInputToUtcDate(formData.submissionDeadline)
@@ -650,7 +642,7 @@ export default function AdminEventsPage() {
                 {
                   value: "external",
                   label: "External Link",
-                  desc: "Google Form / Unstop / Devfolio",
+                  desc: "External Form / Unstop / Devfolio",
                   icon: ExternalLink,
                 },
                 {
@@ -1021,30 +1013,8 @@ export default function AdminEventsPage() {
             {formData.submissionEnabled && (
               <div className="space-y-4 pt-3 border-t border-foundation-slate/60">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Mode */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
-                      Submission Mode
-                    </label>
-                    <select
-                      value={formData.submissionMode}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          submissionMode: e.target.value as "folder" | "link" | "both",
-                        })
-                      }
-                      className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan"
-                    >
-                      <option value="form">Google Form</option>
-                      <option value="both">Both Form &amp; Link</option>
-                      <option value="link">Participant Link Only</option>
-                      <option value="folder">Google Drive Folder Only (Legacy)</option>
-                    </select>
-                  </div>
-
                   {/* Deadline (IST) */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 sm:col-span-2">
                     <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
                       Submission Deadline (IST)
                     </label>
@@ -1061,29 +1031,27 @@ export default function AdminEventsPage() {
                     </span>
                   </div>
 
-                  {/* Google Drive Folder Link */}
-                  {(formData.submissionMode === "form" || formData.submissionMode === "folder" || formData.submissionMode === "both") && (
-                    <div className="space-y-1.5 sm:col-span-2">
-                      <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
-                        Google Form link (submission form)
-                      </label>
-                      <input
-                        type="url"
-                        value={formData.submissionFolderUrl}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            submissionFolderUrl: e.target.value,
-                          })
-                        }
-                        placeholder="https://forms.gle/... or https://docs.google.com/forms/..."
-                        className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan font-mono"
-                      />
-                      <span className="text-[10px] text-typo-gray block">
-                        Participants will open this Google Form to submit their project details and files.
-                      </span>
-                    </div>
-                  )}
+                  {/* Google Drive Folder Link (Optional) */}
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-xs font-semibold text-typo-gray uppercase tracking-wider">
+                      Google Drive Folder link (optional upload folder)
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.submissionFolderUrl}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          submissionFolderUrl: e.target.value,
+                        })
+                      }
+                      placeholder="https://drive.google.com/drive/folders/..."
+                      className="w-full px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan font-mono"
+                    />
+                    <span className="text-[10px] text-typo-gray block">
+                      Optional Drive folder where participants can upload files before submitting their link.
+                    </span>
+                  </div>
 
                   {/* Instructions */}
                   <div className="space-y-1.5 sm:col-span-2">

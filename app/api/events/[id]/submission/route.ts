@@ -17,10 +17,8 @@ function isValidGoogleDriveHost(urlString: string): boolean {
     return (
       host === "drive.google.com" ||
       host === "docs.google.com" ||
-      host === "forms.gle" ||
       host.endsWith(".drive.google.com") ||
-      host.endsWith(".docs.google.com") ||
-      host.endsWith(".forms.gle")
+      host.endsWith(".docs.google.com")
     );
   } catch {
     return false;
@@ -80,11 +78,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     // Determine submission link
-    let effectiveLink = (link && typeof link === "string" ? link.trim() : "");
-    const formOrFolderUrl = (event.submission as any)?.formUrl || event.submission?.folderUrl;
-    if (!effectiveLink && (event.submission.mode === "form" || event.submission.mode === "folder") && formOrFolderUrl) {
-      effectiveLink = formOrFolderUrl.trim();
-    }
+    const effectiveLink = (link && typeof link === "string" ? link.trim() : "");
 
     if (!effectiveLink) {
       return NextResponse.json(
@@ -98,7 +92,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         {
           success: false,
           error:
-            "Invalid link host. Link must be from forms.gle, drive.google.com, or docs.google.com.",
+            "Invalid link host. Link must be from drive.google.com or docs.google.com.",
         },
         { status: 400 }
       );

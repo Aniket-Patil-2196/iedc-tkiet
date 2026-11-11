@@ -136,7 +136,7 @@ export function EventRegistrationSection({
                 rel="noopener noreferrer"
                 className="text-xs text-typo-gray hover:text-brand-cyan transition-colors inline-flex items-center gap-1.5"
               >
-                <span>Or submit via Google Form</span>
+                <span>Or register via external link</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>

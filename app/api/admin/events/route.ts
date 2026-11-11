@@ -157,8 +157,8 @@ export async function POST(request: Request) {
         }
       }
 
-      let formUrl: string | null = null;
-      const rawUrl = body.submission.formUrl || body.submission.folderUrl;
+      let folderUrl: string | null = null;
+      const rawUrl = body.submission.folderUrl || body.submission.formUrl;
       if (rawUrl && typeof rawUrl === "string") {
         const trimmed = rawUrl.trim();
         if (trimmed) {
@@ -166,18 +166,17 @@ export async function POST(request: Request) {
             const parsed = new URL(trimmed);
             const host = parsed.hostname.toLowerCase();
             const isValidHost =
-              host.includes("forms.gle") ||
-              host.includes("docs.google.com") ||
               host.includes("drive.google.com") ||
+              host.includes("docs.google.com") ||
               trimmed.startsWith("http://") ||
               trimmed.startsWith("https://");
             if (!isValidHost) {
               return NextResponse.json(
-                { success: false, error: "Submission link must be a valid Google Form or Drive link." },
+                { success: false, error: "Submission folder link must be a valid Google Drive link." },
                 { status: 400 }
               );
             }
-            formUrl = trimmed;
+            folderUrl = trimmed;
           } catch {
             return NextResponse.json(
               { success: false, error: "Invalid submission URL format." },
@@ -189,12 +188,8 @@ export async function POST(request: Request) {
 
       submissionConfig = {
         enabled: Boolean(body.submission.enabled),
-        mode: ["form", "folder", "link", "both"].includes(body.submission.mode)
-          ? body.submission.mode
-          : "both",
         instructions: body.submission.instructions ? String(body.submission.instructions).trim() : "",
-        formUrl,
-        folderUrl: formUrl,
+        folderUrl,
         deadline: submissionDeadline,
         gateWhatsapp: Boolean(body.submission.gateWhatsapp),
         allowResubmission:

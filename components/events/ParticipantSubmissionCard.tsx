@@ -72,7 +72,7 @@ export function ParticipantSubmissionCard({
     initialSubmission || null
   );
 
-  const targetFormUrl = config.formUrl || config.folderUrl;
+  const [driveLink, setDriveLink] = useState(initialSubmission?.link || "");
 
   const allowResubmission = config.allowResubmission !== false;
   const maxAttempts = config.maxAttempts && config.maxAttempts > 0 ? config.maxAttempts : 3;
@@ -96,6 +96,21 @@ export function ParticipantSubmissionCard({
   const isDeadlinePassed = config.deadline
     ? new Date() > new Date(config.deadline)
     : false;
+
+  const isValidClientDriveHost = (urlString: string): boolean => {
+    try {
+      const parsed = new URL(urlString.trim());
+      const host = parsed.hostname.toLowerCase();
+      return (
+        host === "drive.google.com" ||
+        host === "docs.google.com" ||
+        host.endsWith(".drive.google.com") ||
+        host.endsWith(".docs.google.com")
+      );
+    } catch {
+      return false;
+    }
+  };
 
   const submitLink = async (targetLink: string) => {
     setErrorMessage(null);
@@ -121,7 +136,8 @@ export function ParticipantSubmissionCard({
 
       setSubmission(data.submission);
       setIsEditing(false);
-      setSuccessMessage("Submission received successfully and is pending review.");
+      setDriveLink(data.submission?.link || targetLink);
+      setSuccessMessage("Link submitted successfully and is pending review.");
       if (onSubmissionUpdated) {
         onSubmissionUpdated(data.submission);
       }
@@ -132,9 +148,25 @@ export function ParticipantSubmissionCard({
     }
   };
 
-  const handleFormConfirm = async () => {
-    const formLink = targetFormUrl?.trim() || "";
-    await submitLink(formLink);
+  const handleSubmitLink = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    const trimmed = driveLink.trim();
+    if (!trimmed) {
+      setErrorMessage("Please enter your Google Drive link.");
+      return;
+    }
+
+    if (!isValidClientDriveHost(trimmed)) {
+      setErrorMessage(
+        "Invalid link host. Link must be from drive.google.com or docs.google.com."
+      );
+      return;
+    }
+
+    await submitLink(trimmed);
   };
 
   // Stepper calculations
@@ -240,7 +272,7 @@ export function ParticipantSubmissionCard({
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-typo-white truncate">3. Submit Form</p>
+              <p className="text-xs font-semibold text-typo-white truncate">3. Submit Link</p>
               <p
                 className={cn(
                   "text-[10px] font-medium truncate",
@@ -323,7 +355,7 @@ export function ParticipantSubmissionCard({
               </h3>
             </div>
             <p className="text-xs font-sans text-typo-gray">
-              Complete the official Google Form to submit your project details and deliverables.
+              Submit your deliverable files via Google Drive link.
             </p>
           </div>
 
@@ -420,7 +452,7 @@ export function ParticipantSubmissionCard({
         {/* Existing Submission Details (When not in edit mode OR when cannot resubmit) */}
         {hasSubmitted && (!isEditing || !canResubmit) && (
           <div className="p-4 rounded-xl bg-foundation-slate/30 border border-foundation-slate space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-sans text-typo-gray uppercase tracking-wider">
                   Submitted Deliverable
@@ -428,24 +460,34 @@ export function ParticipantSubmissionCard({
                 <div className="flex items-center gap-2 mt-1">
                   <FileText className="w-4 h-4 text-brand-cyan shrink-0" />
                   <a
-                    href={submission?.link || targetFormUrl || "#"}
+                    href={submission?.link || "#"}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs font-semibold text-brand-cyan hover:underline truncate inline-flex items-center gap-1.5"
+                    className="text-xs font-semibold text-brand-cyan hover:underline inline-flex items-center gap-1.5"
                   >
-                    <span className="truncate">
-                      {submission?.fileName || submission?.link || "Official Submission Form"}
-                    </span>
+                    <span>Open</span>
                     <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                   </a>
+                  {submission?.link && (
+                    <span className="text-xs font-mono text-typo-gray truncate">
+                      ({submission.link})
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {submission?.submittedAt && (
-                <p className="text-[11px] text-typo-gray shrink-0">
-                  Submitted on {formatDateIST(submission.submittedAt)}
-                </p>
-              )}
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
+                {allowResubmission && (
+                  <span className="text-[11px] font-mono font-medium px-2.5 py-1 rounded-lg bg-foundation-slate/60 text-brand-cyan border border-brand-cyan/30">
+                    Attempts used: {currentAttempts} of {maxAttempts}
+                  </span>
+                )}
+                {submission?.submittedAt && (
+                  <p className="text-[11px] text-typo-gray">
+                    Submitted on {formatDateIST(submission.submittedAt)}
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Resubmit button (allowed until deadline) */}
@@ -464,13 +506,14 @@ export function ParticipantSubmissionCard({
                     variant="outline"
                     onClick={() => {
                       setIsEditing(true);
+                      setDriveLink(submission?.link || "");
                       setErrorMessage(null);
                       setSuccessMessage(null);
                     }}
                     className="text-xs flex items-center gap-1.5 py-1.5 px-3"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Update Submission</span>
+                    <span>Update Link</span>
                   </Button>
                 )}
               </div>
@@ -478,17 +521,17 @@ export function ParticipantSubmissionCard({
           </div>
         )}
 
-        {/* Submission Form (When initial submission OR editing, only if canResubmit) */}
+        {/* Drive Link Submission Form (When initial submission OR editing, only if canResubmit) */}
         {canResubmit && (!hasSubmitted || isEditing) && !isDeadlinePassed && (
           <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-foundation-slate/40 border border-foundation-slate space-y-3">
+            <div className="p-4 rounded-xl bg-foundation-slate/40 border border-foundation-slate space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="space-y-1">
                   <p className="text-xs font-semibold text-typo-white">
-                    Official Event Submission Form
+                    Submit your Drive link
                   </p>
                   <p className="text-[11px] text-typo-gray leading-relaxed">
-                    Complete the official Google Form with your project details, answers, and required file attachments.
+                    Upload your files to Google Drive, set sharing to 'Anyone with the link can view', and paste the link below.
                   </p>
                 </div>
                 {allowResubmission && (
@@ -498,50 +541,68 @@ export function ParticipantSubmissionCard({
                 )}
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">
-                {targetFormUrl && (
+              {/* If event.submission.folderUrl is set, keep an "Open upload folder" button above the input as an alternative */}
+              {config.folderUrl && (
+                <div>
                   <a
-                    href={targetFormUrl}
+                    href={config.folderUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand-blue hover:bg-blue-600 text-white font-sans text-xs font-semibold transition-colors shadow-sm"
+                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-foundation-slate/60 hover:bg-foundation-slate text-typo-white hover:text-brand-cyan border border-foundation-slate text-xs font-semibold transition-colors"
                   >
-                    <FolderOpen className="w-4 h-4" />
-                    <span>Open submission form</span>
+                    <FolderOpen className="w-4 h-4 text-brand-cyan" />
+                    <span>Open upload folder</span>
                     <ExternalLink className="w-3.5 h-3.5 opacity-80" />
                   </a>
-                )}
+                </div>
+              )}
 
-                <Button
-                  type="button"
-                  onClick={handleFormConfirm}
-                  disabled={isSubmitting}
-                  className="text-xs px-4 py-2.5 flex items-center justify-center gap-2"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Confirming...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>I have submitted the form</span>
-                    </>
-                  )}
-                </Button>
-
-                {hasSubmitted && isEditing && (
+              {/* URL input and Submit Link button */}
+              <form onSubmit={handleSubmitLink} className="space-y-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                  <input
+                    type="url"
+                    value={driveLink}
+                    onChange={(e) => {
+                      setDriveLink(e.target.value);
+                      if (errorMessage) setErrorMessage(null);
+                    }}
+                    placeholder="https://drive.google.com/..."
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-foundation-slate/50 border border-foundation-slate text-typo-white text-xs focus:outline-none focus:border-brand-cyan font-mono"
+                  />
                   <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsEditing(false)}
-                    className="text-xs py-2.5 px-3"
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="text-xs px-5 py-2.5 flex items-center justify-center gap-2 shrink-0"
                   >
-                    Cancel
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Submitting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Submit Link</span>
+                      </>
+                    )}
                   </Button>
-                )}
-              </div>
+                  {hasSubmitted && isEditing && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setDriveLink(submission?.link || "");
+                        setErrorMessage(null);
+                      }}
+                      className="text-xs py-2.5 px-3"
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                </div>
+              </form>
             </div>
 
             {/* Status alerts */}
