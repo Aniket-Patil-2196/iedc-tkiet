@@ -188,10 +188,17 @@ const RegistrationSchema = new Schema<IRegistrationDocument>(
       submittedAt: { type: Date, default: null },
       status: {
         type: String,
-        enum: ["pending", "approved", "rejected", null],
+        enum: ["pending", "under_review", "approved", "rejected", null],
         default: null,
       },
       adminNote: { type: String, default: null },
+      attempts: { type: Number, default: 0 },
+      history: [
+        {
+          link: { type: String, required: true },
+          submittedAt: { type: Date, default: Date.now },
+        },
+      ],
     },
   },
   { timestamps: true }

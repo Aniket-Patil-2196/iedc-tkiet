@@ -74,10 +74,23 @@ export function ParticipantSubmissionCard({
 
   const targetFormUrl = config.formUrl || config.folderUrl;
 
+  const allowResubmission = config.allowResubmission !== false;
+  const maxAttempts = config.maxAttempts && config.maxAttempts > 0 ? config.maxAttempts : 3;
+  const currentAttempts =
+    typeof submission?.attempts === "number"
+      ? submission.attempts
+      : submission?.submittedAt || submission?.link
+      ? 1
+      : 0;
+
+  const hasSubmitted = Boolean(submission?.submittedAt || submission?.link);
+  const attemptsUsedUp = allowResubmission && currentAttempts >= maxAttempts;
+  const canResubmit = !hasSubmitted || (allowResubmission && !attemptsUsedUp);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(!submission?.submittedAt);
+  const [isEditing, setIsEditing] = useState(!hasSubmitted && canResubmit);
 
   // Check deadline
   const isDeadlinePassed = config.deadline
@@ -126,8 +139,8 @@ export function ParticipantSubmissionCard({
 
   // Stepper calculations
   const isPaid = registrationStatus === "paid";
-  const hasSubmitted = Boolean(submission?.submittedAt);
   const isApproved = submission?.status === "approved";
+  const isUnderReview = submission?.status === "under_review";
   const isRejected = submission?.status === "rejected";
   const isPending = hasSubmitted && submission?.status === "pending";
 
@@ -193,6 +206,8 @@ export function ParticipantSubmissionCard({
               "flex items-center gap-2.5 p-3 rounded-xl border",
               isApproved
                 ? "bg-foundation-slate/50 border-emerald-500/30"
+                : isUnderReview
+                ? "bg-foundation-slate/50 border-sky-500/30"
                 : isPending
                 ? "bg-foundation-slate/50 border-amber-500/30"
                 : isRejected
@@ -205,6 +220,8 @@ export function ParticipantSubmissionCard({
                 "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
                 isApproved
                   ? "bg-emerald-500/20 text-emerald-400"
+                  : isUnderReview
+                  ? "bg-sky-500/20 text-sky-400"
                   : isPending
                   ? "bg-amber-500/20 text-amber-400"
                   : isRejected
@@ -214,7 +231,7 @@ export function ParticipantSubmissionCard({
             >
               {isApproved ? (
                 <CheckCircle2 className="w-4 h-4" />
-              ) : isPending ? (
+              ) : isUnderReview || isPending ? (
                 <Clock className="w-4 h-4" />
               ) : isRejected ? (
                 <AlertCircle className="w-4 h-4" />
@@ -229,6 +246,8 @@ export function ParticipantSubmissionCard({
                   "text-[10px] font-medium truncate",
                   isApproved
                     ? "text-emerald-400"
+                    : isUnderReview
+                    ? "text-sky-400"
                     : isPending
                     ? "text-amber-400"
                     : isRejected
@@ -238,8 +257,10 @@ export function ParticipantSubmissionCard({
               >
                 {isApproved
                   ? "Approved"
+                  : isUnderReview
+                  ? "Under Review"
                   : isPending
-                  ? "In Review"
+                  ? "Pending"
                   : isRejected
                   ? "Action Required"
                   : "Required"}
@@ -315,10 +336,16 @@ export function ParticipantSubmissionCard({
                   <span>Submission Approved</span>
                 </span>
               )}
+              {submission.status === "under_review" && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-500/15 text-sky-400 border border-sky-500/30">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Under Review</span>
+                </span>
+              )}
               {submission.status === "pending" && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
                   <Clock className="w-3.5 h-3.5" />
-                  <span>Under Review</span>
+                  <span>Pending Review</span>
                 </span>
               )}
               {submission.status === "rejected" && (
@@ -361,7 +388,7 @@ export function ParticipantSubmissionCard({
             <AlertCircle className="w-5 h-5 shrink-0 text-rose-400" />
             <div>
               <p className="font-semibold text-rose-200">
-                Submission Window Closed
+                Submissions closed
               </p>
               <p className="text-[11px] text-rose-300/80">
                 The deadline for this event has expired. No further submissions or modifications can be accepted.
@@ -390,8 +417,8 @@ export function ParticipantSubmissionCard({
           </div>
         )}
 
-        {/* Existing Submission Details (When not in edit mode) */}
-        {hasSubmitted && !isEditing && (
+        {/* Existing Submission Details (When not in edit mode OR when cannot resubmit) */}
+        {hasSubmitted && (!isEditing || !canResubmit) && (
           <div className="p-4 rounded-xl bg-foundation-slate/30 border border-foundation-slate space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="min-w-0">
@@ -425,37 +452,50 @@ export function ParticipantSubmissionCard({
             {!isDeadlinePassed && (
               <div className="pt-2 border-t border-foundation-slate/60 flex items-center justify-between">
                 <p className="text-[11px] text-typo-gray">
-                  Need to update your files? You can resubmit anytime before the deadline.
+                  {canResubmit
+                    ? "Need to update your files? You can resubmit anytime before the deadline."
+                    : !allowResubmission
+                    ? "Resubmission is not permitted for this event."
+                    : `Maximum submission attempts (${maxAttempts} of ${maxAttempts}) reached.`}
                 </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setIsEditing(true);
-                    setErrorMessage(null);
-                    setSuccessMessage(null);
-                  }}
-                  className="text-xs flex items-center gap-1.5 py-1.5 px-3"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Update Submission</span>
-                </Button>
+                {canResubmit && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditing(true);
+                      setErrorMessage(null);
+                      setSuccessMessage(null);
+                    }}
+                    className="text-xs flex items-center gap-1.5 py-1.5 px-3"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Update Submission</span>
+                  </Button>
+                )}
               </div>
             )}
           </div>
         )}
 
-        {/* Submission Form (When initial submission OR editing) */}
-        {(!hasSubmitted || isEditing) && !isDeadlinePassed && (
+        {/* Submission Form (When initial submission OR editing, only if canResubmit) */}
+        {canResubmit && (!hasSubmitted || isEditing) && !isDeadlinePassed && (
           <div className="space-y-4">
             <div className="p-4 rounded-xl bg-foundation-slate/40 border border-foundation-slate space-y-3">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-typo-white">
-                  Official Event Submission Form
-                </p>
-                <p className="text-[11px] text-typo-gray leading-relaxed">
-                  Complete the official Google Form with your project details, answers, and required file attachments.
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-typo-white">
+                    Official Event Submission Form
+                  </p>
+                  <p className="text-[11px] text-typo-gray leading-relaxed">
+                    Complete the official Google Form with your project details, answers, and required file attachments.
+                  </p>
+                </div>
+                {allowResubmission && (
+                  <span className="shrink-0 text-[11px] font-mono font-medium px-2.5 py-1 rounded-lg bg-foundation-slate/60 text-brand-cyan border border-brand-cyan/30 self-start sm:self-auto">
+                    Attempts used: {currentAttempts} of {maxAttempts}
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">

@@ -85,6 +85,8 @@ const EventSchema = new Schema<IEventDocument>(
       folderUrl: { type: String, default: null },
       deadline: { type: Date, default: null },
       gateWhatsapp: { type: Boolean, default: false },
+      allowResubmission: { type: Boolean, default: true },
+      maxAttempts: { type: Number, default: 3, min: 1 },
     },
   },
   { timestamps: true }

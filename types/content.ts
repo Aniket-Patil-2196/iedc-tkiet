@@ -73,9 +73,20 @@ export interface IEventSubmissionConfig {
   folderUrl?: string | null;
   deadline?: string | Date | null;
   gateWhatsapp?: boolean;
+  allowResubmission?: boolean;
+  maxAttempts?: number;
 }
 
-export type SubmissionStatus = "pending" | "approved" | "rejected";
+export type SubmissionStatus =
+  | "pending"
+  | "under_review"
+  | "approved"
+  | "rejected";
+
+export interface IRegistrationSubmissionHistory {
+  link: string;
+  submittedAt: string | Date;
+}
 
 export interface IRegistrationSubmission {
   link?: string | null;
@@ -85,6 +96,8 @@ export interface IRegistrationSubmission {
   submittedAt?: string | Date | null;
   status?: SubmissionStatus | null;
   adminNote?: string | null;
+  attempts?: number;
+  history?: IRegistrationSubmissionHistory[];
 }
 
 export type RegistrationStatus =

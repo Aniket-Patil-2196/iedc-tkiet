@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Sparkles,
   Coins,
+  FolderOpen,
 } from "lucide-react";
 import {
   EventStatusResult,
@@ -305,6 +306,17 @@ export function EventRegistrationPanel({
               <p className="font-sans text-[11px] text-typo-gray text-center">{action.reason}</p>
             )}
           </div>
+        )}
+
+        {/* Submit Your Solution (outline button under Register when submission is enabled) */}
+        {event.submission?.enabled && (
+          <Link
+            href="/receipt/find"
+            className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-brand-cyan/60 hover:border-brand-cyan hover:bg-brand-cyan/10 text-brand-cyan hover:text-typo-white font-sans text-xs sm:text-sm font-semibold transition-all"
+          >
+            <FolderOpen className="w-4 h-4" />
+            <span>Submit Your Solution</span>
+          </Link>
         )}
 
         {/* Share Button with Native API or Clipboard Fallback */}

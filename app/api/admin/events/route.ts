@@ -197,6 +197,15 @@ export async function POST(request: Request) {
         folderUrl: formUrl,
         deadline: submissionDeadline,
         gateWhatsapp: Boolean(body.submission.gateWhatsapp),
+        allowResubmission:
+          body.submission.allowResubmission !== undefined
+            ? Boolean(body.submission.allowResubmission)
+            : true,
+        maxAttempts:
+          body.submission.maxAttempts !== undefined &&
+          !isNaN(Number(body.submission.maxAttempts))
+            ? Math.max(1, Number(body.submission.maxAttempts))
+            : 3,
       };
     }
 

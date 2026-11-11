@@ -152,7 +152,56 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // 6. Save submission & set status 'pending' (allows resubmission until deadline)
+    // 6. Check resubmission permissions and max attempts
+    const allowResubmission = (event.submission as any).allowResubmission !== false;
+    const maxAttempts =
+      typeof (event.submission as any).maxAttempts === "number" &&
+      (event.submission as any).maxAttempts > 0
+        ? (event.submission as any).maxAttempts
+        : 3;
+
+    const previousLink = registration.submission?.link;
+    const currentAttempts =
+      typeof registration.submission?.attempts === "number"
+        ? registration.submission.attempts
+        : previousLink
+        ? 1
+        : 0;
+
+    if (previousLink) {
+      if (!allowResubmission) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Resubmission is not allowed for this event.",
+          },
+          { status: 400 }
+        );
+      }
+      if (currentAttempts >= maxAttempts) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Maximum submission attempts (${maxAttempts}) reached.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Push previous link into history if it existed
+    const previousHistory = Array.isArray(registration.submission?.history)
+      ? [...registration.submission.history]
+      : [];
+
+    if (previousLink) {
+      previousHistory.push({
+        link: previousLink,
+        submittedAt: registration.submission?.submittedAt || new Date(),
+      });
+    }
+
+    // 7. Save submission, increment attempts, reset status to 'pending'
     registration.submission = {
       link: effectiveLink,
       fileName: registration.submission?.fileName || null,
@@ -161,6 +210,8 @@ export async function POST(request: Request, { params }: RouteParams) {
       submittedAt: new Date(),
       status: "pending",
       adminNote: null,
+      attempts: currentAttempts + 1,
+      history: previousHistory,
     };
 
     await registration.save();

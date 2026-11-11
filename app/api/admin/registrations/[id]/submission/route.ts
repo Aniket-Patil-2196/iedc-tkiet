@@ -24,11 +24,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const body = await request.json();
     const { status, adminNote } = body || {};
 
-    if (!status || !["pending", "approved", "rejected"].includes(status)) {
+    if (!status || !["pending", "under_review", "approved", "rejected"].includes(status)) {
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid status. Must be 'pending', 'approved', or 'rejected'.",
+          error: "Invalid status. Must be 'pending', 'under_review', 'approved', or 'rejected'.",
         },
         { status: 400 }
       );
